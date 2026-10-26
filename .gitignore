@@ -12,3 +12,8 @@ captures/
 *.keystore
 *signing*.properties
 .env*
+
+build_*.log
+store/*-raw.png
+local-signing.properties
+

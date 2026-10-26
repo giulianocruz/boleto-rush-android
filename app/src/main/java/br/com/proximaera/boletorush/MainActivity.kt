@@ -1,9 +1,13 @@
 package br.com.proximaera.boletorush
 
+import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Bundle
 import android.view.View
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -24,6 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,298 +38,429 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.random.Random
 
-private val Night = Color(0xFF071326)
-private val Turquoise = Color(0xFF19E0D0)
+private val Navy = Color(0xFF071326)
+private val Teal = Color(0xFF25E2D1)
 private val Gold = Color(0xFFFFD166)
-private val Red = Color(0xFFFF647A)
-private enum class Screen { START, PLAYING, END }
-private data class Falling(val id: Int, val x: Float, val y: Float, val speed: Float, val coin: Boolean)
+private val Coral = Color(0xFFFF657C)
+private val Muted = Color(0xFFA7BBCF)
+private enum class Screen { MENU, PLAY, PAUSE, END }
+private enum class Kind { COIN, BILL, SHIELD, HEART }
+private data class Drop(val id: Int, val x: Float, val y: Float, val speed: Float, val kind: Kind)
 
 class MainActivity : ComponentActivity() {
+    private var foreground by mutableStateOf(true)
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
-        setContent { BoletoRush() }
+        window.decorView.systemUiVisibility =
+            View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+        setContent { BoletoRush(foreground) }
+    }
+    override fun onPause() {
+        foreground = false
+        super.onPause()
+    }
+    override fun onResume() {
+        super.onResume()
+        foreground = true
     }
 }
 
 @Composable
-private fun BoletoRush() {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val preferences = remember { context.getSharedPreferences("boleto_rush", 0) }
-    var screen by remember { mutableStateOf(Screen.START) }
-    var run by remember { mutableIntStateOf(0) }
-    var points by remember { mutableIntStateOf(0) }
-    var best by remember { mutableIntStateOf(preferences.getInt("best", 0)) }
+private fun BoletoRush(foreground: Boolean) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
+    var screen by remember { mutableStateOf(Screen.MENU) }
+    var round by remember { mutableIntStateOf(0) }
+    var score by remember { mutableIntStateOf(0) }
+    var best by remember { mutableIntStateOf(prefs.getInt("best", 0)) }
+    var gamesPlayed by remember { mutableIntStateOf(prefs.getInt("games", 0)) }
+    var soundOn by remember { mutableStateOf(prefs.getBoolean("sound", true)) }
     var lives by remember { mutableIntStateOf(3) }
     var combo by remember { mutableIntStateOf(0) }
-    var seconds by remember { mutableFloatStateOf(0f) }
+    var elapsed by remember { mutableFloatStateOf(0f) }
     var playerX by remember { mutableFloatStateOf(0.5f) }
     var targetX by remember { mutableFloatStateOf(0.5f) }
-    var items by remember { mutableStateOf<List<Falling>>(emptyList()) }
-    val rng = remember { Random(System.currentTimeMillis()) }
-
-    fun startGame() {
-        points = 0
+    var drops by remember { mutableStateOf<List<Drop>>(emptyList()) }
+    var shield by remember { mutableFloatStateOf(0f) }
+    var invulnerable by remember { mutableFloatStateOf(0f) }
+    var won by remember { mutableStateOf(false) }
+    val rng = remember { Random(System.nanoTime()) }
+    val audio = remember { runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 45) }.getOrNull() }
+    DisposableEffect(audio) { onDispose { audio?.release() } }
+    fun tone(type: Int) {
+        if (soundOn) runCatching { audio?.startTone(type, 75) }
+    }
+    fun begin() {
+        score = 0
         lives = 3
         combo = 0
-        seconds = 0f
+        elapsed = 0f
         playerX = 0.5f
         targetX = 0.5f
-        items = emptyList()
-        run++
-        screen = Screen.PLAYING
+        drops = emptyList()
+        shield = 0f
+        invulnerable = 0f
+        won = false
+        round++
+        screen = Screen.PLAY
+    }
+    fun finish(victory: Boolean) {
+        won = victory
+        screen = Screen.END
+        gamesPlayed++
+        prefs.edit().putInt("games", gamesPlayed).apply()
+        if (score > best) {
+            best = score
+            prefs.edit().putInt("best", best).apply()
+        }
+    }
+    fun toggleSound() {
+        soundOn = !soundOn
+        prefs.edit().putBoolean("sound", soundOn).apply()
     }
 
-    LaunchedEffect(screen) {
-        if (screen == Screen.END && points > best) {
-            best = points
-            preferences.edit().putInt("best", best).apply()
+    BackHandler(enabled = screen != Screen.MENU) {
+        screen = when (screen) {
+            Screen.PLAY -> Screen.PAUSE
+            Screen.PAUSE -> Screen.PLAY
+            Screen.END -> Screen.MENU
+            Screen.MENU -> Screen.MENU
+        }
+    }
+    LaunchedEffect(foreground) {
+        if (!foreground && screen == Screen.PLAY) screen = Screen.PAUSE
+    }
+
+    LaunchedEffect(round, screen) {
+        if (screen != Screen.PLAY) return@LaunchedEffect
+        var lastFrame = withFrameNanos { it }
+        var spawn = 0f
+        var nextId = (elapsed * 100f).toInt()
+        while (isActive && screen == Screen.PLAY) {
+            val now = withFrameNanos { it }
+            val dt = ((now - lastFrame) / 1_000_000_000f).coerceIn(0f, 0.05f)
+            lastFrame = now
+            elapsed = (elapsed + dt).coerceAtMost(45f)
+            if (elapsed >= 45f) {
+                finish(true)
+                tone(ToneGenerator.TONE_PROP_ACK)
+                break
+            }
+            playerX = (playerX + (targetX - playerX) * (dt * 17f).coerceAtMost(1f))
+                .coerceIn(0.09f, 0.91f)
+            shield = (shield - dt).coerceAtLeast(0f)
+            invulnerable = (invulnerable - dt).coerceAtLeast(0f)
+            spawn += dt
+            val interval = max(0.39f, 0.86f - elapsed * .009f)
+            if (spawn >= interval) {
+                spawn -= interval
+                val roll = rng.nextFloat()
+                val kind = when {
+                    roll < 0.035f -> Kind.SHIELD
+                    roll < 0.052f -> Kind.HEART
+                    roll < 0.52f -> Kind.COIN
+                    else -> Kind.BILL
+                }
+                drops = drops + Drop(nextId++, rng.nextFloat() * .82f + .09f,
+                    -.065f, .28f + rng.nextFloat() * .08f + elapsed * .0035f, kind)
+            }
+            val updated = ArrayList<Drop>(drops.size)
+            for (item in drops) {
+                val ny = item.y + item.speed * dt
+                if (item.y < .80f && ny >= .80f && abs(item.x - playerX) < .13f) {
+                    when (item.kind) {
+                        Kind.COIN -> {
+                            combo++
+                            score += 10 + (combo.coerceAtMost(10) - 1) * 2
+                            tone(ToneGenerator.TONE_PROP_BEEP)
+                        }
+                        Kind.BILL -> {
+                            if (shield > 0f) {
+                                shield = 0f
+                                tone(ToneGenerator.TONE_PROP_ACK)
+                            } else if (invulnerable <= 0f) {
+                                lives--
+                                invulnerable = 1.1f
+                                combo = 0
+                                tone(ToneGenerator.TONE_PROP_NACK)
+                            }
+                        }
+                        Kind.SHIELD -> {
+                            shield = 6f
+                            score += 5
+                            tone(ToneGenerator.TONE_PROP_ACK)
+                        }
+                        Kind.HEART -> {
+                            lives = (lives + 1).coerceAtMost(3)
+                            score += 5
+                            tone(ToneGenerator.TONE_PROP_BEEP2)
+                        }
+                    }
+                } else if (ny < 1.02f) {
+                    updated.add(item.copy(y = ny))
+                }
+            }
+            drops = updated
+            if (lives <= 0) {
+                finish(false)
+                break
+            }
         }
     }
 
-    LaunchedEffect(screen, run) {
-        if (screen != Screen.PLAYING) return@LaunchedEffect
-        var last = withFrameNanos { it }
-        var spawnTimer = 0f
-        var nextId = 0
-        while (isActive && screen == Screen.PLAYING) {
-            val now = withFrameNanos { it }
-            val dt = ((now - last) / 1_000_000_000f).coerceIn(0f, 0.045f)
-            last = now
-            seconds = (seconds + dt).coerceAtMost(45f)
-            if (seconds >= 45f) {
-                screen = Screen.END
-                break
+    Box(Modifier.fillMaxSize().background(Navy)) {
+        Canvas(Modifier.fillMaxSize()
+            .pointerInput(screen) {
+                detectTapGestures { pos ->
+                    if (screen == Screen.PLAY) targetX =
+                        (pos.x / size.width).coerceIn(.09f, .91f)
+                }
             }
-            playerX = (playerX + (targetX - playerX) * (dt * 15f).coerceAtMost(1f))
-                .coerceIn(0.09f, 0.91f)
-            spawnTimer += dt
-            val frequency = max(0.38f, 0.90f - seconds * 0.009f)
-            if (spawnTimer >= frequency) {
-                spawnTimer -= frequency
-                items = items + Falling(
-                    id = nextId++,
-                    x = rng.nextFloat() * 0.82f + 0.09f,
-                    y = -0.07f,
-                    speed = 0.24f + rng.nextFloat() * 0.09f + seconds * 0.0035f,
-                    coin = rng.nextFloat() < 0.47f
+            .pointerInput(screen) {
+                detectDragGestures(
+                    onDragStart = { pos ->
+                        if (screen == Screen.PLAY) targetX =
+                            (pos.x / size.width).coerceIn(.09f, .91f)
+                    },
+                    onDrag = { change, _ ->
+                        if (screen == Screen.PLAY) targetX =
+                            (change.position.x / size.width).coerceIn(.09f, .91f)
+                        change.consume()
+                    }
                 )
             }
-            val updated = ArrayList<Falling>()
-            for (item in items) {
-                val newY = item.y + item.speed * dt
-                if (item.y < 0.80f && newY >= 0.80f && abs(item.x - playerX) < 0.135f) {
-                    if (item.coin) {
-                        combo++
-                        points += 10 + (combo.coerceAtMost(10) - 1) * 2
-                    } else {
-                        combo = 0
-                        lives--
-                    }
-                } else if (newY < 0.98f) {
-                    updated.add(item.copy(y = newY))
-                }
-            }
-            items = updated
-            if (lives <= 0) {
-                screen = Screen.END
-                break
-            }
-        }
-    }
-
-    Box(Modifier.fillMaxSize().background(Night)) {
-        Canvas(
-            Modifier.fillMaxSize()
-                .pointerInput(screen) {
-                    detectTapGestures { pos ->
-                        if (screen == Screen.PLAYING) targetX =
-                            (pos.x / size.width).coerceIn(0.09f, 0.91f)
-                    }
-                }
-                .pointerInput(screen) {
-                    detectDragGestures(
-                        onDragStart = { pos ->
-                            if (screen == Screen.PLAYING) targetX =
-                                (pos.x / size.width).coerceIn(0.09f, 0.91f)
-                        },
-                        onDrag = { change, _ ->
-                            if (screen == Screen.PLAYING) targetX =
-                                (change.position.x / size.width).coerceIn(0.09f, 0.91f)
-                            change.consume()
-                        }
-                    )
-                }
         ) {
             val w = size.width
             val h = size.height
-            drawRect(Brush.verticalGradient(listOf(Color(0xFF112947), Night, Color(0xFF041019))))
-            // Original, lightweight vector scenery: skyline, grid and drifting objects.
-            for (i in 0..13) {
-                val bw = w / 13f
-                val top = h * (0.65f + (i * 37 % 7) * 0.028f)
-                drawRect(Color(0xFF10243A), topLeft = Offset(i * bw, top),
-                    size = Size(bw * 0.87f, h - top))
+            drawRect(Brush.verticalGradient(listOf(Color(0xFF12304D), Navy, Color(0xFF05111F))))
+            for (i in 0..18) {
+                val x = i * w / 18f
+                val bh = (i * 29 % 9) * h * .017f + h * .15f
+                drawRect(Color(0xFF13293E), Offset(x, h - bh), Size(w / 22f, bh))
                 for (j in 0..3) {
-                    val wy = top + 15f + j * 37f
-                    if (wy < h) drawRoundRect(Color(0xFF254A60),
-                        topLeft = Offset(i * bw + 8f, wy),
-                        size = Size(bw * 0.20f, 9f), cornerRadius = CornerRadius(2f))
+                    val y = h - bh + 15f + j * 26f
+                    if (y < h) drawRect(Color(0xFF2E5668).copy(alpha = .65f),
+                        Offset(x + 4f, y), Size(w / 54f, 5f))
                 }
             }
-            for (i in 0..20) {
-                val y = (i / 20f) * h
-                drawLine(Color(0x1123E0D0), Offset(0f, y), Offset(w, y), 1f)
+            for (i in 0..19) {
+                val y = (i / 19f) * h
+                drawLine(Teal.copy(alpha=.06f), Offset(0f, y), Offset(w, y), 1f)
             }
-            drawLine(Turquoise.copy(alpha = .4f), Offset(0f, h * .89f), Offset(w, h * .89f), 3f)
-            for (i in 0..7) {
-                val x = (i + .5f) * w / 8
-                drawCircle(Color(0xFF6BD7CB).copy(alpha=.28f), 2.5f, Offset(x, h*.14f))
-            }
-            if (screen == Screen.PLAYING || screen == Screen.END) {
-                for (item in items) {
+            drawLine(Teal.copy(alpha=.26f), Offset(0f, h*.88f), Offset(w,h*.88f),3f)
+            if (screen != Screen.MENU) {
+                for (item in drops) {
                     val x = item.x * w
                     val y = item.y * h
-                    val r = w * .061f
-                    if (item.coin) {
-                        drawCircle(Gold.copy(alpha=.18f), r*1.48f, Offset(x,y))
-                        drawCircle(Color(0xFFBA8328), r*1.02f, Offset(x,y))
-                        drawCircle(Gold, r*.85f, Offset(x,y))
-                        drawCircle(Color(0xFFFFF1AE), r*.60f, Offset(x,y))
-                        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-                            color = android.graphics.Color.rgb(104,65,21)
-                            textAlign = android.graphics.Paint.Align.CENTER
-                            textSize = r*.96f
-                            isFakeBoldText = true
+                    val r = w * .056f
+                    when (item.kind) {
+                        Kind.COIN -> {
+                            drawCircle(Gold.copy(alpha=.14f), r*1.55f, Offset(x,y))
+                            drawCircle(Color(0xFFBA8226),r*1.04f,Offset(x,y))
+                            drawCircle(Gold,r*.88f,Offset(x,y))
+                            drawCircle(Color(0xFFFFF1AE),r*.65f,Offset(x,y))
+                            drawTextAt("$",x,y+r*.39f,r*1.06f,0xFF704719.toInt())
                         }
-                        drawContext.canvas.nativeCanvas.drawText("$",x,y+r*.34f,p)
-                    } else {
-                        drawRoundRect(Red.copy(alpha=.19f), Offset(x-r*1.21f,y-r*.88f),
-                            Size(r*2.42f,r*1.76f), CornerRadius(r*.26f))
-                        drawRoundRect(Color(0xFFFFE8EA), Offset(x-r,y-r*.72f),
-                            Size(r*2,r*1.44f), CornerRadius(r*.18f))
-                        drawRoundRect(Red, Offset(x-r,y-r*.72f),
-                            Size(r*2,r*.35f), CornerRadius(r*.14f))
-                        drawLine(Color(0xFFB35667),Offset(x-r*.72f,y+r*.03f),
-                            Offset(x+r*.72f,y+r*.03f),2.5f)
-                        drawLine(Color(0xFFB35667),Offset(x-r*.72f,y+r*.33f),
-                            Offset(x+r*.22f,y+r*.33f),2.5f)
+                        Kind.BILL -> {
+                            drawRoundRect(Coral.copy(alpha=.20f),Offset(x-r*1.25f,y-r*.92f),
+                                Size(r*2.5f,r*1.85f),CornerRadius(r*.24f))
+                            drawRoundRect(Color(0xFFFFE6E9),Offset(x-r,y-r*.75f),
+                                Size(r*2f,r*1.5f),CornerRadius(r*.16f))
+                            drawRoundRect(Coral,Offset(x-r,y-r*.75f),
+                                Size(r*2f,r*.34f),CornerRadius(r*.13f))
+                            drawLine(Color(0xFFB36572),Offset(x-r*.65f,y),
+                                Offset(x+r*.65f,y),2.5f)
+                            drawLine(Color(0xFFB36572),Offset(x-r*.65f,y+r*.32f),
+                                Offset(x+r*.2f,y+r*.32f),2.5f)
+                        }
+                        Kind.SHIELD -> {
+                            drawCircle(Teal.copy(alpha=.16f),r*1.55f,Offset(x,y))
+                            drawCircle(Teal,r*1.03f,Offset(x,y))
+                            drawTextAt("✦",x,y+r*.38f,r*1.16f,0xFF073C48.toInt())
+                        }
+                        Kind.HEART -> {
+                            drawCircle(Coral.copy(alpha=.24f),r*1.38f,Offset(x,y))
+                            drawCircle(Coral,r,Offset(x,y))
+                            drawTextAt("+",x,y+r*.45f,r*1.25f,0xFFFFFFFF.toInt())
+                        }
                     }
                 }
                 val x = playerX*w
                 val y = h*.82f
                 val r = w*.085f
-                drawCircle(Turquoise.copy(alpha=.10f),r*2.0f,Offset(x,y))
-                drawRoundRect(Color(0xFF0F8590),Offset(x-r*1.3f,y-r*.68f),
-                    Size(r*2.6f,r*1.5f),CornerRadius(r*.40f))
-                drawRoundRect(Turquoise,Offset(x-r*1.18f,y-r*.72f),
-                    Size(r*2.36f,r*1.28f),CornerRadius(r*.32f))
-                drawRoundRect(Color(0xFF073644),Offset(x-r*.8f,y-r*.26f),
-                    Size(r*1.6f,r*.36f),CornerRadius(r*.16f))
-                drawCircle(Color.White,r*.12f,Offset(x-r*.35f,y-r*.1f))
-                drawCircle(Color.White,r*.12f,Offset(x+r*.35f,y-r*.1f))
-                drawLine(Gold,Offset(x-r*.48f,y+r*.20f),Offset(x+r*.48f,y+r*.20f),r*.09f)
+                val visible = invulnerable <= 0f || (invulnerable*12).toInt()%2==0
+                if (visible) {
+                    if (shield > 0f) {
+                        drawCircle(Teal.copy(alpha=.12f),r*2f,Offset(x,y))
+                        drawCircle(Teal.copy(alpha=.33f),r*1.55f,Offset(x,y),
+                            style=androidx.compose.ui.graphics.drawscope.Stroke(width=4f))
+                    }
+                    drawCircle(Teal.copy(alpha=.10f),r*1.75f,Offset(x,y))
+                    drawRoundRect(Color(0xFF0A8292),Offset(x-r*1.32f,y-r*.7f),
+                        Size(r*2.64f,r*1.5f),CornerRadius(r*.38f))
+                    drawRoundRect(Teal,Offset(x-r*1.16f,y-r*.7f),
+                        Size(r*2.32f,r*1.27f),CornerRadius(r*.30f))
+                    drawRoundRect(Color(0xFF093A4A),Offset(x-r*.85f,y-r*.25f),
+                        Size(r*1.70f,r*.36f),CornerRadius(r*.16f))
+                    drawCircle(Color.White,r*.105f,Offset(x-r*.32f,y-r*.1f))
+                    drawCircle(Color.White,r*.105f,Offset(x+r*.32f,y-r*.1f))
+                    drawLine(Gold,Offset(x-r*.48f,y+r*.2f),
+                        Offset(x+r*.48f,y+r*.2f),r*.09f)
+                }
             }
         }
-
-        if (screen == Screen.PLAYING) {
-            Column(Modifier.fillMaxWidth().padding(top = 26.dp, start = 20.dp, end = 20.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE) {
+            Column(Modifier.fillMaxWidth().padding(top=22.dp,start=20.dp,end=20.dp)) {
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement=Arrangement.SpaceBetween,
+                    verticalAlignment=Alignment.CenterVertically) {
                     Column {
-                        Text("PONTOS", color = Turquoise, fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                        Text("$points", color = Color.White, fontSize = 30.sp,
-                            fontWeight = FontWeight.ExtraBold)
+                        Text("PONTOS",color=Teal,fontSize=11.sp,letterSpacing=2.sp)
+                        Text("$score",color=Color.White,fontWeight=FontWeight.Black,fontSize=31.sp)
                     }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("TEMPO", color=Color(0xFFABBDD0),fontSize=11.sp,letterSpacing=2.sp)
-                        Text("${(45f-seconds).toInt()}s", color=Color.White,fontSize=27.sp,
-                            fontWeight=FontWeight.Bold)
+                    Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                        Text("TEMPO",color=Muted,fontSize=11.sp,letterSpacing=2.sp)
+                        Text("${(45f-elapsed).toInt()}s",color=Color.White,
+                            fontWeight=FontWeight.Bold,fontSize=27.sp)
                     }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text("VIDAS", color=Red,fontSize=11.sp,letterSpacing=2.sp)
-                        Text("♥".repeat(lives.coerceAtLeast(0)),color=Red,
-                            fontSize=25.sp,fontWeight=FontWeight.Bold)
+                    Column(horizontalAlignment=Alignment.End) {
+                        Text("VIDAS",color=Coral,fontSize=11.sp,letterSpacing=2.sp)
+                        Text("♥".repeat(lives.coerceAtLeast(0)),color=Coral,fontSize=23.sp)
                     }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
                 Box(Modifier.fillMaxWidth().height(5.dp)
-                    .background(Color(0xFF233A50),RoundedCornerShape(50))) {
-                    Box(Modifier.fillMaxWidth((seconds/45f).coerceIn(0f,1f))
-                        .fillMaxHeight().background(Turquoise,RoundedCornerShape(50)))
+                    .background(Color(0xFF234056),RoundedCornerShape(16.dp))) {
+                    Box(Modifier.fillMaxWidth((elapsed/45f).coerceIn(0f,1f))
+                        .fillMaxHeight().background(Teal,RoundedCornerShape(16.dp)))
                 }
-                if (combo>=3) {
-                    Spacer(Modifier.height(9.dp))
-                    Text("COMBO x$combo",color=Gold,fontWeight=FontWeight.ExtraBold,fontSize=13.sp)
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,
+                    verticalAlignment=Alignment.CenterVertically) {
+                    Text(when {
+                        shield>0f -> "✦ ESCUDO ${shield.toInt()+1}s"
+                        combo>=3 -> "COMBO x$combo"
+                        else -> "COLETE • DESVIE • SOBREVIVA"
+                    },color=if(shield>0f || combo>=3) Gold else Muted,
+                        fontSize=11.sp,fontWeight=FontWeight.Bold)
+                    Button(onClick={screen=if(screen==Screen.PLAY) Screen.PAUSE else Screen.PLAY},
+                        shape=RoundedCornerShape(10.dp),
+                        contentPadding=PaddingValues(horizontal=14.dp,vertical=0.dp),
+                        colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF1F3B52))) {
+                        Text(if(screen==Screen.PLAY) "PAUSAR" else "RETOMAR",fontSize=11.sp)
+                    }
                 }
             }
-            Text("TOQUE OU ARRASTE PARA MOVER", color=Color.White.copy(alpha=.72f),
-                fontSize=11.sp,letterSpacing=1.sp,modifier=Modifier.align(Alignment.BottomCenter)
-                    .padding(bottom=31.dp),textAlign=TextAlign.Center)
+            if(screen==Screen.PLAY) Text("TOQUE OU ARRASTE PARA MOVER",
+                color=Color.White.copy(alpha=.68f),fontSize=10.sp,
+                modifier=Modifier.align(Alignment.BottomCenter).padding(bottom=25.dp),
+                letterSpacing=1.sp)
         }
-
-        if (screen == Screen.START) {
-            Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal=30.dp),
+        if(screen==Screen.MENU) {
+            Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal=28.dp),
                 horizontalAlignment=Alignment.CenterHorizontally) {
-                Text("PRÓXIMA ERA • GAMES", color=Turquoise,fontSize=12.sp,
-                    letterSpacing=2.sp,fontWeight=FontWeight.Bold)
+                Text("PRÓXIMA ERA  •  GAMES",color=Teal,fontSize=12.sp,
+                    fontWeight=FontWeight.Bold,letterSpacing=2.sp)
                 Spacer(Modifier.height(16.dp))
-                Text("BOLETO\nRUSH!", color=Color.White,fontSize=57.sp,lineHeight=58.sp,
-                    fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
-                Spacer(Modifier.height(12.dp))
-                Text("A vida cobra. Você desvia.",color=Gold,fontSize=19.sp,
-                    fontWeight=FontWeight.SemiBold,textAlign=TextAlign.Center)
-                Spacer(Modifier.height(32.dp))
-                Text("🪙  Pegue moedas    •    🧾  Fuja dos boletos",
-                    color=Color.White,fontSize=14.sp,textAlign=TextAlign.Center)
+                Text("BOLETO\nRUSH!",color=Color.White,
+                    fontSize=56.sp,lineHeight=59.sp,textAlign=TextAlign.Center,
+                    fontWeight=FontWeight.Black)
+                Spacer(Modifier.height(13.dp))
+                Text("A vida cobra. Você desvia.",color=Gold,fontSize=18.sp,
+                    textAlign=TextAlign.Center,fontWeight=FontWeight.SemiBold)
+                Spacer(Modifier.height(29.dp))
+                Text("🪙  Pegue moedas    🧾  Fuja dos boletos",
+                    color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
                 Spacer(Modifier.height(8.dp))
-                Text("45 segundos • 3 vidas • uma chance de ficar rico",
-                    color=Color(0xFFABBDD0),fontSize=12.sp,textAlign=TextAlign.Center)
-                Spacer(Modifier.height(40.dp))
-                ActionButton("JOGAR AGORA") { startGame() }
-                Spacer(Modifier.height(18.dp))
-                Text("RECORDE: $best",color=Gold,fontSize=14.sp,fontWeight=FontWeight.Bold)
-            }
-        }
-        if (screen == Screen.END) {
-            Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal=30.dp),
-                horizontalAlignment=Alignment.CenterHorizontally) {
-                Text(if(lives>0) "SOBREVIVEU!" else "A FATURA CHEGOU!",
-                    color=if(lives>0) Turquoise else Red,fontSize=29.sp,
-                    fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
-                Spacer(Modifier.height(17.dp))
-                Text("$points",color=Color.White,fontSize=72.sp,fontWeight=FontWeight.Black)
-                Text("PONTOS",color=Gold,fontSize=14.sp,letterSpacing=3.sp)
+                Text("✦ Escudo temporário   + Vida extra",
+                    color=Muted,textAlign=TextAlign.Center,fontSize=13.sp)
+                Spacer(Modifier.height(8.dp))
+                Text("45 SEGUNDOS  •  3 VIDAS  •  SEM ANÚNCIOS",
+                    color=Muted,textAlign=TextAlign.Center,fontSize=10.sp,letterSpacing=1.sp)
+                Spacer(Modifier.height(30.dp))
+                GameButton("JOGAR AGORA"){begin()}
                 Spacer(Modifier.height(12.dp))
-                Text("SEU RECORDE: ${max(best,points)}",color=Turquoise,
-                    fontSize=15.sp,fontWeight=FontWeight.Bold)
-                Spacer(Modifier.height(36.dp))
-                ActionButton("JOGAR DE NOVO") { startGame() }
-                Spacer(Modifier.height(14.dp))
-                ActionButton("MENU",secondary=true) { screen=Screen.START }
+                GameButton(if(soundOn) "SOM: LIGADO" else "SOM: DESLIGADO",
+                    secondary=true){toggleSound()}
+                Spacer(Modifier.height(21.dp))
+                Text("RECORDE  $best   •   PARTIDAS  $gamesPlayed",color=Gold,
+                    fontSize=13.sp,fontWeight=FontWeight.Bold)
             }
         }
-        Text("v1.0 • FEITO NO BRASIL", color=Color.White.copy(alpha=.34f),
+        if(screen==Screen.PAUSE) {
+            Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.89f)))
+            Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(32.dp),
+                horizontalAlignment=Alignment.CenterHorizontally) {
+                Text("PAUSA",color=Color.White,fontSize=45.sp,fontWeight=FontWeight.Black)
+                Spacer(Modifier.height(8.dp))
+                Text("Sua carteira merece um descanso.",color=Muted,fontSize=14.sp)
+                Spacer(Modifier.height(30.dp))
+                GameButton("CONTINUAR"){screen=Screen.PLAY}
+                Spacer(Modifier.height(10.dp))
+                GameButton(if(soundOn) "SOM: LIGADO" else "SOM: DESLIGADO",
+                    secondary=true){toggleSound()}
+                Spacer(Modifier.height(10.dp))
+                GameButton("RECOMEÇAR",secondary=true){begin()}
+                Spacer(Modifier.height(10.dp))
+                GameButton("MENU PRINCIPAL",secondary=true){screen=Screen.MENU}
+            }
+        }
+        if(screen==Screen.END) {
+            Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.84f)))
+            Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(30.dp),
+                horizontalAlignment=Alignment.CenterHorizontally) {
+                Text(if(won) "SOBREVIVEU!" else "A FATURA CHEGOU!",
+                    color=if(won) Teal else Coral,fontSize=27.sp,
+                    fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(12.dp))
+                Text("$score",color=Color.White,fontSize=72.sp,fontWeight=FontWeight.Black)
+                Text("PONTOS",color=Gold,fontSize=13.sp,letterSpacing=3.sp)
+                Spacer(Modifier.height(13.dp))
+                Text("RECORDE: $best",color=Teal,fontSize=17.sp,
+                    fontWeight=FontWeight.Bold)
+                Spacer(Modifier.height(29.dp))
+                GameButton("JOGAR DE NOVO"){begin()}
+                Spacer(Modifier.height(10.dp))
+                GameButton("COMPARTILHAR PONTOS",secondary=true){
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type="text/plain"
+                        putExtra(Intent.EXTRA_TEXT,
+                            "Fiz $score pontos no Boleto Rush! 🪙 Consegue sobreviver 45 segundos? #BoletoRush")
+                    }
+                    context.startActivity(Intent.createChooser(intent,"Compartilhar resultado"))
+                }
+                Spacer(Modifier.height(10.dp))
+                GameButton("MENU",secondary=true){screen=Screen.MENU}
+            }
+        }
+        Text("v1.1 • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
             fontSize=9.sp,modifier=Modifier.align(Alignment.BottomCenter)
                 .padding(bottom=7.dp))
     }
 }
 
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTextAt(
+    text: String, x: Float, y: Float, fontSize: Float, color: Int
+) {
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = color
+        this.textAlign = android.graphics.Paint.Align.CENTER
+        this.textSize = fontSize
+        isFakeBoldText = true
+    }
+    drawContext.canvas.nativeCanvas.drawText(text,x,y,paint)
+}
+
 @Composable
-private fun ActionButton(text: String, secondary: Boolean=false, onClick: () -> Unit) {
-    Button(onClick=onClick,
-        modifier=Modifier.fillMaxWidth().height(56.dp),
-        shape=RoundedCornerShape(16.dp),
+private fun GameButton(label: String,secondary:Boolean=false,onClick:()->Unit) {
+    Button(onClick=onClick,modifier=Modifier.fillMaxWidth().height(52.dp),
+        shape=RoundedCornerShape(14.dp),
         colors=ButtonDefaults.buttonColors(
-            containerColor=if(secondary) Color(0xFF23445A) else Turquoise,
-            contentColor=if(secondary) Color.White else Night)
-    ) {
-        Text(text,fontWeight=FontWeight.ExtraBold,fontSize=17.sp,letterSpacing=1.sp)
+            containerColor=if(secondary) Color(0xFF1D3B52) else Teal,
+            contentColor=if(secondary) Color.White else Navy
+        )) {
+        Text(label,fontSize=15.sp,fontWeight=FontWeight.ExtraBold,letterSpacing=1.sp)
     }
 }
