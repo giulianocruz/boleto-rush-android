@@ -1,0 +1,24 @@
+GOOGLE AI STUDIO - BUILD > ANDROID (KOTLIN + JETPACK COMPOSE)
+
+Crie e aprimore o aplicativo Android nativo Boleto Rush!, um minigame arcade offline, inspirado neste produto ORIGINAL já iniciado pela Proxima Era em Android Studio.
+
+OBJETIVO:
+- jogo vertical 9:16; 45 segundos de sobrevivencia; 3 vidas; um toque/arraste move uma carteira turquesa na horizontal;
+- moedas douradas rendem pontos e combo; boletos vermelhos tiram vida; recorde salvo localmente em SharedPreferences;
+- menu inicial, pausa opcional, fim de jogo e reiniciar;
+- visual neon azul-marinho/turquesa/dourado, tipografia legivel, animacoes suaves, identidade brasileira divertida, sem personagens reais;
+- efeitos sonoros originais sintetizados localmente, vibração opcional, sem requerer rede;
+- telas simples, mobile first, suporte a tamanhos variados e 60fps estaveis;
+- sem anuncios, IAP, permissoes, cadastro, Firebase ou chave de API;
+- icon original vetorial, acessibilidade de contraste, alto desempenho.
+
+TECNOLOGIA:
+Projeto Android nativo Kotlin, Jetpack Compose, Material 3 e Gradle. applicationId br.com.proximaera.boletorush. minSdk 26 e targetSdk 36. Nada de webview. Todos os recursos offline.
+
+OBRIGATORIO:
+Forneça projeto completo compilavel, uma única Activity e um unico modulo; documente build APK, App Bundle para Play Console e pontos de testes. Foque primeiro em produto jogavel sem bugs. Sem dependencies experimentais.
+
+IMPORTANTE:
+Já existe projeto Android Studio local:
+C:\Users\Pessoinha\AndroidStudioProjects\BoletoRush
+Aproveite este projeto antes de recriar; a exportacao ZIP do AI Studio pode ser comparada com a versao local.

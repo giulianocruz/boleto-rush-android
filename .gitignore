@@ -1,0 +1,14 @@
+# Gradle and Android Studio
+.gradle/
+.idea/
+**/build/
+*.iml
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+# Signing and secrets: never commit keys or passwords
+*.jks
+*.keystore
+*signing*.properties
+.env*
