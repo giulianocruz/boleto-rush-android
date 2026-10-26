@@ -1,22 +1,33 @@
 # Boleto Rush! 🪙 — Próxima Era Games
 
-**v1.1 beta**: jogo arcade casual Android, 100% offline, com partidas de 45 segundos. A vida cobra. Você desvia!
+Minigame Android de reflexos, com partidas rápidas e humor brasileiro. Jogue offline, sem login, anúncios ou compras.
 
-## Jogar
-Toque ou arraste para mover a carteira. Colete moedas douradas para pontuar e aumentar o combo. Evite boletos vermelhos para preservar suas três vidas. Escudos protegem temporariamente; corações recuperam vidas. Pausar, retomar e reiniciar estão disponíveis. O recorde e o total de partidas ficam salvos apenas no aparelho. Áudio é opcional.
+## Versão 1.2 — dois modos e melhor feedback
+- **Clássico:** sobreviva 45 segundos.
+- **Maratona:** sobreviva 90 segundos, com dificuldade progressiva.
+- **Como jogar:** tutorial acessível a partir do menu.
+- **Novos indicadores:** feedback de coleta, acertos e poderes; estatísticas ao término.
+- **Recordes independentes:** o recorde do Clássico anterior é preservado.
+- **Pausa segura:** permite retomar ou reiniciar; o app pausa ao ir para segundo plano.
+- **Efeitos sonoros opcionais e compartilhamento** da pontuação.
 
-## Desenvolver
-Abra este repositório no Android Studio com JDK 21. O projeto usa Kotlin, Jetpack Compose, Android Gradle Plugin 9.1.1, Gradle 9.3.1, Android SDK 36 e minSdk 26. Não utiliza backend, anúncios, rastreadores, APIs de IA ou permissões especiais.
+## Como jogar
+Toque ou arraste para mover a carteira. Pegue moedas para aumentar o combo e desvie dos boletos que tiram vidas. O escudo protege contra um boleto; o coração recupera uma vida (máximo de 3).
 
-- Compilar teste: `gradlew.bat :app:assembleDebug`
-- APK de teste: `app/build/outputs/apk/debug/app-debug.apk`
-- Compilar AAB: `gradlew.bat :app:bundleRelease`
-- **Importante:** para a Google Play, o AAB deve ser assinado por uma chave de upload de propriedade do desenvolvedor. O AAB local ainda não deve ser enviado sem validar a assinatura. Preserve a chave fora do Git e faça backup.
+## Compilação e requisitos
+Abra a pasta no Android Studio com JDK 21, Gradle 9.3.1, AGP 9.1.1, Kotlin e Jetpack Compose. SDK de compilação e target: 36; minSdk: 26.
+
+```
+gradlew.bat :app:assembleDebug
+gradlew.bat :app:bundleRelease
+```
+
+APK de testes: `app/build/outputs/apk/debug/app-debug.apk`. AAB local: `app/build/outputs/bundle/release/app-release.aab`. **O bundle precisa estar assinado com a chave de upload do desenvolvedor antes de ser submetido à Google Play.** Nunca publique senhas ou chaves no Git.
 
 ## Publicação
-A pasta `store/` contém ícone, feature graphic e capturas reais do emulador. Consulte `PLAY_STORE_LISTING.md` para textos, informações e checklist da Play Console. Veja `TESTES.md` para o registro de validação. Veja `PRIVACIDADE.md` para a política de privacidade pública.
-
-## Testes
-Android Emulator: menu, iniciar jogo, pausa, retomada e tela final funcionaram. Testes em celular físico e publicação na Google Play ainda não foram realizados.
+- `PLAY_STORE_LISTING.md` — descrição e checklist Google Play.
+- `PRIVACIDADE.md` — política de privacidade.
+- `store/` — artes e capturas de tela (validar novamente as capturas para a v1.2).
+- `TESTES.md` — registro de QA.
 
 Feito no Brasil pela Próxima Era Games.

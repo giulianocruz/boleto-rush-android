@@ -5,12 +5,12 @@ Data de preparação: 26/10/2026
 Boleto Rush!
 
 ## Descrição curta
-Desvie dos boletos, colete moedas e sobreviva aos 45 segundos!
+Desvie dos boletos, colete moedas e bata seus recordes!
 
 ## Descrição completa
 A vida cobra. Você desvia!
 
-No Boleto Rush!, sua carteira enfrenta o maior desafio da vida adulta: uma chuva de boletos. Deslize para os lados, colete moedas douradas e tente sobreviver por 45 segundos sem perder suas três vidas.
+No Boleto Rush!, sua carteira enfrenta o maior desafio da vida adulta: uma chuva de boletos. Deslize para os lados, colete moedas douradas e sobreviva aos dois desafios: Clássico de 45 segundos ou Maratona de 90 segundos. Cada modo tem seu próprio recorde!
 
 COMO JOGAR
 • Toque ou arraste para mover a carteira.
@@ -19,6 +19,8 @@ COMO JOGAR
 • Colete escudos para se proteger temporariamente.
 • Pegue corações para recuperar vidas.
 • Supere seu próprio recorde e compartilhe o resultado!
+• Escolha entre Clássico e Maratona, acompanhe o combo máximo e consulte as estatísticas finais.
+• Aprenda rapidamente com o tutorial dentro do jogo.
 
 Feito no Brasil pela Próxima Era Games, Boleto Rush! é um jogo casual para partidas rápidas, com controles simples e visuais originais.
 
@@ -42,13 +44,13 @@ Site / suporte: definir canal de contato oficial da Próxima Era antes de public
 ## Materiais na pasta /store
 - play-icon-512.png — PNG ARGB 512x512
 - feature-graphic-1024x500.png — PNG RGB 1024x500
-- screenshot-menu.jpg e screenshot-jogo.jpg — capturas reais (após conversão)
+- screenshot-menu-v12.jpg, screenshot-tutorial-v12.jpg, screenshot-partida-v12.jpg, screenshot-final-v12.jpg — capturas reais da v1.2
 
 ## Formulários Play Console (validar antes de enviar)
 - Contém anúncios: não
 - Compras no aplicativo: não
 - Permissões sensíveis: nenhuma
-- Dados pessoais coletados/transmitidos: nenhum (versão 1.1)
+- Dados pessoais coletados/transmitidos: nenhum (versão 1.2)
 - Classificação indicativa: responder ao questionário; sem violência ou apostas
 - Público-alvo: selecionar faixas etárias honestamente; não declarar direcionamento infantil sem revisão das regras de famílias
 - Política de privacidade acessível em URL pública, fora do aplicativo
@@ -57,4 +59,4 @@ Site / suporte: definir canal de contato oficial da Próxima Era antes de public
 - O AAB para Google Play deve estar assinado com chave própria de upload, guardada fora do repositório
 
 ## Notas da versão
-Versão 1.1: partidas de 45 segundos, placar, recorde, combo, escudo, vida extra, pausa, sons opcionais e compartilhamento de resultado.
+Versão 1.2: novo modo Maratona de 90 segundos, modo Clássico de 45 segundos, recordes independentes, tutorial, feedback visual de colisões/coletas e estatísticas finais. Mantidas pausa, efeitos sonoros opcionais e compartilhamento.

@@ -11,6 +11,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -43,7 +45,11 @@ private val Teal = Color(0xFF25E2D1)
 private val Gold = Color(0xFFFFD166)
 private val Coral = Color(0xFFFF657C)
 private val Muted = Color(0xFFA7BBCF)
-private enum class Screen { MENU, PLAY, PAUSE, END }
+private enum class Screen { MENU, HOW, PLAY, PAUSE, END }
+private enum class Mode(val title: String, val duration: Float) {
+    CLASSIC("CLÁSSICO",45f), MARATHON("MARATONA",90f)
+}
+
 private enum class Kind { COIN, BILL, SHIELD, HEART }
 private data class Drop(val id: Int, val x: Float, val y: Float, val speed: Float, val kind: Kind)
 
@@ -73,13 +79,19 @@ private fun BoletoRush(foreground: Boolean) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
     var screen by remember { mutableStateOf(Screen.MENU) }
+    var mode by remember { mutableStateOf(if (prefs.getInt("mode", 0) == 1) Mode.MARATHON else Mode.CLASSIC) }
     var round by remember { mutableIntStateOf(0) }
     var score by remember { mutableIntStateOf(0) }
-    var best by remember { mutableIntStateOf(prefs.getInt("best", 0)) }
+    var best by remember { mutableIntStateOf(prefs.getInt(if(mode==Mode.CLASSIC) "best" else "best_marathon", 0)) }
     var gamesPlayed by remember { mutableIntStateOf(prefs.getInt("games", 0)) }
     var soundOn by remember { mutableStateOf(prefs.getBoolean("sound", true)) }
     var lives by remember { mutableIntStateOf(3) }
     var combo by remember { mutableIntStateOf(0) }
+    var maxCombo by remember { mutableIntStateOf(0) }
+    var coinsCollected by remember { mutableIntStateOf(0) }
+    var billsHit by remember { mutableIntStateOf(0) }
+    var feedback by remember { mutableStateOf("") }
+    var feedbackSeconds by remember { mutableFloatStateOf(0f) }
     var elapsed by remember { mutableFloatStateOf(0f) }
     var playerX by remember { mutableFloatStateOf(0.5f) }
     var targetX by remember { mutableFloatStateOf(0.5f) }
@@ -93,10 +105,20 @@ private fun BoletoRush(foreground: Boolean) {
     fun tone(type: Int) {
         if (soundOn) runCatching { audio?.startTone(type, 75) }
     }
+    fun switchMode() {
+        mode = if (mode == Mode.CLASSIC) Mode.MARATHON else Mode.CLASSIC
+        best = prefs.getInt(if(mode==Mode.CLASSIC) "best" else "best_marathon", 0)
+        prefs.edit().putInt("mode", if(mode==Mode.CLASSIC) 0 else 1).apply()
+    }
     fun begin() {
         score = 0
         lives = 3
         combo = 0
+        maxCombo = 0
+        coinsCollected = 0
+        billsHit = 0
+        feedback = ""
+        feedbackSeconds = 0f
         elapsed = 0f
         playerX = 0.5f
         targetX = 0.5f
@@ -114,7 +136,7 @@ private fun BoletoRush(foreground: Boolean) {
         prefs.edit().putInt("games", gamesPlayed).apply()
         if (score > best) {
             best = score
-            prefs.edit().putInt("best", best).apply()
+            prefs.edit().putInt(if(mode==Mode.CLASSIC) "best" else "best_marathon", best).apply()
         }
     }
     fun toggleSound() {
@@ -126,6 +148,7 @@ private fun BoletoRush(foreground: Boolean) {
         screen = when (screen) {
             Screen.PLAY -> Screen.PAUSE
             Screen.PAUSE -> Screen.PLAY
+            Screen.HOW -> Screen.MENU
             Screen.END -> Screen.MENU
             Screen.MENU -> Screen.MENU
         }
@@ -143,8 +166,8 @@ private fun BoletoRush(foreground: Boolean) {
             val now = withFrameNanos { it }
             val dt = ((now - lastFrame) / 1_000_000_000f).coerceIn(0f, 0.05f)
             lastFrame = now
-            elapsed = (elapsed + dt).coerceAtMost(45f)
-            if (elapsed >= 45f) {
+            elapsed = (elapsed + dt).coerceAtMost(mode.duration)
+            if (elapsed >= mode.duration) {
                 finish(true)
                 tone(ToneGenerator.TONE_PROP_ACK)
                 break
@@ -153,19 +176,22 @@ private fun BoletoRush(foreground: Boolean) {
                 .coerceIn(0.09f, 0.91f)
             shield = (shield - dt).coerceAtLeast(0f)
             invulnerable = (invulnerable - dt).coerceAtLeast(0f)
+            feedbackSeconds = (feedbackSeconds - dt).coerceAtLeast(0f)
             spawn += dt
-            val interval = max(0.39f, 0.86f - elapsed * .009f)
+            val interval = max(if(mode==Mode.CLASSIC) .39f else .32f,
+                .90f - elapsed * if(mode==Mode.CLASSIC) .009f else .007f)
             if (spawn >= interval) {
                 spawn -= interval
                 val roll = rng.nextFloat()
                 val kind = when {
-                    roll < 0.035f -> Kind.SHIELD
-                    roll < 0.052f -> Kind.HEART
-                    roll < 0.52f -> Kind.COIN
+                    roll < 0.045f -> Kind.SHIELD
+                    roll < 0.075f -> Kind.HEART
+                    elapsed < 5f && roll >= .40f -> Kind.COIN
+                    roll < 0.56f -> Kind.COIN
                     else -> Kind.BILL
                 }
                 drops = drops + Drop(nextId++, rng.nextFloat() * .82f + .09f,
-                    -.065f, .28f + rng.nextFloat() * .08f + elapsed * .0035f, kind)
+                    -.065f, .27f + rng.nextFloat() * .08f + elapsed * .0028f, kind)
             }
             val updated = ArrayList<Drop>(drops.size)
             for (item in drops) {
@@ -174,28 +200,42 @@ private fun BoletoRush(foreground: Boolean) {
                     when (item.kind) {
                         Kind.COIN -> {
                             combo++
-                            score += 10 + (combo.coerceAtMost(10) - 1) * 2
+                            val gained = 10 + (combo.coerceAtMost(10) - 1) * 2
+                            score += gained
+                            coinsCollected++
+                            maxCombo = max(maxCombo, combo)
+                            feedback = "+$gained  MOEDA!"
+                            feedbackSeconds = 0.68f
                             tone(ToneGenerator.TONE_PROP_BEEP)
                         }
                         Kind.BILL -> {
                             if (shield > 0f) {
                                 shield = 0f
+                                feedback = "ESCUDO SALVOU!"
+                                feedbackSeconds = 0.85f
                                 tone(ToneGenerator.TONE_PROP_ACK)
                             } else if (invulnerable <= 0f) {
                                 lives--
+                                billsHit++
                                 invulnerable = 1.1f
                                 combo = 0
+                                feedback = "AI, MEU BOLSO!"
+                                feedbackSeconds = 0.85f
                                 tone(ToneGenerator.TONE_PROP_NACK)
                             }
                         }
                         Kind.SHIELD -> {
-                            shield = 6f
+                            shield = 7f
                             score += 5
+                            feedback = "ESCUDO ATIVADO!"
+                            feedbackSeconds = 0.85f
                             tone(ToneGenerator.TONE_PROP_ACK)
                         }
                         Kind.HEART -> {
                             lives = (lives + 1).coerceAtMost(3)
                             score += 5
+                            feedback = "+1 VIDA!"
+                            feedbackSeconds = 0.85f
                             tone(ToneGenerator.TONE_PROP_BEEP2)
                         }
                     }
@@ -323,7 +363,7 @@ private fun BoletoRush(foreground: Boolean) {
                     }
                     Column(horizontalAlignment=Alignment.CenterHorizontally) {
                         Text("TEMPO",color=Muted,fontSize=11.sp,letterSpacing=2.sp)
-                        Text("${(45f-elapsed).toInt()}s",color=Color.White,
+                        Text("${(mode.duration-elapsed).toInt()}s",color=Color.White,
                             fontWeight=FontWeight.Bold,fontSize=27.sp)
                     }
                     Column(horizontalAlignment=Alignment.End) {
@@ -334,7 +374,7 @@ private fun BoletoRush(foreground: Boolean) {
                 Spacer(Modifier.height(10.dp))
                 Box(Modifier.fillMaxWidth().height(5.dp)
                     .background(Color(0xFF234056),RoundedCornerShape(16.dp))) {
-                    Box(Modifier.fillMaxWidth((elapsed/45f).coerceIn(0f,1f))
+                    Box(Modifier.fillMaxWidth((elapsed/mode.duration).coerceIn(0f,1f))
                         .fillMaxHeight().background(Teal,RoundedCornerShape(16.dp)))
                 }
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,
@@ -342,7 +382,9 @@ private fun BoletoRush(foreground: Boolean) {
                     Text(when {
                         shield>0f -> "✦ ESCUDO ${shield.toInt()+1}s"
                         combo>=3 -> "COMBO x$combo"
-                        else -> "COLETE • DESVIE • SOBREVIVA"
+                        else -> if (elapsed < mode.duration/3f) "COMEÇOU! • AQUECIMENTO"
+                                else if(elapsed < mode.duration*.7f) "ATENÇÃO! • ACELERANDO"
+                                else "RETA FINAL! • SOBREVIVA"
                     },color=if(shield>0f || combo>=3) Gold else Muted,
                         fontSize=11.sp,fontWeight=FontWeight.Bold)
                     Button(onClick={screen=if(screen==Screen.PLAY) Screen.PAUSE else Screen.PLAY},
@@ -353,13 +395,19 @@ private fun BoletoRush(foreground: Boolean) {
                     }
                 }
             }
+            if(screen==Screen.PLAY && feedbackSeconds>0f) Text(feedback,
+                color=if(feedback.startsWith("AI")) Coral else Gold,
+                fontSize=20.sp, fontWeight=FontWeight.Black,
+                modifier=Modifier.align(Alignment.Center).offset(y=(-115).dp),
+                textAlign=TextAlign.Center)
             if(screen==Screen.PLAY) Text("TOQUE OU ARRASTE PARA MOVER",
                 color=Color.White.copy(alpha=.68f),fontSize=10.sp,
                 modifier=Modifier.align(Alignment.BottomCenter).padding(bottom=25.dp),
                 letterSpacing=1.sp)
         }
         if(screen==Screen.MENU) {
-            Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal=28.dp),
+            Column(Modifier.align(Alignment.Center).fillMaxWidth().fillMaxHeight(.96f)
+                .verticalScroll(rememberScrollState()).padding(horizontal=28.dp,vertical=20.dp),
                 horizontalAlignment=Alignment.CenterHorizontally) {
                 Text("PRÓXIMA ERA  •  GAMES",color=Teal,fontSize=12.sp,
                     fontWeight=FontWeight.Bold,letterSpacing=2.sp)
@@ -370,23 +418,52 @@ private fun BoletoRush(foreground: Boolean) {
                 Spacer(Modifier.height(13.dp))
                 Text("A vida cobra. Você desvia.",color=Gold,fontSize=18.sp,
                     textAlign=TextAlign.Center,fontWeight=FontWeight.SemiBold)
-                Spacer(Modifier.height(29.dp))
+                Spacer(Modifier.height(22.dp))
                 Text("🪙  Pegue moedas    🧾  Fuja dos boletos",
                     color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
                 Spacer(Modifier.height(8.dp))
                 Text("✦ Escudo temporário   + Vida extra",
                     color=Muted,textAlign=TextAlign.Center,fontSize=13.sp)
                 Spacer(Modifier.height(8.dp))
-                Text("45 SEGUNDOS  •  3 VIDAS  •  SEM ANÚNCIOS",
+                Text("${mode.duration.toInt()} SEGUNDOS  •  3 VIDAS  •  SEM ANÚNCIOS",
                     color=Muted,textAlign=TextAlign.Center,fontSize=10.sp,letterSpacing=1.sp)
-                Spacer(Modifier.height(30.dp))
+                Spacer(Modifier.height(16.dp))
+                GameButton("MODO: ${mode.title}  (${mode.duration.toInt()}s) ↻",secondary=true){switchMode()}
+                Spacer(Modifier.height(9.dp))
                 GameButton("JOGAR AGORA"){begin()}
                 Spacer(Modifier.height(12.dp))
                 GameButton(if(soundOn) "SOM: LIGADO" else "SOM: DESLIGADO",
                     secondary=true){toggleSound()}
-                Spacer(Modifier.height(21.dp))
+                Spacer(Modifier.height(9.dp))
+                GameButton("COMO JOGAR",secondary=true){screen=Screen.HOW}
+                Spacer(Modifier.height(12.dp))
                 Text("RECORDE  $best   •   PARTIDAS  $gamesPlayed",color=Gold,
                     fontSize=13.sp,fontWeight=FontWeight.Bold)
+            }
+        }
+        if(screen==Screen.HOW) {
+            Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.96f)))
+            Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(25.dp),
+                horizontalAlignment=Alignment.CenterHorizontally) {
+                Text("COMO JOGAR",color=Teal,fontSize=32.sp,fontWeight=FontWeight.Black)
+                Spacer(Modifier.height(19.dp))
+                Text("ARRASTE A CARTEIRA",color=Gold,fontSize=16.sp,fontWeight=FontWeight.Bold)
+                Text("Toque em qualquer lado da tela ou deslize o dedo para mover.",
+                    color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
+                Spacer(Modifier.height(17.dp))
+                Text("MOEDAS = PONTOS",color=Gold,fontSize=16.sp,fontWeight=FontWeight.Bold)
+                Text("Colete moedas sem errar para aumentar o combo e ganhar mais.",
+                    color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
+                Spacer(Modifier.height(17.dp))
+                Text("BOLETOS = PERIGO",color=Coral,fontSize=16.sp,fontWeight=FontWeight.Bold)
+                Text("Cada boleto tira uma vida. O escudo bloqueia uma cobrança.",
+                    color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
+                Spacer(Modifier.height(17.dp))
+                Text("CLÁSSICO 45s • MARATONA 90s",color=Teal,fontSize=15.sp,fontWeight=FontWeight.Bold)
+                Text("Sobreviva até o final para vencer. Corações recuperam vidas.",
+                    color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
+                Spacer(Modifier.height(28.dp))
+                GameButton("ENTENDI!"){screen=Screen.MENU}
             }
         }
         if(screen==Screen.PAUSE) {
@@ -416,18 +493,21 @@ private fun BoletoRush(foreground: Boolean) {
                     fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(12.dp))
                 Text("$score",color=Color.White,fontSize=72.sp,fontWeight=FontWeight.Black)
-                Text("PONTOS",color=Gold,fontSize=13.sp,letterSpacing=3.sp)
+                Text("PONTOS • ${mode.title}",color=Gold,fontSize=13.sp,letterSpacing=3.sp)
                 Spacer(Modifier.height(13.dp))
                 Text("RECORDE: $best",color=Teal,fontSize=17.sp,
                     fontWeight=FontWeight.Bold)
-                Spacer(Modifier.height(29.dp))
+                Spacer(Modifier.height(10.dp))
+                Text("MOEDAS $coinsCollected  •  BOLETOS $billsHit  •  COMBO MÁX. $maxCombo",
+                    color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(22.dp))
                 GameButton("JOGAR DE NOVO"){begin()}
                 Spacer(Modifier.height(10.dp))
                 GameButton("COMPARTILHAR PONTOS",secondary=true){
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type="text/plain"
                         putExtra(Intent.EXTRA_TEXT,
-                            "Fiz $score pontos no Boleto Rush! 🪙 Consegue sobreviver 45 segundos? #BoletoRush")
+                            "Fiz $score pontos no Boleto Rush! 🪙 Modo ${mode.title} (${mode.duration.toInt()}s). Será que você supera meu recorde? #BoletoRush")
                     }
                     context.startActivity(Intent.createChooser(intent,"Compartilhar resultado"))
                 }
@@ -435,7 +515,7 @@ private fun BoletoRush(foreground: Boolean) {
                 GameButton("MENU",secondary=true){screen=Screen.MENU}
             }
         }
-        Text("v1.1 • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
+        Text("v1.2 • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
             fontSize=9.sp,modifier=Modifier.align(Alignment.BottomCenter)
                 .padding(bottom=7.dp))
     }
