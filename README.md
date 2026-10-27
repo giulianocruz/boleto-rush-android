@@ -30,4 +30,7 @@ APK de testes: `app/build/outputs/apk/debug/app-debug.apk`. AAB local: `app/buil
 - `store/` — artes e capturas de tela (validar novamente as capturas para a v1.2).
 - `TESTES.md` — registro de QA.
 
+## Próxima etapa: identidade visual premium
+O pacote de produção está em [`arte_premium/`](arte_premium/README.md), incluindo uma bíblia visual, 22 prompts individuais para o Flow, um prompt único para Flow Agent, prompts de vídeo/som e inventário de integração. **As novas artes ainda precisam ser geradas, aprovadas e importadas no aplicativo**; a v1.2 atual permanece a beta jogável.
+
 Feito no Brasil pela Próxima Era Games.
