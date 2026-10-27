@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +28,13 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
@@ -78,6 +86,23 @@ class MainActivity : ComponentActivity() {
 private fun BoletoRush(foreground: Boolean) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
+    val premiumPromo = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.premium_promo) }
+    val heroIdle = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_idle) }
+    val heroRun = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_run) }
+    val heroJump = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_jump) }
+    val heroHurt = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_hurt) }
+    val billIdle = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_idle) }
+    val billAttack = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_attack) }
+    val billDamaged = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_damaged) }
+    val billDefeated = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_defeated) }
+    val coinFront = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_front) }
+    val coinAngle = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_angle) }
+    val coinSide = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_side) }
+    val coinCollect = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_collect) }
+    val shieldCollect = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_collect) }
+    val shieldIdle = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_idle) }
+    val shieldActive = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_active) }
+    val shieldImpact = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_impact) }
     var screen by remember { mutableStateOf(Screen.MENU) }
     var mode by remember { mutableStateOf(if (prefs.getInt("mode", 0) == 1) Mode.MARATHON else Mode.CLASSIC) }
     var round by remember { mutableIntStateOf(0) }
@@ -298,31 +323,20 @@ private fun BoletoRush(foreground: Boolean) {
                     val r = w * .056f
                     when (item.kind) {
                         Kind.COIN -> {
-                            drawCircle(Gold.copy(alpha=.14f), r*1.55f, Offset(x,y))
-                            drawCircle(Color(0xFFBA8226),r*1.04f,Offset(x,y))
-                            drawCircle(Gold,r*.88f,Offset(x,y))
-                            drawCircle(Color(0xFFFFF1AE),r*.65f,Offset(x,y))
-                            drawTextAt("$",x,y+r*.39f,r*1.06f,0xFF704719.toInt())
+                            val frame = when ((elapsed*7f).toInt()%3) {
+                                0 -> coinFront
+                                1 -> coinAngle
+                                else -> coinSide
+                            }
+                            drawPremiumSprite(frame,x,y,r*1.35f)
                         }
                         Kind.BILL -> {
-                            drawRoundRect(Coral.copy(alpha=.20f),Offset(x-r*1.25f,y-r*.92f),
-                                Size(r*2.5f,r*1.85f),CornerRadius(r*.24f))
-                            drawRoundRect(Color(0xFFFFE6E9),Offset(x-r,y-r*.75f),
-                                Size(r*2f,r*1.5f),CornerRadius(r*.16f))
-                            drawRoundRect(Coral,Offset(x-r,y-r*.75f),
-                                Size(r*2f,r*.34f),CornerRadius(r*.13f))
-                            drawLine(Color(0xFFB36572),Offset(x-r*.65f,y),
-                                Offset(x+r*.65f,y),2.5f)
-                            drawLine(Color(0xFFB36572),Offset(x-r*.65f,y+r*.32f),
-                                Offset(x+r*.2f,y+r*.32f),2.5f)
+                            val frame = if(item.y>.53f) billAttack else billIdle
+                            drawPremiumSprite(frame,x,y,r*1.52f)
                         }
-                        Kind.SHIELD -> {
-                            drawCircle(Teal.copy(alpha=.16f),r*1.55f,Offset(x,y))
-                            drawCircle(Teal,r*1.03f,Offset(x,y))
-                            drawTextAt("✦",x,y+r*.38f,r*1.16f,0xFF073C48.toInt())
-                        }
+                        Kind.SHIELD -> drawPremiumSprite(shieldCollect,x,y,r*1.42f)
                         Kind.HEART -> {
-                            drawCircle(Coral.copy(alpha=.24f),r*1.38f,Offset(x,y))
+                            drawCircle(Coral.copy(alpha=.18f),r*1.45f,Offset(x,y))
                             drawCircle(Coral,r,Offset(x,y))
                             drawTextAt("+",x,y+r*.45f,r*1.25f,0xFFFFFFFF.toInt())
                         }
@@ -334,21 +348,28 @@ private fun BoletoRush(foreground: Boolean) {
                 val visible = invulnerable <= 0f || (invulnerable*12).toInt()%2==0
                 if (visible) {
                     if (shield > 0f) {
-                        drawCircle(Teal.copy(alpha=.12f),r*2f,Offset(x,y))
-                        drawCircle(Teal.copy(alpha=.33f),r*1.55f,Offset(x,y),
+                        drawPremiumSprite(shieldIdle,x,y,r*1.95f,opacity=.45f)
+                        drawCircle(Teal.copy(alpha=.30f),r*1.48f,Offset(x,y),
                             style=androidx.compose.ui.graphics.drawscope.Stroke(width=4f))
                     }
-                    drawCircle(Teal.copy(alpha=.10f),r*1.75f,Offset(x,y))
-                    drawRoundRect(Color(0xFF0A8292),Offset(x-r*1.32f,y-r*.7f),
-                        Size(r*2.64f,r*1.5f),CornerRadius(r*.38f))
-                    drawRoundRect(Teal,Offset(x-r*1.16f,y-r*.7f),
-                        Size(r*2.32f,r*1.27f),CornerRadius(r*.30f))
-                    drawRoundRect(Color(0xFF093A4A),Offset(x-r*.85f,y-r*.25f),
-                        Size(r*1.70f,r*.36f),CornerRadius(r*.16f))
-                    drawCircle(Color.White,r*.105f,Offset(x-r*.32f,y-r*.1f))
-                    drawCircle(Color.White,r*.105f,Offset(x+r*.32f,y-r*.1f))
-                    drawLine(Gold,Offset(x-r*.48f,y+r*.2f),
-                        Offset(x+r*.48f,y+r*.2f),r*.09f)
+                    val moving = kotlin.math.abs(playerX-targetX)>.025f
+                    val avatar = when {
+                        invulnerable>0f -> heroHurt
+                        shield>0f && shield>6.3f -> heroJump
+                        moving -> heroRun
+                        else -> heroIdle
+                    }
+                    drawPremiumSprite(avatar,x,y,r*1.65f)
+                    if (feedbackSeconds>0f) {
+                        when {
+                            feedback.contains("MOEDA") -> drawPremiumSprite(coinCollect,x,y-r*1.85f,r*.68f,
+                                opacity=(feedbackSeconds/.68f).coerceIn(0f,1f))
+                            feedback.contains("ESCUDO ATIVADO") -> drawPremiumSprite(shieldActive,x,y,r*1.96f,.45f)
+                            feedback.contains("ESCUDO SALVOU") -> drawPremiumSprite(shieldImpact,x,y,r*1.92f,.65f)
+                            feedback.startsWith("AI") -> drawPremiumSprite(billDamaged,x,y-r*1.75f,r*.63f,.8f)
+                            feedback.contains("VIDA") -> drawPremiumSprite(billDefeated,x+r,y-r*1.85f,r*.40f,.38f)
+                        }
+                    }
                 }
             }
         }
@@ -406,18 +427,18 @@ private fun BoletoRush(foreground: Boolean) {
                 letterSpacing=1.sp)
         }
         if(screen==Screen.MENU) {
-            Column(Modifier.align(Alignment.Center).fillMaxWidth().fillMaxHeight(.96f)
-                .verticalScroll(rememberScrollState()).padding(horizontal=28.dp,vertical=20.dp),
+            Image(bitmap=premiumPromo,contentDescription="Boleto Rush: mascote carteira fugindo de boletos em uma cidade brasileira",
+                modifier=Modifier.align(Alignment.TopCenter).fillMaxWidth()
+                    .aspectRatio(1376f/768f),
+                contentScale=ContentScale.Fit)
+        }
+        if(screen==Screen.MENU) {
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(.71f)
+                .verticalScroll(rememberScrollState()).padding(horizontal=28.dp,vertical=10.dp),
                 horizontalAlignment=Alignment.CenterHorizontally) {
-                Text("PRÓXIMA ERA  •  GAMES",color=Teal,fontSize=12.sp,
-                    fontWeight=FontWeight.Bold,letterSpacing=2.sp)
-                Spacer(Modifier.height(16.dp))
-                Text("BOLETO\nRUSH!",color=Color.White,
-                    fontSize=56.sp,lineHeight=59.sp,textAlign=TextAlign.Center,
-                    fontWeight=FontWeight.Black)
-                Spacer(Modifier.height(13.dp))
-                Text("A vida cobra. Você desvia.",color=Gold,fontSize=18.sp,
-                    textAlign=TextAlign.Center,fontWeight=FontWeight.SemiBold)
+                Text("ESCOLHA SEU DESAFIO",color=Gold,fontSize=16.sp,
+                    fontWeight=FontWeight.Black,letterSpacing=1.5.sp)
+                Spacer(Modifier.height(8.dp))
                 Spacer(Modifier.height(22.dp))
                 Text("🪙  Pegue moedas    🧾  Fuja dos boletos",
                     color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
@@ -515,10 +536,28 @@ private fun BoletoRush(foreground: Boolean) {
                 GameButton("MENU",secondary=true){screen=Screen.MENU}
             }
         }
-        Text("v1.2 • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
+        Text("v1.3 • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
             fontSize=9.sp,modifier=Modifier.align(Alignment.BottomCenter)
                 .padding(bottom=7.dp))
     }
+}
+
+
+private fun DrawScope.drawPremiumSprite(
+    bitmap: ImageBitmap,
+    centerX: Float, centerY: Float, halfSize: Float,
+    opacity: Float = 1f
+) {
+    val side = (halfSize*2f).toInt().coerceAtLeast(1)
+    drawImage(
+        image = bitmap,
+        srcOffset = IntOffset.Zero,
+        srcSize = IntSize(bitmap.width,bitmap.height),
+        dstOffset = IntOffset((centerX-halfSize).toInt(),(centerY-halfSize).toInt()),
+        dstSize = IntSize(side,side),
+        alpha = opacity.coerceIn(0f,1f),
+        filterQuality = FilterQuality.High
+    )
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTextAt(

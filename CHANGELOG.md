@@ -1,18 +1,19 @@
-# Histórico de versões
+# Histórico de versões — Boleto Rush!
 
-## 1.2-beta — 26/10/2026
-- Dois modos jogáveis: Clássico 45 segundos e Maratona 90 segundos.
-- Recordes separados por modo e migração transparente do recorde anterior do Clássico.
-- Menu de instruções "Como jogar".
-- Feedback visual temporário para moedas, dano e poderes.
-- Ajuste no início da dificuldade, maior oferta de moedas e frequência gradual de itens.
-- Tela final com quantidade de moedas, boletos recebidos e combo máximo.
-- Compartilhamento com nome do modo e duração.
-- Melhor organização da navegação e rolagem no menu.
+## v1.3-premium — 26/10/2026
+- Integração das três artes JPG enviadas pelo usuário: ícone, capa com cidade brasileira e spritesheet 4×4.
+- Menu com arte original de Boleto Rush e mascote carteira marrom.
+- 16 sprites PNG preparados para carteira, boleto, moeda e escudo, com mudanças de estado no Canvas.
+- Ícone do app atualizado no AndroidManifest.
+- Compatibilidade mantida com modos Clássico e Maratona, recordes, pausa, sons e estatísticas.
+- Build APK e AAB compilado. QA visual completo pendente por travamentos do launcher do emulador (ver TESTES_V13.md).
 
-## 1.1-beta — 26/10/2026
-- Escudos, coração, pausa, retomada, sons opcionais, compartilhamento.
-- Recorde persistido localmente, 45 segundos e 3 vidas.
+## v1.2-beta — 26/10/2026
+- Modos Clássico 45s / Maratona 90s, recordes independentes, tutorial, feedback visual, estatísticas.
+- Testes de navegação e partida Clássica no emulador.
 
-## 0.1-alpha — 26/10/2026
-- Primeira versão jogável com coleta de moedas e desvio de boletos.
+## v1.1-beta — 26/10/2026
+- Escudos, vidas, pausa/retomada, sons, compartilhamento.
+
+## v0.1-alpha — 26/10/2026
+- Primeira versão jogável.
