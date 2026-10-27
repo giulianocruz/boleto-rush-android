@@ -72,17 +72,17 @@ class MainActivity : ComponentActivity() {
         window.decorView.systemUiVisibility =
             View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        // Display the offline game before initializing optional advertising.
+        // Opening the game does not initialize any advertising SDK.
+        // Ads are requested only if the player loses and reaches REVIVE.
         setContent { BoletoRush(foreground, adManager) }
-        window.decorView.postDelayed({
-            if (!isFinishing && !isDestroyed) {
-                runCatching {
-                    val manager = RewardedReviveAds(this)
-                    adManager = manager
-                    manager.start()
-                }.onFailure { Log.w("BoletoRush", "Optional ads unavailable", it) }
-            }
-        }, 3500L)
+    }
+    fun initializeRewardedAdsIfNeeded() {
+        if (adManager != null || isFinishing || isDestroyed) return
+        runCatching {
+            val manager = RewardedReviveAds(this)
+            adManager = manager
+            manager.start()
+        }.onFailure { Log.w("BoletoRush", "Optional ads unavailable", it) }
     }
     override fun onPause() {
         foreground = false
@@ -99,6 +99,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
     var screen by remember { mutableStateOf(Screen.MENU) }
+    LaunchedEffect(screen) {
+        if (screen == Screen.REVIVE && ads == null)
+            (context as? MainActivity)?.initializeRewardedAdsIfNeeded()
+    }
     val premiumPromo = remember(context, screen) {
         if (screen == Screen.MENU)
             runCatching { ImageBitmap.imageResource(context.resources, R.drawable.premium_promo) }.getOrNull()
