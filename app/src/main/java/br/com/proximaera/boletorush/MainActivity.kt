@@ -3,6 +3,7 @@ package br.com.proximaera.boletorush
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
+import android.util.Log
 import android.media.ToneGenerator
 import android.os.Bundle
 import android.view.View
@@ -63,7 +64,7 @@ private data class Drop(val id: Int, val x: Float, val y: Float, val speed: Floa
 
 class MainActivity : ComponentActivity() {
     private var foreground by mutableStateOf(true)
-    private lateinit var adManager: RewardedReviveAds
+    private var adManager by mutableStateOf<RewardedReviveAds?>(null)
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,9 +72,17 @@ class MainActivity : ComponentActivity() {
         window.decorView.systemUiVisibility =
             View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        adManager = RewardedReviveAds(this)
-        adManager.start()
+        // Display the offline game before initializing optional advertising.
         setContent { BoletoRush(foreground, adManager) }
+        window.decorView.postDelayed({
+            if (!isFinishing && !isDestroyed) {
+                runCatching {
+                    val manager = RewardedReviveAds(this)
+                    adManager = manager
+                    manager.start()
+                }.onFailure { Log.w("BoletoRush", "Optional ads unavailable", it) }
+            }
+        }, 3500L)
     }
     override fun onPause() {
         foreground = false
@@ -86,27 +95,99 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds) {
+private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
-    val premiumPromo = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.premium_promo) }
-    val premiumRunning = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.premium_running) }
-    val heroIdle = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_idle) }
-    val heroRun = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_run) }
-    val heroJump = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_jump) }
-    val heroHurt = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_hurt) }
-    val billIdle = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_idle) }
-    val billAttack = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_attack) }
-    val billDamaged = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_damaged) }
-    val billDefeated = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_defeated) }
-    val coinFront = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_front) }
-    val coinAngle = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_angle) }
-    val coinSide = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_side) }
-    val coinCollect = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_collect) }
-    val shieldCollect = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_collect) }
-    val shieldIdle = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_idle) }
-    val shieldActive = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_active) }
-    val shieldImpact = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_impact) }
+    val premiumPromo = remember(context, screen) {
+        if (screen == Screen.MENU)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.premium_promo) }.getOrNull()
+        else null
+    }
+    val premiumRunning = remember(context, screen) {
+        if (screen == Screen.END || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.premium_running) }.getOrNull()
+        else null
+    }
+    val heroIdle = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_idle) }.getOrNull()
+        else null
+    }
+    val heroRun = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_run) }.getOrNull()
+        else null
+    }
+    val heroJump = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_jump) }.getOrNull()
+        else null
+    }
+    val heroHurt = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_hurt) }.getOrNull()
+        else null
+    }
+    val billIdle = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_idle) }.getOrNull()
+        else null
+    }
+    val billAttack = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_attack) }.getOrNull()
+        else null
+    }
+    val billDamaged = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_damaged) }.getOrNull()
+        else null
+    }
+    val billDefeated = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_defeated) }.getOrNull()
+        else null
+    }
+    val coinFront = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_front) }.getOrNull()
+        else null
+    }
+    val coinAngle = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_angle) }.getOrNull()
+        else null
+    }
+    val coinSide = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_side) }.getOrNull()
+        else null
+    }
+    val coinCollect = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_collect) }.getOrNull()
+        else null
+    }
+    val shieldCollect = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_collect) }.getOrNull()
+        else null
+    }
+    val shieldIdle = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_idle) }.getOrNull()
+        else null
+    }
+    val shieldActive = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_active) }.getOrNull()
+        else null
+    }
+    val shieldImpact = remember(context, screen) {
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_impact) }.getOrNull()
+        else null
+    }
     var screen by remember { mutableStateOf(Screen.MENU) }
     var mode by remember { mutableStateOf(if (prefs.getInt("mode", 0) == 1) Mode.MARATHON else Mode.CLASSIC) }
     var round by remember { mutableIntStateOf(0) }
@@ -441,10 +522,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds) {
                 letterSpacing=1.sp)
         }
         if(screen==Screen.MENU) {
-            Image(bitmap=premiumPromo,contentDescription="Boleto Rush: mascote carteira fugindo de boletos em uma cidade brasileira",
+            premiumPromo?.let { artwork -> Image(bitmap=artwork,contentDescription="Boleto Rush: mascote carteira fugindo de boletos em uma cidade brasileira",
                 modifier=Modifier.align(Alignment.TopCenter).fillMaxWidth()
                     .aspectRatio(1376f/768f),
-                contentScale=ContentScale.Fit)
+                contentScale=ContentScale.Fit) }
         }
         if(screen==Screen.MENU) {
             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(.71f)
@@ -471,9 +552,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds) {
                     secondary=true){toggleSound()}
                 Spacer(Modifier.height(9.dp))
                 GameButton("COMO JOGAR",secondary=true){screen=Screen.HOW}
-                if (ads.privacyOptionsRequired) {
+                if (ads?.privacyOptionsRequired == true) {
                     Spacer(Modifier.height(7.dp))
-                    GameButton("OPÇÕES DE PRIVACIDADE",secondary=true){ads.showPrivacyOptions()}
+                    GameButton("OPÇÕES DE PRIVACIDADE",secondary=true){ads?.showPrivacyOptions()}
                 }
                 Spacer(Modifier.height(12.dp))
                 Text("RECORDE  $best   •   PARTIDAS  $gamesPlayed",color=Gold,
@@ -524,9 +605,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds) {
             }
         }
         if(screen==Screen.REVIVE) {
-            Image(bitmap=premiumRunning,contentDescription=null,
+            premiumRunning?.let { artwork -> Image(bitmap=artwork,contentDescription=null,
                 modifier=Modifier.align(Alignment.TopCenter).fillMaxWidth()
-                    .aspectRatio(1376f/768f),contentScale=ContentScale.Fit)
+                    .aspectRatio(1376f/768f),contentScale=ContentScale.Fit) }
             Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.73f)))
             Column(Modifier.align(Alignment.Center).fillMaxWidth()
                 .padding(horizontal=27.dp,vertical=12.dp),
@@ -544,10 +625,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds) {
                 Text("Assista voluntariamente a um anúncio recompensado para voltar com 1 vida. Só é permitido uma vez por partida.",
                     color=Color.White,fontSize=14.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(15.dp))
-                if(ads.ready) {
+                if(ads?.ready == true) {
                     GameButton("ASSISTIR ANÚNCIO • REVIVER") {
                         reviveError = ""
-                        ads.offerRevive(onEarned = {
+                        ads?.offerRevive(onEarned = {
                             if(screen==Screen.REVIVE && !reviveUsed) {
                                 reviveUsed = true
                                 lives = 1
@@ -578,9 +659,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds) {
             }
         }
         if(screen==Screen.END) {
-            Image(bitmap=premiumRunning,contentDescription=null,
+            premiumRunning?.let { artwork -> Image(bitmap=artwork,contentDescription=null,
                 modifier=Modifier.align(Alignment.TopCenter).fillMaxWidth()
-                    .aspectRatio(1376f/768f),contentScale=ContentScale.Fit)
+                    .aspectRatio(1376f/768f),contentScale=ContentScale.Fit) }
             Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.80f)))
             Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(30.dp),
                 horizontalAlignment=Alignment.CenterHorizontally) {
@@ -619,10 +700,15 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds) {
 
 
 private fun DrawScope.drawPremiumSprite(
-    bitmap: ImageBitmap,
+    bitmap: ImageBitmap?,
     centerX: Float, centerY: Float, halfSize: Float,
     opacity: Float = 1f
 ) {
+    if (bitmap == null) {
+        drawRoundRect(color = Teal, topLeft = Offset(centerX-halfSize, centerY-halfSize),
+            size = Size(halfSize*2f, halfSize*2f), cornerRadius = CornerRadius(halfSize*.35f))
+        return
+    }
     val side = (halfSize*2f).toInt().coerceAtLeast(1)
     drawImage(
         image = bitmap,
