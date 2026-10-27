@@ -98,6 +98,7 @@ class MainActivity : ComponentActivity() {
 private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
+    var screen by remember { mutableStateOf(Screen.MENU) }
     val premiumPromo = remember(context, screen) {
         if (screen == Screen.MENU)
             runCatching { ImageBitmap.imageResource(context.resources, R.drawable.premium_promo) }.getOrNull()
@@ -188,7 +189,6 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
             runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_impact) }.getOrNull()
         else null
     }
-    var screen by remember { mutableStateOf(Screen.MENU) }
     var mode by remember { mutableStateOf(if (prefs.getInt("mode", 0) == 1) Mode.MARATHON else Mode.CLASSIC) }
     var round by remember { mutableIntStateOf(0) }
     var score by remember { mutableIntStateOf(0) }
