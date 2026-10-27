@@ -21,4 +21,11 @@ Data: 27/10/2026.
 - Testar retomada de aplicativo após vídeo/tela de consentimento.
 - AAB de produção com chave do titular, classificação e segurança de dados da Play Store.
 
-Este documento não equivale à aprovação da Play. Registros de execução em emulador devem ser adicionados conforme concluídos.
+## Tentativa real no emulador em 27/10/2026
+- Emulador Android API 37 iniciou (sys.boot_completed=1).
+- APK instalado no pacote br.com.proximaera.boletorush; confirmado com `adb shell pm path`.
+- O Android virtual apresentou a caixa `Application Not Responding: com.android.systemui`. O app não ficou disponível para inspeção por UI Automator.
+- Não apareceu uma `FATAL EXCEPTION` na amostra consultada do AndroidRuntime, mas não é suficiente para aprovar o app.
+- Teste funcional do AdMob, tela de revive, recordes e estabilidade em aparelho físico: **ainda pendente**.
+
+Este documento não equivale à aprovação da Play. O GitHub Release é uma versão beta para testes manuais.
