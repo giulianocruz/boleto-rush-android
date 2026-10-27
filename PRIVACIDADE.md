@@ -1,16 +1,20 @@
 # Política de Privacidade — Boleto Rush!
 
-**Última atualização:** 26 de outubro de 2026
+**Atualizada em 27 de outubro de 2026** — Próxima Era Games
 
-O aplicativo **Boleto Rush!**, desenvolvido pela Próxima Era, é um jogo casual gratuito para Android.
+O Boleto Rush! é um jogo casual para Android que funciona sem cadastro. O jogo armazena **recordes, preferência de modo, som e número de partidas apenas no próprio dispositivo**.
 
-- **Dados pessoais:** o aplicativo não solicita nome, e-mail, telefone, localização ou cadastro.
-- **Rede e anúncios:** o jogo não utiliza conexão com a internet, não exibe anúncios e não faz análise de comportamento por terceiros.
-- **Recorde local:** a maior pontuação fica armazenada somente no próprio dispositivo, por meio de SharedPreferences. Este dado não é enviado a servidores.
-- **Permissões:** o app não solicita permissões especiais.
-- **Crianças:** o jogo não contém compras nem funcionalidades sociais.
-- **Exclusão de dados:** desinstalar o aplicativo ou limpar os dados do app remove o recorde armazenado.
+## Anúncios opcionais
+A partir da versão de testes 1.4, o app integra o SDK Google Mobile Ads (AdMob) para oferecer **um anúncio recompensado opcional** quando o jogador perde: após assistir até obter a recompensa, ele pode voltar com uma vida. Não há anúncios intersticiais obrigatórios. O jogador pode encerrar a partida sem assistir. A versão 1.4 usa **somente unidades de anúncio de teste do Google** e não gera receita.
 
-Caso funcionalidades de rede, anúncios ou novos serviços sejam adicionados, esta política será atualizada antes da distribuição da nova versão.
+Quando o SDK está habilitado e o usuário/ambiente permite uma solicitação de anúncio, o Google e seus parceiros podem processar dados técnicos, como endereço IP, informações sobre o aparelho e aplicativo, identificadores de publicidade (quando disponíveis), métricas de diagnóstico e interação com anúncios, de acordo com seus termos e práticas. O app usa o SDK Google User Messaging Platform (UMP) para gerenciar consentimento/privacidade onde exigido. Consulte também a [Política de Privacidade do Google](https://policies.google.com/privacy).
 
-**Responsável:** Próxima Era, desenvolvedora do aplicativo.
+O comportamento da coleta/compartilhamento de dados muda ao passar de IDs de teste para contas de anúncio reais e poderá exigir atualização desta política e das declarações na Google Play.
+
+## Dados locais
+Pontuações e preferências ficam exclusivamente nas preferências do aplicativo. A desinstalação ou a limpeza dos dados do aplicativo as apaga. O jogo não pede nome, e-mail, telefone ou localização. Compartilhar resultado por mensagem só acontece quando você toca em "Compartilhar" e escolhe o serviço destino.
+
+## Crianças, compras e suporte
+Não há compras internas nem mensagens de usuários entre si. Antes de direcionar anúncios a crianças será necessário revisar e configurar as regras aplicáveis de famílias e a classificação indicativa. Para informações e suporte, utilize o site oficial da [Próxima Era](https://proximaera.com.br).
+
+Esta política deve ser revisada novamente antes da publicação comercial na Google Play. O aplicativo não possui hoje um sistema de atendimento ou exclusão de dados do Google gerenciado pela Próxima Era.

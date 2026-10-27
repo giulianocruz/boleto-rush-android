@@ -53,7 +53,7 @@ private val Teal = Color(0xFF25E2D1)
 private val Gold = Color(0xFFFFD166)
 private val Coral = Color(0xFFFF657C)
 private val Muted = Color(0xFFA7BBCF)
-private enum class Screen { MENU, HOW, PLAY, PAUSE, END }
+private enum class Screen { MENU, HOW, PLAY, PAUSE, REVIVE, END }
 private enum class Mode(val title: String, val duration: Float) {
     CLASSIC("CLÁSSICO",45f), MARATHON("MARATONA",90f)
 }
@@ -63,6 +63,7 @@ private data class Drop(val id: Int, val x: Float, val y: Float, val speed: Floa
 
 class MainActivity : ComponentActivity() {
     private var foreground by mutableStateOf(true)
+    private lateinit var adManager: RewardedReviveAds
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,7 +71,9 @@ class MainActivity : ComponentActivity() {
         window.decorView.systemUiVisibility =
             View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        setContent { BoletoRush(foreground) }
+        adManager = RewardedReviveAds(this)
+        adManager.start()
+        setContent { BoletoRush(foreground, adManager) }
     }
     override fun onPause() {
         foreground = false
@@ -83,10 +86,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun BoletoRush(foreground: Boolean) {
+private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
     val premiumPromo = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.premium_promo) }
+    val premiumRunning = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.premium_running) }
     val heroIdle = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_idle) }
     val heroRun = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_run) }
     val heroJump = remember(context) { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_jump) }
@@ -124,6 +128,8 @@ private fun BoletoRush(foreground: Boolean) {
     var shield by remember { mutableFloatStateOf(0f) }
     var invulnerable by remember { mutableFloatStateOf(0f) }
     var won by remember { mutableStateOf(false) }
+    var reviveUsed by remember { mutableStateOf(false) }
+    var reviveError by remember { mutableStateOf("") }
     val rng = remember { Random(System.nanoTime()) }
     val audio = remember { runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 45) }.getOrNull() }
     DisposableEffect(audio) { onDispose { audio?.release() } }
@@ -151,6 +157,8 @@ private fun BoletoRush(foreground: Boolean) {
         shield = 0f
         invulnerable = 0f
         won = false
+        reviveUsed = false
+        reviveError = ""
         round++
         screen = Screen.PLAY
     }
@@ -174,6 +182,7 @@ private fun BoletoRush(foreground: Boolean) {
             Screen.PLAY -> Screen.PAUSE
             Screen.PAUSE -> Screen.PLAY
             Screen.HOW -> Screen.MENU
+            Screen.REVIVE -> { finish(false); Screen.END }
             Screen.END -> Screen.MENU
             Screen.MENU -> Screen.MENU
         }
@@ -270,7 +279,12 @@ private fun BoletoRush(foreground: Boolean) {
             }
             drops = updated
             if (lives <= 0) {
-                finish(false)
+                if (!reviveUsed) {
+                    reviveError = ""
+                    screen = Screen.REVIVE
+                } else {
+                    finish(false)
+                }
                 break
             }
         }
@@ -446,7 +460,7 @@ private fun BoletoRush(foreground: Boolean) {
                 Text("✦ Escudo temporário   + Vida extra",
                     color=Muted,textAlign=TextAlign.Center,fontSize=13.sp)
                 Spacer(Modifier.height(8.dp))
-                Text("${mode.duration.toInt()} SEGUNDOS  •  3 VIDAS  •  SEM ANÚNCIOS",
+                Text("${mode.duration.toInt()} SEGUNDOS  •  3 VIDAS  •  ANÚNCIO OPCIONAL",
                     color=Muted,textAlign=TextAlign.Center,fontSize=10.sp,letterSpacing=1.sp)
                 Spacer(Modifier.height(16.dp))
                 GameButton("MODO: ${mode.title}  (${mode.duration.toInt()}s) ↻",secondary=true){switchMode()}
@@ -457,6 +471,10 @@ private fun BoletoRush(foreground: Boolean) {
                     secondary=true){toggleSound()}
                 Spacer(Modifier.height(9.dp))
                 GameButton("COMO JOGAR",secondary=true){screen=Screen.HOW}
+                if (ads.privacyOptionsRequired) {
+                    Spacer(Modifier.height(7.dp))
+                    GameButton("OPÇÕES DE PRIVACIDADE",secondary=true){ads.showPrivacyOptions()}
+                }
                 Spacer(Modifier.height(12.dp))
                 Text("RECORDE  $best   •   PARTIDAS  $gamesPlayed",color=Gold,
                     fontSize=13.sp,fontWeight=FontWeight.Bold)
@@ -505,8 +523,65 @@ private fun BoletoRush(foreground: Boolean) {
                 GameButton("MENU PRINCIPAL",secondary=true){screen=Screen.MENU}
             }
         }
+        if(screen==Screen.REVIVE) {
+            Image(bitmap=premiumRunning,contentDescription=null,
+                modifier=Modifier.align(Alignment.TopCenter).fillMaxWidth()
+                    .aspectRatio(1376f/768f),contentScale=ContentScale.Fit)
+            Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.73f)))
+            Column(Modifier.align(Alignment.Center).fillMaxWidth()
+                .padding(horizontal=27.dp,vertical=12.dp),
+                horizontalAlignment=Alignment.CenterHorizontally) {
+                Text("A FATURA CHEGOU!",color=Coral,fontSize=28.sp,
+                    fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(8.dp))
+                Text("Mas ainda dá para escapar!",color=Gold,fontSize=17.sp,
+                    fontWeight=FontWeight.SemiBold,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(17.dp))
+                Text("$score PONTOS  •  ${mode.title}",color=Color.White,
+                    fontWeight=FontWeight.ExtraBold,fontSize=24.sp,
+                    textAlign=TextAlign.Center)
+                Spacer(Modifier.height(18.dp))
+                Text("Assista voluntariamente a um anúncio recompensado para voltar com 1 vida. Só é permitido uma vez por partida.",
+                    color=Color.White,fontSize=14.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(15.dp))
+                if(ads.ready) {
+                    GameButton("ASSISTIR ANÚNCIO • REVIVER") {
+                        reviveError = ""
+                        ads.offerRevive(onEarned = {
+                            if(screen==Screen.REVIVE && !reviveUsed) {
+                                reviveUsed = true
+                                lives = 1
+                                invulnerable = 2.5f
+                                drops = emptyList()
+                                feedback = "SEGUNDA CHANCE!"
+                                feedbackSeconds = 1f
+                                screen = Screen.PLAY
+                            }
+                        },onUnavailable = {
+                            reviveError = "Anúncio indisponível. Você pode encerrar normalmente."
+                        })
+                    }
+                } else {
+                    Text("Anúncio de teste ainda não disponível.",
+                        color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                }
+                if(reviveError.isNotEmpty()) {
+                    Spacer(Modifier.height(7.dp))
+                    Text(reviveError,color=Coral,fontSize=12.sp,
+                        textAlign=TextAlign.Center)
+                }
+                Spacer(Modifier.height(14.dp))
+                GameButton("NÃO, ENCERRAR PARTIDA",secondary=true){finish(false)}
+                Spacer(Modifier.height(13.dp))
+                Text("PROPAGANDA 100% OPCIONAL • MODO DE TESTES",
+                    color=Muted,fontSize=10.sp,textAlign=TextAlign.Center)
+            }
+        }
         if(screen==Screen.END) {
-            Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.84f)))
+            Image(bitmap=premiumRunning,contentDescription=null,
+                modifier=Modifier.align(Alignment.TopCenter).fillMaxWidth()
+                    .aspectRatio(1376f/768f),contentScale=ContentScale.Fit)
+            Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.80f)))
             Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(30.dp),
                 horizontalAlignment=Alignment.CenterHorizontally) {
                 Text(if(won) "SOBREVIVEU!" else "A FATURA CHEGOU!",
@@ -536,7 +611,7 @@ private fun BoletoRush(foreground: Boolean) {
                 GameButton("MENU",secondary=true){screen=Screen.MENU}
             }
         }
-        Text("v1.3 • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
+        Text("v1.4 • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
             fontSize=9.sp,modifier=Modifier.align(Alignment.BottomCenter)
                 .padding(bottom=7.dp))
     }

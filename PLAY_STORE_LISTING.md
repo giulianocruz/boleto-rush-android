@@ -1,62 +1,46 @@
-# Cadastro Google Play — Boleto Rush!
-Data de preparação: 26/10/2026
+# Ficha Google Play — Boleto Rush! 1.4
 
 ## Nome
 Boleto Rush!
 
-## Descrição curta
-Desvie dos boletos, colete moedas e bata seus recordes!
+## Resumo curto
+Desvie dos boletos, colete moedas e supere seus recordes!
 
-## Descrição completa
+## Descrição
 A vida cobra. Você desvia!
 
-No Boleto Rush!, sua carteira enfrenta o maior desafio da vida adulta: uma chuva de boletos. Deslize para os lados, colete moedas douradas e sobreviva aos dois desafios: Clássico de 45 segundos ou Maratona de 90 segundos. Cada modo tem seu próprio recorde!
+No Boleto Rush!, uma carteira corajosa enfrenta uma chuva de boletos em uma cidade brasileira cheia de humor. Mova para os lados, colete moedas, faça combos, pegue escudos e sobreviva aos desafios.
 
-COMO JOGAR
-• Toque ou arraste para mover a carteira.
-• Pegue as moedas para ganhar pontos e aumentar seu combo.
-• Fuja dos boletos vermelhos.
-• Colete escudos para se proteger temporariamente.
-• Pegue corações para recuperar vidas.
-• Supere seu próprio recorde e compartilhe o resultado!
-• Escolha entre Clássico e Maratona, acompanhe o combo máximo e consulte as estatísticas finais.
-• Aprenda rapidamente com o tutorial dentro do jogo.
+• Clássico: sobreviva por 45 segundos.
+• Maratona: sobreviva por 90 segundos.
+• Escudo, vida extra, combos e recordes para cada modo.
+• Tutorial e controles rápidos para jogar com um dedo.
+• Som opcional, pausa e compartilhamento de pontuação.
+• Se você perder, pode escolher assistir a um anúncio recompensado para voltar com uma vida, uma vez por partida. Essa escolha é sempre voluntária.
 
-Feito no Brasil pela Próxima Era Games, Boleto Rush! é um jogo casual para partidas rápidas, com controles simples e visuais originais.
+O jogo funciona offline, mas os anúncios opcionais e as escolhas de privacidade podem exigir internet. Não há compras.
 
-✓ Jogue offline.
-✓ Sem anúncios e sem compras dentro do aplicativo.
-✓ Sem cadastro, rastreamento ou necessidade de conexão.
-✓ Efeitos sonoros opcionais.
-
-Será que você consegue escapar da fatura?
+Desenvolvido no Brasil pela Próxima Era Games.
 
 ## Categoria
-Jogos > Casual
+Jogos / Casual. Idioma: Português (Brasil).
 
-## Idiomas
-Português (Brasil)
+## Material visual
+- Ícone de Play Store 512×512 e feature graphic 1024×500 existentes no diretório `store/`.
+- Mockup de anúncio e telas geradas por IA são apenas REFERÊNCIA; criar screenshots reais do APK.
+- Novo lote de sete imagens enviado em 27/10/2026 incluído no projeto.
 
-## Suporte e privacidade
-Política de privacidade: https://github.com/giulianocruz/boleto-rush-android/blob/main/PRIVACIDADE.md
-Site / suporte: definir canal de contato oficial da Próxima Era antes de publicar
+## Declarações a conferir antes da Play Store
+- **Contém anúncios:** SIM (recompensados, opcionais).
+- Compras internas: NÃO.
+- Uso de internet: o jogo funciona offline; SDK de anúncios e consentimento usam rede.
+- Dados pessoais: jogo não solicita cadastro, mas o SDK Google Mobile Ads/UMP pode tratar identificadores e dados técnicos. Declarar corretamente no formulário de Segurança de Dados da Play, conforme a configuração efetiva da conta.
+- Público-alvo e classificação indicativa: responder com dados verdadeiros; rever políticas de famílias antes de anunciar para crianças.
+- AdMob: substituir TEST APP ID e TEST REWARDED AD UNIT por IDs próprios apenas depois de configurar a conta.
+- UMP: configurar mensagens e consentimento/privacidade em AdMob.
+- Política: https://github.com/giulianocruz/boleto-rush-android/blob/main/PRIVACIDADE.md
+- Responsável: Próxima Era Games. Confirmar e-mail de suporte e identidade oficial no Play Console.
+- Gerar AAB assinado em keystore protegida fora do Git e concluir os testes obrigatórios da conta.
 
-## Materiais na pasta /store
-- play-icon-512.png — PNG ARGB 512x512
-- feature-graphic-1024x500.png — PNG RGB 1024x500
-- screenshot-menu-v12.jpg, screenshot-tutorial-v12.jpg, screenshot-partida-v12.jpg, screenshot-final-v12.jpg — capturas reais da v1.2
-
-## Formulários Play Console (validar antes de enviar)
-- Contém anúncios: não
-- Compras no aplicativo: não
-- Permissões sensíveis: nenhuma
-- Dados pessoais coletados/transmitidos: nenhum (versão 1.2)
-- Classificação indicativa: responder ao questionário; sem violência ou apostas
-- Público-alvo: selecionar faixas etárias honestamente; não declarar direcionamento infantil sem revisão das regras de famílias
-- Política de privacidade acessível em URL pública, fora do aplicativo
-- Confirmar endereço de e-mail de suporte / identidade da conta
-- Criar aplicativo, concluir testagem exigida pela conta, configurar países, classificação e declaração de acesso aos dados
-- O AAB para Google Play deve estar assinado com chave própria de upload, guardada fora do repositório
-
-## Notas da versão
-Versão 1.2: novo modo Maratona de 90 segundos, modo Clássico de 45 segundos, recordes independentes, tutorial, feedback visual de colisões/coletas e estatísticas finais. Mantidas pausa, efeitos sonoros opcionais e compartilhamento.
+## Notas de atualização
+Beta 1.4: novas artes, cena de ação, oferta voluntária de vídeo recompensado para reviver uma vez após perder, consentimento UMP e correção de compilação.

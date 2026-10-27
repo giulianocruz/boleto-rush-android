@@ -9,8 +9,8 @@ android {
         applicationId = "br.com.proximaera.boletorush"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.4"
     }
     buildFeatures { compose = true }
     compileOptions {
@@ -19,6 +19,8 @@ android {
     }
 }
 dependencies {
+    implementation("com.google.android.gms:play-services-ads:25.5.0")
+    implementation("com.google.android.ump:user-messaging-platform:4.0.0")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.compose.ui:ui:1.7.2")
     implementation("androidx.compose.foundation:foundation:1.7.2")

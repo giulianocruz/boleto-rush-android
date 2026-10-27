@@ -1,31 +1,31 @@
-# Boleto Rush! 🪙 — Próxima Era Games
+# Boleto Rush! — Próxima Era Games
 
-Arcade casual Android, original e offline. Pegue moedas, desvie dos boletos e sobreviva. Sem anúncios, login ou compras.
+**Versão 1.4 para testes (27/10/2026).** Arcade casual Android original, controle por toque ou arraste, 45 segundos no Clássico ou 90 segundos na Maratona.
 
-## v1.3 — Integração das artes enviadas
-Integramos as três artes do pacote `out. 26 - 20_30.zip`: nova capa ilustrada no menu, ícone de carteira e **16 quadros de sprite** (personagem, boleto, moeda e escudo) separados e otimizados. Identidade visual oficial da v1.3: mascote **carteira marrom** em cidade brasileira noturna, moedas douradas e boletos corais. Os fundos de gameplay e botões ainda são nativos e leves.
+## O que há nesta versão
+- Mascote carteira caramelo, ícones, moedas, boletos e escudos em sprites (arte enviada).
+- Capa e cena nova de ação, com paleta turquesa, dourado e coral.
+- Tutorial, pontuação, combos, recordes independentes, escudos, vidas extras e pausa.
+- Quando as vidas chegam a zero, surge **uma oferta opcional de anúncio recompensado**: se o usuário assistir e ganhar recompensa, revive uma única vez com 1 vida e invulnerabilidade breve.
+- Sem anúncios intersticiais obrigatórios e sem compras.
+- **AdMob de TESTE:** IDs oficiais de demonstração, não geram receita. A conexão é opcional; o jogo funciona offline, mas não oferece anúncio sem conexão.
+- UMP para consentimento e opção de privacidade quando exigida.
 
-## O que já funciona
-- Clássico de 45s e Maratona de 90s com recordes independentes.
-- Moedas, boletos, escudos, vida extra, combos e feedback.
-- Tutorial, pausa/retomada, som opcional e compartilhamento.
-- UI adaptada à orientação vertical, sem dependência de rede.
-
-## Compilação
-Projeto Kotlin + Jetpack Compose; AGP 9.1.1; Gradle 9.3.1; JDK 21. minSdk 26, targetSdk 36.
+## Como compilar
+Android Studio, JDK 21, Gradle 9.3.1, AGP 9.1.1, Compose e Kotlin. applicationId `br.com.proximaera.boletorush`; minSdk 26; targetSdk 36.
 
 ```powershell
 .\gradlew.bat :app:assembleDebug
 .\gradlew.bat :app:bundleRelease
 ```
 
-APK debug: `app/build/outputs/apk/debug/app-debug.apk`. AAB local: `app/build/outputs/bundle/release/app-release.aab`. **O AAB para Play precisa ser assinado com a chave de upload própria antes do envio.**
+O APK de teste está em `app/build/outputs/apk/debug/app-debug.apk`. Esse APK usa a chave de **debug** e não é um pacote assinado para Google Play. O AAB comercial depende da assinatura do titular.
 
-## Arte e publicação
-- [Relatório de integração das artes](arte_premium/ARTES_IMPLEMENTADAS_V13.md)
-- [Bíblia visual e prompts](arte_premium/README.md) — materiais preliminares; as referências efetivas da v1.3 são as artes recebidas.
-- [Textos e checklist da loja](PLAY_STORE_LISTING.md)
-- [Privacidade](PRIVACIDADE.md)
-- [Registro de testes](TESTES.md)
+## Documentos
+- `ADMOB_E_PUBLICACAO.md` — substituição de IDs e checklist de publicação.
+- `PRIVACIDADE.md` — dados locais e SDK de anúncios.
+- `TESTES_V14.md` — validação da versão.
+- `arte_premium/NOVAS_ARTES_20261027.md` — inventário do novo lote.
+- `PLAY_STORE_LISTING.md` — textos de divulgação e pendências de Play Console.
 
-Desenvolvido pela Próxima Era Games.
+**Status:** distribuição beta pública por GitHub, ainda sem lançamento oficial na Google Play.
