@@ -54,6 +54,28 @@ PY
 }
 
 assert_alive
+# First-launch Android emulator displays its own immersive-mode confirmation.
+# Dismiss it before looking for Compose buttons; this is not an app crash.
+adb shell uiautomator dump /sdcard/initial-window.xml >/dev/null
+adb pull /sdcard/initial-window.xml "$OUT/initial-window.xml" >/dev/null
+if grep -q 'immersive_cling_title' "$OUT/initial-window.xml"; then
+  read -r confirm_x confirm_y < <(python3 - "$OUT/initial-window.xml" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+for node in root.iter('node'):
+    if node.get("resource-id") == "android:id/ok":
+        match=re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",node.get("bounds",""))
+        if match:
+            x1,y1,x2,y2=map(int,match.groups())
+            print((x1+x2)//2,(y1+y2)//2)
+            raise SystemExit
+raise SystemExit("Immersive confirmation not found")
+PY
+  )
+  adb shell input tap "$confirm_x" "$confirm_y"
+  sleep 2
+fi
+assert_alive
 capture menu-rc15
 read -r x y < <(find_button_center 'JOGAR AGORA')
 adb shell input tap "$x" "$y"
