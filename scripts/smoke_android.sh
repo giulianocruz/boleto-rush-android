@@ -77,17 +77,37 @@ PY
 fi
 assert_alive
 capture menu-rc15
+
+# Capture an authentic tutorial screen directly from the current app build.
+read -r x y < <(find_button_center 'COMO JOGAR')
+adb shell input tap "$x" "$y"
+sleep 2
+assert_alive
+capture tutorial-rc15
+read -r x y < <(find_button_center 'ENTENDI!')
+adb shell input tap "$x" "$y"
+sleep 1
+
 read -r x y < <(find_button_center 'JOGAR AGORA')
 adb shell input tap "$x" "$y"
 sleep 3
 assert_alive
 capture gameplay-rc15
-adb shell input keyevent KEYCODE_BACK || true
-sleep 1
+
+# Let the actual 45s Classic gameplay finish. If the player lost, decline
+# the optional test ad and capture the genuine score/results screen.
+sleep 48
 assert_alive
-adb logcat -d -t 1200 -s AndroidRuntime:E > "$OUT/crash-log.txt" || true
+if read -r x y < <(find_button_center 'NÃO, ENCERRAR PARTIDA' 2>/dev/null); then
+  adb shell input tap "$x" "$y"
+  sleep 2
+fi
+read -r x y < <(find_button_center 'JOGAR DE NOVO')
+assert_alive
+capture results-rc15
+adb logcat -d -t 1500 -s AndroidRuntime:E > "$OUT/crash-log.txt" || true
 if grep -q 'FATAL EXCEPTION' "$OUT/crash-log.txt"; then
   cat "$OUT/crash-log.txt"
   exit 1
 fi
-echo "SMOKE PASSED: main menu, game launch, and running process on Android emulator"
+echo "SMOKE PASSED: menu, tutorial, full round, final result and no AndroidRuntime crashes"
