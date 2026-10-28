@@ -61,7 +61,7 @@ O jogo funciona offline. As funções de publicidade e consentimento exigem cone
 ## 4. Imagens da loja — arquivos corretos
 - **Ícone:** `store/play-icon-512.png` — o ícone transparente novo, PNG RGBA de 512×512, máximo 1 MB. Não usar a antiga imagem JPG quadrada.
 - **Imagem de destaque:** `store/feature-graphic-1024x500.jpg` — JPG 1024×500, sem transparência.
-- **Capturas:** são obrigatórias **no mínimo 2** capturas reais do app para a página. Para boa descoberta de jogos, aconselha-se **3 ou mais em 1080×1920, retrato 9:16**, feitas a partir do APK atual, contendo gameplay, seleção de modo, tutorial/resultado. As capturas antigas do diretório `store/` são de beta 1.2; não usar como imagem da RC sem comparação visual. Mockups gerados por IA não substituem capturas autênticas.
+- **Capturas:** a RC1 passou no smoke test do emulador e foram geradas **duas capturas reais em 1080×1920**, de menu e gameplay, no artefato `BoletoRush-1.5.0-rc1-SCREENSHOTS-REAIS` do GitHub Actions (run 40698310814). Foram também exportadas como RGB PNG de 24 bits para o kit de publicação. São obrigatórias **no mínimo 2** capturas reais do app para a página. Para boa descoberta de jogos, aconselha-se **3 ou mais em 1080×1920, retrato 9:16**, feitas a partir do APK atual, contendo gameplay, seleção de modo, tutorial/resultado. As capturas antigas do diretório `store/` são de beta 1.2; não usar como imagem da RC sem comparação visual. Mockups gerados por IA não substituem capturas autênticas.
 - Sugestão de ordem: (1) gameplay com carteira/moedas/boletos; (2) clássico/maratona e mascote no menu; (3) escudo, vidas e resultado. Não inventar pontuação, botão ou anúncio que não existem.
 
 Requisitos gráficos oficiais: https://support.google.com/googleplay/android-developer/answer/9866151 .
@@ -104,7 +104,7 @@ Requisitos de teste: https://support.google.com/googleplay/android-developer/ans
 "Primeira versão de testes para Google Play: corrida de moedas e boletos com os modos Clássico e Maratona, mascote ilustrado, recordes, proteção com escudo, vida extra e opção voluntária de anúncio recompensado para reviver. Melhorias de estabilidade e configuração de privacidade."
 
 ## 9. Definição de pronto
-- [ ] Android abre e termina partidas no **celular físico**; não há crash de inicialização.
+- [ ] Android abre e termina partidas no **celular físico**; não há crash de inicialização. A abertura e início da partida já passaram no emulador Android API 35 (ver `TESTES_V15.md`).
 - [ ] Ícone com fundo transparente e menu conferidos no Android.
 - [ ] Capturas reais atualizadas, ícone e feature banner corretos.
 - [ ] Configuração AdMob real validada, anúncio opcional respeita consentimento.
