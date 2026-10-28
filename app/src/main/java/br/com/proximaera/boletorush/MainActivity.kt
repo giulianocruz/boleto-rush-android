@@ -3,6 +3,7 @@ package br.com.proximaera.boletorush
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
+import android.net.Uri
 import android.util.Log
 import android.media.ToneGenerator
 import android.os.Bundle
@@ -556,6 +557,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                     secondary=true){toggleSound()}
                 Spacer(Modifier.height(9.dp))
                 GameButton("COMO JOGAR",secondary=true){screen=Screen.HOW}
+                Spacer(Modifier.height(7.dp))
+                GameButton("POLÍTICA DE PRIVACIDADE",secondary=true) {
+                    runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(
+                            "https://github.com/giulianocruz/boleto-rush-android/blob/main/PRIVACIDADE.md"
+                        )))
+                    }.onFailure { Log.w("BoletoRush", "Could not open privacy policy", it) }
+                }
                 if (ads?.privacyOptionsRequired == true) {
                     Spacer(Modifier.height(7.dp))
                     GameButton("OPÇÕES DE PRIVACIDADE",secondary=true){ads?.showPrivacyOptions()}
