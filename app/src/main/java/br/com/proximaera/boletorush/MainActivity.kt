@@ -696,7 +696,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 GameButton("MENU",secondary=true){screen=Screen.MENU}
             }
         }
-        Text("v1.4.2 • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
+        Text("v1.5 RC1 • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
             fontSize=9.sp,modifier=Modifier.align(Alignment.BottomCenter)
                 .padding(bottom=7.dp))
     }
