@@ -68,7 +68,7 @@ class RewardedReviveAds(private val activity: Activity) {
     private fun load() {
         if (loading || rewardedAd != null || !consentInformation.canRequestAds()) return
         loading = true
-        RewardedAd.load(activity, "ca-app-pub-3940256099942544/5224354917",
+        RewardedAd.load(activity, activity.getString(R.string.admob_rewarded_unit_id),
             AdRequest.Builder().build(),
             object : RewardedAdLoadCallback() {
                 override fun onAdLoaded(ad: RewardedAd) {
