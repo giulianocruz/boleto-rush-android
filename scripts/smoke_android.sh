@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APK="app/build/outputs/apk/debug/app-debug.apk"
+APK="${BOLETO_TEST_APK:-app/build/outputs/apk/debug/app-debug.apk}"
 PACKAGE="br.com.proximaera.boletorush"
 ACTIVITY="$PACKAGE/.MainActivity"
 OUT="smoke-output"
@@ -110,4 +110,4 @@ if grep -q 'FATAL EXCEPTION' "$OUT/crash-log.txt"; then
   cat "$OUT/crash-log.txt"
   exit 1
 fi
-echo "SMOKE PASSED: menu, tutorial, full round, final result and no AndroidRuntime crashes"
+echo "SMOKE PASSED: menu, tutorial, full round, final result and no AndroidRuntime crashes — APK=$APK"
