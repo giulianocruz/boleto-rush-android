@@ -1,30 +1,40 @@
-# Boleto Rush — checklist AdMob e publicação
+# Boleto Rush! 1.5 RC1 — AdMob e publicação
 
-## Implementação desta beta
-- Formato: **Rewarded Ad** somente por decisão do jogador após perder todas as vidas.
-- Recompensa: revive uma vez com uma vida; invulnerabilidade inicial e limpeza dos obstáculos.
-- Não mostra anúncio na tela inicial ou no meio de uma partida.
-- Se o anúncio não estiver disponível ou for fechado sem obter recompensa, não concede revive.
-- Componentes: Google Mobile Ads SDK **25.5.0** e UMP **4.0.0**.
-- **TEST_APP_ID:** ca-app-pub-3940256099942544~3347511713.
-- **TEST_REWARDED_AD_UNIT:** ca-app-pub-3940256099942544/5224354917.
-- **Esses IDs pertencem ao ambiente de teste do Google, não monetizam e não devem ser enviados para a produção comercial definitiva.**
+**Estado em 28/10/2026:** SDK Google Mobile Ads + UMP instalados. O projeto separa IDs demonstrativos de IDs do titular, inclui gate de assinatura de upload e possui automação para APK e AAB. **Nenhuma unidade real do AdMob foi fornecida e nenhuma assinatura de publicação foi configurada.**
 
-## Antes de monetizar
-1. Registrar o Boleto Rush em uma conta própria AdMob, com o package br.com.proximaera.boletorush.
-2. Criar bloco de anúncios **Recompensados** e substituir o APP ID no AndroidManifest e o ad unit ID no RewardedReviveAds.kt. Não publicar contas reais em testes locais sem configurar dispositivos de teste.
-3. Configurar mensagens UMP em AdMob > Privacidade e mensagens. Validar EEE, Reino Unido e Suíça conforme os requisitos aplicáveis.
-4. Confirmar classificação indicativa e público-alvo; se o aplicativo mirar crianças, revisar Google Families e sinalizações do SDK antes de monetizar.
-5. Revisar o formulário Segurança de Dados / ID de publicidade / anúncios e esta política de privacidade na Play Console.
-6. Gerar chave de upload própria e um AAB **assinado**, em local seguro fora do Git. Não enviar o bundle unsigned.
-7. Cumprir testes exigidos por sua conta Play Console e esperar revisão da Google.
+## Funcionamento
+- O jogador perde as três vidas e recebe opção de **anúncio recompensado**.
+- Com consentimento e internet, o SDK procura um anúncio.
+- Se a recompensa for conquistada, volta com uma vida e invulnerabilidade inicial.
+- Apenas uma segunda chance por partida. O jogador pode recusar a publicidade e encerrar a partida.
+- SDK/UMP iniciam somente na tela de revive; o menu inicial abre offline.
+- Não existem intersticiais obrigatórios nem compras internas.
 
-## Referências
+## IDs demonstrativos — QA apenas
+App ID: `ca-app-pub-3940256099942544~3347511713`
+
+Rewarded Unit ID: `ca-app-pub-3940256099942544/5224354917`
+
+**Esses IDs pertencem ao Google e não monetizam. Não enviar build com esses IDs à Play Console.**
+
+## IDs do titular
+Configure `BOLETO_ADMOB_APP_ID` e `BOLETO_REWARDED_UNIT_ID` como variáveis de ambiente/Secrets de compilação. O Gradle também aceita propriedades locais `boletoAdmobAppId` e `boletoRewardedUnitId` fora do repositório. Nunca cadastrar senha ou arquivo de assinatura no Git.
+
+O código lê os IDs gerados em `R.string.admob_app_id` e `R.string.admob_rewarded_unit_id`. Verifique o conteúdo resultante na versão final.
+
+## Pré-publicação
+O task `./gradlew :app:verifyPlayConfiguration` impede a entrega com IDs demonstrativos ou sem a chave de upload. Quando há credenciais em GitHub Secrets, o workflow verifica a assinatura JAR do AAB com `jarsigner -verify` antes de disponibilizá-lo como **assinado**.
+
+Criar/upload da própria chave no Android Studio é o caminho mais simples caso prefira não usar GitHub Secrets. Guardar senhas e backups de forma segura, fora do ChatGPT e fora do Git.
+
+## Política, segurança de dados e público
+Declarar anúncio = SIM, público-alvo real, permissão de ID publicitário se integrada, processamento de identificadores, interações, diagnósticos e IP conforme a declaração do SDK. Disponibilizar política de privacidade no app e na ficha. UMP requer configurar mensagens e consentimento no AdMob conforme os mercados e o público escolhido.
+
+Referências:
 - https://developers.google.com/admob/android/quick-start
 - https://developers.google.com/admob/android/rewarded
-- https://developers.google.com/admob/android/privacy
+- https://developers.google.com/admob/android/privacy/play-data-disclosure
+- https://support.google.com/googleplay/android-developer/answer/10787469
 
-## O que não afirmar ainda
-- Não há anúncios de produção habilitados.
-- Não há receita ativa com AdMob.
-- Uma versão pública no GitHub **não** significa lançamento oficial no Google Play.
+## Instruções completas
+Veja [PLAY_CONSOLE_GUIA.md](PLAY_CONSOLE_GUIA.md).
