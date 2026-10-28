@@ -1,4 +1,4 @@
-# Ficha Google Play — Boleto Rush! 1.4
+# Ficha Google Play — Boleto Rush! 1.5 RC1
 
 ## Nome
 Boleto Rush!
@@ -26,7 +26,7 @@ Desenvolvido no Brasil pela Próxima Era Games.
 Jogos / Casual. Idioma: Português (Brasil).
 
 ## Material visual
-- Ícone de Play Store 512×512 e feature graphic 1024×500 existentes no diretório `store/`.
+- Ícone transparente oficial: `store/play-icon-512.png` (512×512 PNG com alfa). Banner oficial: `store/feature-graphic-1024x500.jpg` (1024×500, sem alfa).
 - Mockup de anúncio e telas geradas por IA são apenas REFERÊNCIA; criar screenshots reais do APK.
 - Novo lote de sete imagens enviado em 27/10/2026 incluído no projeto.
 
@@ -43,4 +43,8 @@ Jogos / Casual. Idioma: Português (Brasil).
 - Gerar AAB assinado em keystore protegida fora do Git e concluir os testes obrigatórios da conta.
 
 ## Notas de atualização
-Beta 1.4: novas artes, cena de ação, oferta voluntária de vídeo recompensado para reviver uma vez após perder, consentimento UMP e correção de compilação.
+RC 1.5: preparação de assinatura segura, anúncios configuráveis por build, estabilidade de abertura e novas artes, cena de ação, oferta voluntária de vídeo recompensado para reviver uma vez após perder, consentimento UMP e correção de compilação.
+
+## Guia completo de publicação
+
+Veja `PLAY_CONSOLE_GUIA.md` para fluxo do Play Console, dados e publicidade, assinatura e testes fechados. Não envie `app-release.aab` não assinado ou com IDs demonstrativos do Google.
