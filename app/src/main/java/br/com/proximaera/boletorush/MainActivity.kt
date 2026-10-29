@@ -116,11 +116,24 @@ private fun artworkWhen(active: Boolean, resourceId: Int): ImageBitmap? {
 }
 class MainActivity : ComponentActivity() {
     private var foreground by mutableStateOf(true)
+    private var recoveryMode = false
     private var adManager by mutableStateOf<RewardedReviveAds?>(null)
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         installCrashRecorder()
+        val startup = getSharedPreferences("boleto_rush", MODE_PRIVATE)
+        // A previous launch that never reached the first Compose frame may be a
+        // native crash, watchdog kill, or resource exhaustion. Skip menu artwork
+        // for one launch so the player can reach the in-app diagnostic screen.
+        recoveryMode = startup.getBoolean("launch_in_progress", false)
+        startup.edit()
+            .putBoolean("launch_in_progress", true)
+            .putBoolean("startup_recovery_mode", recoveryMode)
+            .putLong("last_launch_attempt_at", System.currentTimeMillis())
+            .putString("last_launch_stage", "activity_created")
+            .commit()
+        if (recoveryMode) Log.w("BoletoRush", "Using minimal-art startup after interrupted launch")
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         window.decorView.systemUiVisibility =
             View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
@@ -129,7 +142,7 @@ class MainActivity : ComponentActivity() {
         // Ads are requested only if the player loses and reaches REVIVE.
         // Keep Google Play Services and the ad SDK out of the startup path while
         // diagnosing a device-specific launch crash. Revive initializes ads on demand.
-        setContent { BoletoRush(foreground, adManager) }
+        setContent { BoletoRush(foreground, adManager, recoveryMode) }
     }
     private fun installCrashRecorder() {
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
@@ -172,13 +185,21 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
+private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMode: Boolean) {
     val context = LocalContext.current
+    val appVersion = remember(context) {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
+            .getOrNull() ?: "QA"
+    }
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
     LaunchedEffect(Unit) {
         // Mark a successful first Compose frame for device diagnostics.
         withFrameNanos { }
-        prefs.edit().putLong("last_first_frame_at", System.currentTimeMillis()).apply()
+        prefs.edit()
+            .putLong("last_first_frame_at", System.currentTimeMillis())
+            .putString("last_launch_stage", "first_compose_frame")
+            .putBoolean("launch_in_progress", false)
+            .commit()
     }
     var showDiagnostics by remember { mutableStateOf(false) }
     if (showDiagnostics) {
@@ -233,7 +254,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
         if (screen == Screen.REVIVE)
             (context as? MainActivity)?.initializeRewardedAdsIfNeeded()
     }
-    val premiumPromo = artworkWhen(screen == Screen.MENU, R.drawable.premium_promo)
+    val premiumPromo = artworkWhen(screen == Screen.MENU && !recoveryMode, R.drawable.premium_promo)
     val premiumRunning = artworkWhen(screen == Screen.END || screen == Screen.REVIVE, R.drawable.premium_running)
     val heroIdle = artworkWhen(screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL, R.drawable.spr_hero_idle)
     val heroRun = artworkWhen(screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL, R.drawable.spr_hero_run)
@@ -860,7 +881,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 GameButton("MENU",secondary=true){screen=Screen.MENU}
             }
         }
-        Text("v1.5.6 QA • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
+        Text("v$appVersion • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
             fontSize=9.sp,modifier=Modifier.align(Alignment.BottomCenter)
                 .padding(bottom=7.dp))
     }
