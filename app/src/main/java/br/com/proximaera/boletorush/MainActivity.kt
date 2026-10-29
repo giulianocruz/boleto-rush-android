@@ -22,9 +22,11 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -84,19 +86,27 @@ class MainActivity : ComponentActivity() {
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        installCrashRecorder()
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         window.decorView.systemUiVisibility =
             View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        // Opening the game does not initialize any advertising SDK.
-        // Ads are requested only if the player loses and reaches REVIVE.
-        adManager = runCatching { RewardedReviveAds(this) }
-            .onFailure { Log.w("BoletoRush", "Optional consent services unavailable", it) }
-            .getOrNull()
+        // Keep startup independent of Google Play Services / consent dialogs.
+        // Optional rewarded ads initialize only when the player chooses to revive.
         setContent { BoletoRush(foreground, adManager) }
-        // The game remains playable if optional ad/consent services are unavailable.
-        runCatching { adManager?.refreshConsent() }
-            .onFailure { Log.w("BoletoRush", "Consent initialization deferred", it) }
+    }
+    private fun installCrashRecorder() {
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, failure ->
+            runCatching {
+                val report = "Boleto Rush startup diagnostic | SDK ${android.os.Build.VERSION.SDK_INT}\n" +
+                    failure.stackTraceToString()
+                getSharedPreferences("boleto_rush", MODE_PRIVATE).edit()
+                    .putString("last_crash", report.take(12000))
+                    .commit()
+            }.onFailure { Log.e("BoletoRush", "Unable to save crash report", it) }
+            previousHandler?.uncaughtException(thread, failure)
+        }
     }
     fun initializeRewardedAdsIfNeeded() {
         if (isFinishing || isDestroyed) return
@@ -119,6 +129,33 @@ class MainActivity : ComponentActivity() {
 private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
+    var lastCrash by remember { mutableStateOf(prefs.getString("last_crash", null)) }
+    if (lastCrash != null) {
+        val dismissReport = {
+            prefs.edit().remove("last_crash").apply()
+            lastCrash = null
+        }
+        AlertDialog(
+            onDismissRequest = dismissReport,
+            title = { Text("FALHA ANTERIOR DETECTADA") },
+            text = { Text("O jogo fechou inesperadamente. Compartilhe o diagnóstico para investigarmos o erro no seu aparelho.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val report = lastCrash
+                    if (report != null) runCatching {
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, report)
+                        }
+                        context.startActivity(Intent.createChooser(send, "Compartilhar diagnóstico"))
+                    }.onFailure { Log.w("BoletoRush", "Diagnostic share unavailable", it) }
+                }) { Text("COMPARTILHAR") }
+            },
+            dismissButton = {
+                TextButton(onClick = dismissReport) { Text("FECHAR") }
+            }
+        )
+    }
     val haptics = LocalHapticFeedback.current
     var screen by remember { mutableStateOf(Screen.MENU) }
     LaunchedEffect(screen) {
