@@ -30,8 +30,14 @@ class RewardedReviveAds(private val activity: Activity) {
     private var rewardedAd: RewardedAd? = null
     private var sdkStarted = false
     private var loading = false
+    private var consentStarted = false
+    private var adRequested = false
+    private var consentComplete = false
 
-    fun start() {
+    // Consent updates every launch; ad SDK initialization remains deferred until revive.
+    fun refreshConsent() {
+        if (consentStarted) return
+        consentStarted = true
         val params = ConsentRequestParameters.Builder().build()
         consentInformation.requestConsentInfoUpdate(activity, params,
             {
@@ -40,27 +46,35 @@ class RewardedReviveAds(private val activity: Activity) {
                     ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
                 UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { error ->
                     if (error != null) Log.w("BoletoRushAds", "Consent form: ${error.message}")
+                    consentComplete = true
                     initializeIfAllowed()
                 }
-                // If valid consent is cached, still avoid a duplicate initialization.
-                initializeIfAllowed()
+                // Do not start the advertising SDK before the consent form closes.
             },
             { error ->
                 Log.w("BoletoRushAds", "Consent update: ${error.message}")
+                consentComplete = true
                 initializeIfAllowed()
             }
         )
+    }
+
+    fun start() {
+        adRequested = true
+        refreshConsent()
+        initializeIfAllowed()
     }
 
     fun showPrivacyOptions() {
         if (privacyOptionsRequired)
             UserMessagingPlatform.showPrivacyOptionsForm(activity) { error ->
                 if (error != null) Log.w("BoletoRushAds", "Privacy options: ${error.message}")
+                initializeIfAllowed()
             }
     }
 
     private fun initializeIfAllowed() {
-        if (!consentInformation.canRequestAds() || sdkStarted) return
+        if (!adRequested || !consentComplete || !consentInformation.canRequestAds() || sdkStarted) return
         sdkStarted = true
         MobileAds.initialize(activity) { load() }
     }
@@ -80,7 +94,7 @@ class RewardedReviveAds(private val activity: Activity) {
                     loading = false
                     ready = false
                     rewardedAd = null
-                    Log.w("BoletoRushAds", "Test ad unavailable: ${error.message}")
+                    Log.w("BoletoRushAds", "Rewarded ad unavailable: ${error.message}")
                 }
             }
         )
