@@ -76,23 +76,33 @@ PY
   sleep 2
 fi
 assert_alive
-capture menu-rc15
+capture menu-rc152
 
 # Capture an authentic tutorial screen directly from the current app build.
 read -r x y < <(find_button_center 'COMO JOGAR')
 adb shell input tap "$x" "$y"
 sleep 2
 assert_alive
-capture tutorial-rc15
-read -r x y < <(find_button_center 'ENTENDI!')
+capture instructions-rc152
+read -r x y < <(find_button_center 'TREINAR CONTROLES')
 adb shell input tap "$x" "$y"
+sleep 2
+assert_alive
+capture tutorial-step1-rc152
+find_button_center 'TREINO RÁPIDO' >/dev/null
+# Move right to collect the tutorial coin, then left to reach the shield.
+adb shell input swipe 540 1050 865 1050 350
 sleep 1
-
-read -r x y < <(find_button_center 'JOGAR AGORA')
+find_button_center 'TREINO RÁPIDO • 2/3' >/dev/null
+adb shell input swipe 865 1050 210 1050 400
+sleep 1
+find_button_center 'TREINO RÁPIDO • 3/3' >/dev/null
+capture tutorial-complete-rc152
+read -r x y < <(find_button_center 'COMEÇAR PARTIDA!')
 adb shell input tap "$x" "$y"
 sleep 3
 assert_alive
-capture gameplay-rc15
+capture gameplay-rc152
 
 # Let the actual 45s Classic gameplay finish. If the player lost, decline
 # the optional test ad and capture the genuine score/results screen.
@@ -104,10 +114,10 @@ if read -r x y < <(find_button_center 'NÃO, ENCERRAR PARTIDA' 2>/dev/null); the
 fi
 read -r x y < <(find_button_center 'JOGAR DE NOVO')
 assert_alive
-capture results-rc15
+capture results-rc152
 adb logcat -d -t 1500 -s AndroidRuntime:E > "$OUT/crash-log.txt" || true
 if grep -q 'FATAL EXCEPTION' "$OUT/crash-log.txt"; then
   cat "$OUT/crash-log.txt"
   exit 1
 fi
-echo "SMOKE PASSED: menu, tutorial, full round, final result and no AndroidRuntime crashes — APK=$APK"
+echo "SMOKE PASSED: menu, interactive tutorial 3/3, full round, final result, no AndroidRuntime crashes — APK=$APK"
