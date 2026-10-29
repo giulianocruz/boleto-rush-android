@@ -1,6 +1,8 @@
 package br.com.proximaera.boletorush
 
 import android.content.Intent
+import android.content.Context
+import android.graphics.BitmapFactory
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.net.Uri
@@ -31,6 +33,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.res.imageResource
@@ -62,6 +65,15 @@ private enum class Mode(val title: String, val duration: Float) {
 
 private enum class Kind { COIN, BILL, SHIELD, HEART }
 private data class Drop(val id: Int, val x: Float, val y: Float, val speed: Float, val kind: Kind)
+
+private fun safeAsset(context: Context, resourceId: Int): ImageBitmap? = runCatching {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeResource(context.resources, resourceId, bounds)
+    var sample = 1
+    while (bounds.outWidth / sample > 1024 || bounds.outHeight / sample > 1024) sample *= 2
+    val options = BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888 }
+    BitmapFactory.decodeResource(context.resources, resourceId, options)?.asImageBitmap()
+}.onFailure { Log.w("BoletoRush", "Artwork skipped: $resourceId", it) }.getOrNull()
 
 class MainActivity : ComponentActivity() {
     private var foreground by mutableStateOf(true)
@@ -106,92 +118,92 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     }
     val premiumPromo = remember(context, screen) {
         if (screen == Screen.MENU)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.premium_promo) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.premium_promo) }.getOrNull()
         else null
     }
     val premiumRunning = remember(context, screen) {
         if (screen == Screen.END || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.premium_running) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.premium_running) }.getOrNull()
         else null
     }
     val heroIdle = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_idle) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_hero_idle) }.getOrNull()
         else null
     }
     val heroRun = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_run) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_hero_run) }.getOrNull()
         else null
     }
     val heroJump = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_jump) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_hero_jump) }.getOrNull()
         else null
     }
     val heroHurt = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_hero_hurt) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_hero_hurt) }.getOrNull()
         else null
     }
     val billIdle = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_idle) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_bill_idle) }.getOrNull()
         else null
     }
     val billAttack = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_attack) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_bill_attack) }.getOrNull()
         else null
     }
     val billDamaged = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_damaged) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_bill_damaged) }.getOrNull()
         else null
     }
     val billDefeated = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_bill_defeated) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_bill_defeated) }.getOrNull()
         else null
     }
     val coinFront = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_front) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_coin_front) }.getOrNull()
         else null
     }
     val coinAngle = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_angle) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_coin_angle) }.getOrNull()
         else null
     }
     val coinSide = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_side) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_coin_side) }.getOrNull()
         else null
     }
     val coinCollect = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_coin_collect) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_coin_collect) }.getOrNull()
         else null
     }
     val shieldCollect = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_collect) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_shield_collect) }.getOrNull()
         else null
     }
     val shieldIdle = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_idle) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_shield_idle) }.getOrNull()
         else null
     }
     val shieldActive = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_active) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_shield_active) }.getOrNull()
         else null
     }
     val shieldImpact = remember(context, screen) {
         if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
-            runCatching { ImageBitmap.imageResource(context.resources, R.drawable.spr_shield_impact) }.getOrNull()
+            runCatching { safeAsset(context, R.drawable.spr_shield_impact) }.getOrNull()
         else null
     }
     var mode by remember { mutableStateOf(if (prefs.getInt("mode", 0) == 1) Mode.MARATHON else Mode.CLASSIC) }
