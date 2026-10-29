@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.IntOffset
@@ -220,6 +221,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     var best by remember { mutableIntStateOf(prefs.getInt(if(mode==Mode.CLASSIC) "best" else "best_marathon", 0)) }
     var gamesPlayed by remember { mutableIntStateOf(prefs.getInt("games", 0)) }
     var soundOn by remember { mutableStateOf(prefs.getBoolean("sound", true)) }
+    var hapticsOn by remember { mutableStateOf(prefs.getBoolean("haptics", true)) }
     var lives by remember { mutableIntStateOf(3) }
     var combo by remember { mutableIntStateOf(0) }
     var maxCombo by remember { mutableIntStateOf(0) }
@@ -243,6 +245,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     DisposableEffect(audio) { onDispose { audio?.release() } }
     fun tone(type: Int) {
         if (soundOn) runCatching { audio?.startTone(type, 75) }
+    }
+    fun pulse(type: HapticFeedbackType) {
+        if (hapticsOn) runCatching { haptics.performHapticFeedback(type) }
     }
     fun switchMode() {
         mode = if (mode == Mode.CLASSIC) Mode.MARATHON else Mode.CLASSIC
@@ -286,11 +291,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
         if (tutorialStep == 0 && tutorialX >= .68f) {
             tutorialStep = 1
             tone(ToneGenerator.TONE_PROP_BEEP)
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            pulse(HapticFeedbackType.TextHandleMove)
         } else if (tutorialStep == 1 && tutorialX <= .32f) {
             tutorialStep = 2
             tone(ToneGenerator.TONE_PROP_ACK)
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            pulse(HapticFeedbackType.TextHandleMove)
         }
     }
     fun finish(victory: Boolean) {
@@ -306,6 +311,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     fun toggleSound() {
         soundOn = !soundOn
         prefs.edit().putBoolean("sound", soundOn).apply()
+    }
+    fun toggleHaptics() {
+        hapticsOn = !hapticsOn
+        prefs.edit().putBoolean("haptics", hapticsOn).apply()
     }
 
     BackHandler(enabled = screen != Screen.MENU) {
@@ -379,7 +388,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                             feedback = "+$gained  MOEDA!"
                             feedbackSeconds = if (combo % 5 == 0) 1.05f else 0.68f
                             if (combo % 5 == 0) feedback = "SUPER COMBO x$combo! +$gained"
-                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            pulse(HapticFeedbackType.TextHandleMove)
                             tone(if (combo % 5 == 0) ToneGenerator.TONE_PROP_ACK else ToneGenerator.TONE_PROP_BEEP)
                         }
                         Kind.BILL -> {
@@ -387,7 +396,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                                 shield = 0f
                                 feedback = "ESCUDO SALVOU!"
                                 feedbackSeconds = 0.85f
-                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                pulse(HapticFeedbackType.TextHandleMove)
                                 tone(ToneGenerator.TONE_PROP_ACK)
                             } else if (invulnerable <= 0f) {
                                 lives--
@@ -396,7 +405,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                                 combo = 0
                                 feedback = "AI, MEU BOLSO!"
                                 feedbackSeconds = 0.85f
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                pulse(HapticFeedbackType.LongPress)
                                 tone(ToneGenerator.TONE_PROP_NACK)
                             }
                         }
@@ -475,13 +484,21 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 drawLine(Teal.copy(alpha=.06f), Offset(0f, y), Offset(w, y), 1f)
             }
             drawLine(Teal.copy(alpha=.26f), Offset(0f, h*.88f), Offset(w,h*.88f),3f)
+            if (screen == Screen.PLAY || screen == Screen.PAUSE) {
+                // Dedicated HUD region: gameplay objects emerge beneath the status panel.
+                drawRect(
+                    brush = Brush.verticalGradient(listOf(Navy.copy(alpha=.94f), Navy.copy(alpha=.75f), Color.Transparent)),
+                    topLeft = Offset.Zero, size = Size(w,h*.225f)
+                )
+            }
             if (screen == Screen.TUTORIAL) {
                 drawPremiumSprite(coinFront,w*.77f,h*.52f,w*.075f)
                 drawPremiumSprite(billIdle,w*.75f,h*.65f,w*.08f,opacity=.65f)
                 drawPremiumSprite(shieldCollect,w*.23f,h*.55f,w*.08f)
-                drawPremiumSprite(heroIdle,tutorialX*w,h*.82f,w*.14f)
+                drawPremiumSprite(heroIdle,tutorialX*w,h*.70f,w*.12f)
             }
             if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE) {
+                clipRect(top=h*.195f, bottom=h*.92f) {
                 for (item in drops) {
                     val x = item.x * w
                     val y = item.y * h
@@ -507,11 +524,13 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                         }
                     }
                 }
+                }
                 val x = playerX*w
                 val y = h*.82f
                 val r = w*.085f
                 val visible = invulnerable <= 0f || (invulnerable*12).toInt()%2==0
                 if (visible) {
+                    drawCircle(Teal.copy(alpha=.09f), r*1.35f, Offset(x,y+r*.28f))
                     if (shield > 0f) {
                         drawPremiumSprite(shieldIdle,x,y,r*1.95f,opacity=.45f)
                         drawCircle(Teal.copy(alpha=.30f),r*1.48f,Offset(x,y),
@@ -527,7 +546,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                     drawPremiumSprite(avatar,x,y,r*1.65f)
                     if (feedbackSeconds>0f) {
                         when {
-                            feedback.contains("MOEDA") -> drawPremiumSprite(coinCollect,x,y-r*1.85f,r*.68f,
+                            (feedback.contains("MOEDA") || feedback.contains("SUPER COMBO")) ->
+                                drawPremiumSprite(coinCollect,x,y-r*1.85f,r*.68f,
                                 opacity=(feedbackSeconds/.68f).coerceIn(0f,1f))
                             feedback.contains("ESCUDO ATIVADO") -> drawPremiumSprite(shieldActive,x,y,r*1.96f,.45f)
                             feedback.contains("ESCUDO SALVOU") -> drawPremiumSprite(shieldImpact,x,y,r*1.92f,.65f)
@@ -645,6 +665,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 GameButton(if(soundOn) "SOM: LIGADO" else "SOM: DESLIGADO",
                     secondary=true){toggleSound()}
                 Spacer(Modifier.height(9.dp))
+                GameButton(if(hapticsOn) "VIBRAÇÃO: LIGADA" else "VIBRAÇÃO: DESLIGADA",
+                    secondary=true){toggleHaptics()}
+                Spacer(Modifier.height(9.dp))
                 GameButton("COMO JOGAR",secondary=true){screen=Screen.HOW}
                 Spacer(Modifier.height(7.dp))
                 GameButton("POLÍTICA DE PRIVACIDADE",secondary=true) {
@@ -702,6 +725,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 Spacer(Modifier.height(10.dp))
                 GameButton(if(soundOn) "SOM: LIGADO" else "SOM: DESLIGADO",
                     secondary=true){toggleSound()}
+                Spacer(Modifier.height(10.dp))
+                GameButton(if(hapticsOn) "VIBRAÇÃO: LIGADA" else "VIBRAÇÃO: DESLIGADA",
+                    secondary=true){toggleHaptics()}
                 Spacer(Modifier.height(10.dp))
                 GameButton("RECOMEÇAR",secondary=true){begin()}
                 Spacer(Modifier.height(10.dp))
@@ -796,7 +822,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 GameButton("MENU",secondary=true){screen=Screen.MENU}
             }
         }
-        Text("v1.5.2 QA • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
+        Text("v1.5.3 QA • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
             fontSize=9.sp,modifier=Modifier.align(Alignment.BottomCenter)
                 .padding(bottom=7.dp))
     }

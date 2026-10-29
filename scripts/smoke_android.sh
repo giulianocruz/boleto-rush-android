@@ -78,19 +78,28 @@ PY
   sleep 2
 fi
 assert_alive
-capture menu-rc152
+capture menu-rc153
+
+# Confirm vibration preference is interactive and can be restored for the tester.
+read -r x y < <(find_button_center 'VIBRAÇÃO: LIGADA')
+adb shell input tap "$x" "$y"
+sleep 1
+read -r x y < <(find_button_center 'VIBRAÇÃO: DESLIGADA')
+adb shell input tap "$x" "$y"
+sleep 1
+find_button_center 'VIBRAÇÃO: LIGADA' >/dev/null
 
 # Capture an authentic tutorial screen directly from the current app build.
 read -r x y < <(find_button_center 'COMO JOGAR')
 adb shell input tap "$x" "$y"
 sleep 2
 assert_alive
-capture instructions-rc152
+capture instructions-rc153
 read -r x y < <(find_button_center 'TREINAR CONTROLES')
 adb shell input tap "$x" "$y"
 sleep 2
 assert_alive
-capture tutorial-step1-rc152
+capture tutorial-step1-rc153
 find_button_center 'TREINO RÁPIDO' >/dev/null
 # Move right to collect the tutorial coin, then left to reach the shield.
 adb shell input swipe 540 1050 865 1050 350
@@ -99,12 +108,12 @@ find_button_center 'TREINO RÁPIDO • 2/3' >/dev/null
 adb shell input swipe 865 1050 210 1050 400
 sleep 1
 find_button_center 'TREINO RÁPIDO • 3/3' >/dev/null
-capture tutorial-complete-rc152
+capture tutorial-complete-rc153
 read -r x y < <(find_button_center 'COMEÇAR PARTIDA!')
 adb shell input tap "$x" "$y"
 sleep 3
 assert_alive
-capture gameplay-rc152
+capture gameplay-rc153
 
 # Let the actual 45s Classic gameplay finish. If the player lost, decline
 # the optional test ad and capture the genuine score/results screen.
@@ -116,7 +125,7 @@ if read -r x y < <(find_button_center 'NÃO, ENCERRAR PARTIDA' 2>/dev/null); the
 fi
 read -r x y < <(find_button_center 'JOGAR DE NOVO')
 assert_alive
-capture results-rc152
+capture results-rc153
 adb logcat -d -t 1500 -s AndroidRuntime:E > "$OUT/crash-log.txt" || true
 if grep -q 'FATAL EXCEPTION' "$OUT/crash-log.txt"; then
   cat "$OUT/crash-log.txt"
