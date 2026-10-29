@@ -145,6 +145,15 @@ class MainActivity : ComponentActivity() {
             previousHandler?.uncaughtException(thread, failure)
         }
     }
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            artworkCache.evictAll()
+            getSharedPreferences("boleto_rush", MODE_PRIVATE).edit()
+                .putInt("last_memory_warning", level).apply()
+            Log.w("BoletoRush", "Low memory warning; released artwork cache: $level")
+        }
+    }
     fun initializeRewardedAdsIfNeeded() {
         if (isFinishing || isDestroyed) return
         runCatching {
@@ -166,6 +175,31 @@ class MainActivity : ComponentActivity() {
 private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
+    LaunchedEffect(Unit) {
+        // Mark a successful first Compose frame for device diagnostics.
+        withFrameNanos { }
+        prefs.edit().putLong("last_first_frame_at", System.currentTimeMillis()).apply()
+    }
+    var showDiagnostics by remember { mutableStateOf(false) }
+    if (showDiagnostics) {
+        val report = remember(showDiagnostics) { DeviceDiagnostics.snapshot(context) }
+        AlertDialog(
+            onDismissRequest = { showDiagnostics = false },
+            title = { Text("DIAGNÓSTICO DO APARELHO") },
+            text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text("Os dados ficam neste aparelho. Só serão compartilhados se você escolher.")
+                Spacer(Modifier.height(10.dp))
+                Text(report, fontSize = 12.sp)
+            } },
+            confirmButton = { TextButton(onClick = {
+                runCatching { DeviceDiagnostics.share(context, report) }
+                    .onFailure { Log.w("BoletoRush", "Cannot share device report", it) }
+            }) { Text("COMPARTILHAR") } },
+            dismissButton = { TextButton(onClick = { showDiagnostics = false }) {
+                Text("FECHAR")
+            } }
+        )
+    }
     var lastCrash by remember { mutableStateOf(prefs.getString("last_crash", null)) }
     if (lastCrash != null) {
         val dismissReport = {
@@ -672,10 +706,12 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 Spacer(Modifier.height(9.dp))
                 GameButton("COMO JOGAR",secondary=true){screen=Screen.HOW}
                 Spacer(Modifier.height(7.dp))
+                GameButton("DIAGNÓSTICO DO APARELHO",secondary=true) { showDiagnostics = true }
+                Spacer(Modifier.height(7.dp))
                 GameButton("POLÍTICA DE PRIVACIDADE",secondary=true) {
                     runCatching {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(
-                            "https://github.com/giulianocruz/boleto-rush-android/blob/main/PRIVACIDADE.md"
+                            "https://giulianocruz.github.io/boleto-rush-android/privacy.html"
                         )))
                     }.onFailure { Log.w("BoletoRush", "Could not open privacy policy", it) }
                 }
@@ -824,7 +860,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 GameButton("MENU",secondary=true){screen=Screen.MENU}
             }
         }
-        Text("v1.5.3 QA • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
+        Text("v1.5.6 QA • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
             fontSize=9.sp,modifier=Modifier.align(Alignment.BottomCenter)
                 .padding(bottom=7.dp))
     }
