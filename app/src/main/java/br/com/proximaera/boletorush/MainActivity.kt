@@ -44,6 +44,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,7 +60,7 @@ private val Teal = Color(0xFF25E2D1)
 private val Gold = Color(0xFFFFD166)
 private val Coral = Color(0xFFFF657C)
 private val Muted = Color(0xFFA7BBCF)
-private enum class Screen { MENU, HOW, PLAY, PAUSE, REVIVE, END }
+private enum class Screen { MENU, HOW, TUTORIAL, PLAY, PAUSE, REVIVE, END }
 private enum class Mode(val title: String, val duration: Float) {
     CLASSIC("CLÁSSICO",45f), MARATHON("MARATONA",90f)
 }
@@ -87,14 +89,16 @@ class MainActivity : ComponentActivity() {
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         // Opening the game does not initialize any advertising SDK.
         // Ads are requested only if the player loses and reaches REVIVE.
+        adManager = RewardedReviveAds(this)
         setContent { BoletoRush(foreground, adManager) }
+        // UMP consent is refreshed on every app launch, without loading an ad.
+        adManager?.refreshConsent()
     }
     fun initializeRewardedAdsIfNeeded() {
-        if (adManager != null || isFinishing || isDestroyed) return
+        if (isFinishing || isDestroyed) return
         runCatching {
-            val manager = RewardedReviveAds(this)
-            adManager = manager
-            manager.start()
+            if (adManager == null) adManager = RewardedReviveAds(this)
+            adManager?.start()
         }.onFailure { Log.w("BoletoRush", "Optional ads unavailable", it) }
     }
     override fun onPause() {
@@ -111,9 +115,10 @@ class MainActivity : ComponentActivity() {
 private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
+    val haptics = LocalHapticFeedback.current
     var screen by remember { mutableStateOf(Screen.MENU) }
     LaunchedEffect(screen) {
-        if (screen == Screen.REVIVE && ads == null)
+        if (screen == Screen.REVIVE)
             (context as? MainActivity)?.initializeRewardedAdsIfNeeded()
     }
     val premiumPromo = remember(context, screen) {
@@ -127,82 +132,82 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
         else null
     }
     val heroIdle = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_hero_idle) }.getOrNull()
         else null
     }
     val heroRun = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_hero_run) }.getOrNull()
         else null
     }
     val heroJump = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_hero_jump) }.getOrNull()
         else null
     }
     val heroHurt = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_hero_hurt) }.getOrNull()
         else null
     }
     val billIdle = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_bill_idle) }.getOrNull()
         else null
     }
     val billAttack = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_bill_attack) }.getOrNull()
         else null
     }
     val billDamaged = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_bill_damaged) }.getOrNull()
         else null
     }
     val billDefeated = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_bill_defeated) }.getOrNull()
         else null
     }
     val coinFront = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_coin_front) }.getOrNull()
         else null
     }
     val coinAngle = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_coin_angle) }.getOrNull()
         else null
     }
     val coinSide = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_coin_side) }.getOrNull()
         else null
     }
     val coinCollect = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_coin_collect) }.getOrNull()
         else null
     }
     val shieldCollect = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_shield_collect) }.getOrNull()
         else null
     }
     val shieldIdle = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_shield_idle) }.getOrNull()
         else null
     }
     val shieldActive = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_shield_active) }.getOrNull()
         else null
     }
     val shieldImpact = remember(context, screen) {
-        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL)
             runCatching { safeAsset(context, R.drawable.spr_shield_impact) }.getOrNull()
         else null
     }
@@ -228,6 +233,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     var won by remember { mutableStateOf(false) }
     var reviveUsed by remember { mutableStateOf(false) }
     var reviveError by remember { mutableStateOf("") }
+    var tutorialStep by remember { mutableIntStateOf(0) }
+    var tutorialX by remember { mutableFloatStateOf(.5f) }
     val rng = remember { Random(System.nanoTime()) }
     val audio = remember { runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 45) }.getOrNull() }
     DisposableEffect(audio) { onDispose { audio?.release() } }
@@ -260,6 +267,29 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
         round++
         screen = Screen.PLAY
     }
+    fun startOrTutorial() {
+        if (!prefs.getBoolean("tutorial_done", false)) {
+            tutorialStep = 0
+            tutorialX = .5f
+            screen = Screen.TUTORIAL
+        } else begin()
+    }
+    fun finishTutorial() {
+        prefs.edit().putBoolean("tutorial_done", true).apply()
+        begin()
+    }
+    fun moveTutorial(x: Float) {
+        tutorialX = x.coerceIn(.09f, .91f)
+        if (tutorialStep == 0 && tutorialX >= .68f) {
+            tutorialStep = 1
+            tone(ToneGenerator.TONE_PROP_BEEP)
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        } else if (tutorialStep == 1 && tutorialX <= .32f) {
+            tutorialStep = 2
+            tone(ToneGenerator.TONE_PROP_ACK)
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
     fun finish(victory: Boolean) {
         won = victory
         screen = Screen.END
@@ -280,6 +310,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
             Screen.PLAY -> Screen.PAUSE
             Screen.PAUSE -> Screen.PLAY
             Screen.HOW -> Screen.MENU
+            Screen.TUTORIAL -> Screen.MENU
             Screen.REVIVE -> { finish(false); Screen.END }
             Screen.END -> Screen.MENU
             Screen.MENU -> Screen.MENU
@@ -315,12 +346,18 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
             if (spawn >= interval) {
                 spawn -= interval
                 val roll = rng.nextFloat()
+                // First seconds are safe; bills ramp up after the player learns the controls.
+                val billOdds = when {
+                    elapsed < 5f -> .07f
+                    elapsed < 14f -> .20f
+                    elapsed < mode.duration * .60f -> .28f
+                    else -> .36f
+                }
                 val kind = when {
-                    roll < 0.045f -> Kind.SHIELD
-                    roll < 0.075f -> Kind.HEART
-                    elapsed < 5f && roll >= .40f -> Kind.COIN
-                    roll < 0.56f -> Kind.COIN
-                    else -> Kind.BILL
+                    roll < .045f -> Kind.SHIELD
+                    roll < .075f -> Kind.HEART
+                    rng.nextFloat() < billOdds -> Kind.BILL
+                    else -> Kind.COIN
                 }
                 drops = drops + Drop(nextId++, rng.nextFloat() * .82f + .09f,
                     -.065f, .27f + rng.nextFloat() * .08f + elapsed * .0028f, kind)
@@ -328,7 +365,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
             val updated = ArrayList<Drop>(drops.size)
             for (item in drops) {
                 val ny = item.y + item.speed * dt
-                if (item.y < .80f && ny >= .80f && abs(item.x - playerX) < .13f) {
+                if (item.y < .80f && ny >= .80f && abs(item.x - playerX) < .118f) {
                     when (item.kind) {
                         Kind.COIN -> {
                             combo++
@@ -337,14 +374,17 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                             coinsCollected++
                             maxCombo = max(maxCombo, combo)
                             feedback = "+$gained  MOEDA!"
-                            feedbackSeconds = 0.68f
-                            tone(ToneGenerator.TONE_PROP_BEEP)
+                            feedbackSeconds = if (combo % 5 == 0) 1.05f else 0.68f
+                            if (combo % 5 == 0) feedback = "SUPER COMBO x$combo! +$gained"
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            tone(if (combo % 5 == 0) ToneGenerator.TONE_PROP_ACK else ToneGenerator.TONE_PROP_BEEP)
                         }
                         Kind.BILL -> {
                             if (shield > 0f) {
                                 shield = 0f
                                 feedback = "ESCUDO SALVOU!"
                                 feedbackSeconds = 0.85f
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 tone(ToneGenerator.TONE_PROP_ACK)
                             } else if (invulnerable <= 0f) {
                                 lives--
@@ -353,6 +393,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                                 combo = 0
                                 feedback = "AI, MEU BOLSO!"
                                 feedbackSeconds = 0.85f
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 tone(ToneGenerator.TONE_PROP_NACK)
                             }
                         }
@@ -394,6 +435,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 detectTapGestures { pos ->
                     if (screen == Screen.PLAY) targetX =
                         (pos.x / size.width).coerceIn(.09f, .91f)
+                    if (screen == Screen.TUTORIAL) moveTutorial(pos.x / size.width)
                 }
             }
             .pointerInput(screen) {
@@ -401,10 +443,12 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                     onDragStart = { pos ->
                         if (screen == Screen.PLAY) targetX =
                             (pos.x / size.width).coerceIn(.09f, .91f)
+                        if (screen == Screen.TUTORIAL) moveTutorial(pos.x / size.width)
                     },
                     onDrag = { change, _ ->
                         if (screen == Screen.PLAY) targetX =
                             (change.position.x / size.width).coerceIn(.09f, .91f)
+                        if (screen == Screen.TUTORIAL) moveTutorial(change.position.x / size.width)
                         change.consume()
                     }
                 )
@@ -428,7 +472,13 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 drawLine(Teal.copy(alpha=.06f), Offset(0f, y), Offset(w, y), 1f)
             }
             drawLine(Teal.copy(alpha=.26f), Offset(0f, h*.88f), Offset(w,h*.88f),3f)
-            if (screen != Screen.MENU) {
+            if (screen == Screen.TUTORIAL) {
+                drawPremiumSprite(coinFront,w*.77f,h*.52f,w*.075f)
+                drawPremiumSprite(billIdle,w*.75f,h*.65f,w*.08f,opacity=.65f)
+                drawPremiumSprite(shieldCollect,w*.23f,h*.55f,w*.08f)
+                drawPremiumSprite(heroIdle,tutorialX*w,h*.82f,w*.14f)
+            }
+            if (screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE) {
                 for (item in drops) {
                     val x = item.x * w
                     val y = item.y * h
@@ -483,6 +533,30 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                         }
                     }
                 }
+            }
+        }
+        if (screen == Screen.TUTORIAL) {
+            Column(Modifier.align(Alignment.TopCenter).fillMaxWidth()
+                .padding(top=66.dp,start=24.dp,end=24.dp),
+                horizontalAlignment=Alignment.CenterHorizontally) {
+                Text("TREINO RÁPIDO • ${tutorialStep+1}/3", color=Teal,
+                    fontSize=14.sp,fontWeight=FontWeight.Black)
+                Spacer(Modifier.height(12.dp))
+                Text(when(tutorialStep) {
+                    0 -> "MOVA A CARTEIRA PARA A MOEDA À DIREITA"
+                    1 -> "DESVIE DO BOLETO E ALCANCE O ESCUDO À ESQUERDA"
+                    else -> "PRONTO! MOEDAS PONTUAM, BOLETOS TIRAM VIDAS"
+                },color=Color.White,fontSize=19.sp,fontWeight=FontWeight.Black,
+                    textAlign=TextAlign.Center)
+                Spacer(Modifier.height(6.dp))
+                Text("Toque ou arraste o dedo. Treine sem perder vidas.",color=Muted,
+                    fontSize=13.sp,textAlign=TextAlign.Center)
+            }
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .padding(horizontal=35.dp,vertical=46.dp),
+                horizontalAlignment=Alignment.CenterHorizontally) {
+                if(tutorialStep==2) GameButton("COMEÇAR PARTIDA!"){finishTutorial()}
+                else GameButton("PULAR TREINO",secondary=true){finishTutorial()}
             }
         }
         if (screen == Screen.PLAY || screen == Screen.PAUSE) {
@@ -563,7 +637,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 Spacer(Modifier.height(16.dp))
                 GameButton("MODO: ${mode.title}  (${mode.duration.toInt()}s) ↻",secondary=true){switchMode()}
                 Spacer(Modifier.height(9.dp))
-                GameButton("JOGAR AGORA"){begin()}
+                GameButton("JOGAR AGORA"){startOrTutorial()}
                 Spacer(Modifier.height(12.dp))
                 GameButton(if(soundOn) "SOM: LIGADO" else "SOM: DESLIGADO",
                     secondary=true){toggleSound()}
@@ -608,7 +682,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 Text("Sobreviva até o final para vencer. Corações recuperam vidas.",
                     color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
                 Spacer(Modifier.height(28.dp))
-                GameButton("ENTENDI!"){screen=Screen.MENU}
+                GameButton("TREINAR CONTROLES") { tutorialStep=0; tutorialX=.5f; screen=Screen.TUTORIAL }
+                Spacer(Modifier.height(10.dp))
+                GameButton("VOLTAR",secondary=true){screen=Screen.MENU}
             }
         }
         if(screen==Screen.PAUSE) {
@@ -717,7 +793,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 GameButton("MENU",secondary=true){screen=Screen.MENU}
             }
         }
-        Text("v1.5 RC1 • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
+        Text("v1.5.2 QA • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
             fontSize=9.sp,modifier=Modifier.align(Alignment.BottomCenter)
                 .padding(bottom=7.dp))
     }
