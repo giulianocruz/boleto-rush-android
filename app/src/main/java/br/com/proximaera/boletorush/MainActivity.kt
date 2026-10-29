@@ -153,6 +153,10 @@ class MainActivity : ComponentActivity() {
 private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
+    val versionLabel = remember(context) {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "QA" }
+            .getOrDefault("QA")
+    }
     val haptics = LocalHapticFeedback.current
     var screen by remember { mutableStateOf(Screen.MENU) }
     LaunchedEffect(screen) {
@@ -784,7 +788,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?) {
                 GameButton("MENU",secondary=true){screen=Screen.MENU}
             }
         }
-        Text("v1.5.3 QA • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
+        Text("v$versionLabel • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
             fontSize=9.sp,modifier=Modifier.align(Alignment.BottomCenter)
                 .padding(bottom=7.dp))
     }
