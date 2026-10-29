@@ -1,44 +1,40 @@
 # Boleto Rush! — Próxima Era Games
 
-**Android v1.5.0 RC1 (28/10/2026)** — versão candidata de testes, **não homologada para produção na Google Play**.
+[**Site do jogo**](https://giulianocruz.github.io/boleto-rush-android/) · [**Baixar a prévia Windows**](https://github.com/giulianocruz/boleto-rush-android/releases/tag/v1.5.3-qa) · [**Política de Privacidade**](https://giulianocruz.github.io/boleto-rush-android/privacy.html) · [**Reportar problema**](https://github.com/giulianocruz/boleto-rush-android/issues)
 
-Arcade casual brasileiro, com o mascote carteira caramelo, arte original premium, controles por toque, moedas, boletos, escudo, vida extra e placar. **Clássico (45s)** e **Maratona (90s)**, recordes independentes, tutorial e som opcional.
+Boleto Rush! é um jogo arcade casual brasileiro: mova a carteira, colete moedas, evite boletos e tente bater seu recorde. Oferece **Clássico (45 segundos)** e **Maratona (90 segundos)**, tutorial interativo, combos, escudo, vidas extras, placar, vibração e som configuráveis.
 
-## Monetização e privacidade
-Após perder todas as vidas, o jogador pode **voluntariamente** assistir a um anúncio recompensado e voltar com uma vida, uma vez por partida. Sem anúncios intersticiais obrigatórios. O jogo funciona offline e só tenta inicializar anúncios na tela de segunda chance. O SDK Google Mobile Ads e UMP usam rede e podem processar identificadores e diagnósticos. A política de privacidade está linkada no menu do aplicativo.
+## Status de distribuição — 29/10/2026
 
-**IMPORTANTE:** o código usa IDs oficiais **de teste** do Google até o titular fornecer os IDs reais via configuração de build; essa versão não monetiza.
+| Plataforma | Versão | Situação |
+| --- | --- | --- |
+| **Windows** | v1.4 portátil | **Disponível** na release pública v1.5.3-qa; não requer emulador nem Android Studio. Ainda sem assinatura digital de editor |
+| **Android** | 1.5.3-QA, versionCode 11 | **Teste interno**: AAB assinado preparado no PC Insano, upload ao Play Console ainda não confirmado |
+| **Google Play — produção** | — | **Não liberado**: faltam teste físico, IDs reais de AdMob, revisão final de consentimento/declarações e aprovação no Console |
 
-## Compilação automatizada — duas versões
-O workflow [Android RC (APK + AAB)](https://github.com/giulianocruz/boleto-rush-android/actions/workflows/android-release-candidate.yml) produz:
-- `BoletoRush-1.5.0-rc1-APK-TESTE`: APK debug para instalar e testar.
-- `BoletoRush-1.5.0-rc1-AAB-NAO-ASSINADO`: AAB de QA, **não pode ser submetido ao Play Console**.
-- `BoletoRush-1.5.0-rc1-AAB-ASSINADO`: gerado somente quando a conta tiver chave de upload e IDs AdMob reais registrados como segredos de Actions, e as verificações de pré-publicação passarem.
-- `BoletoRush-1.5.0-rc1-KIT-LOJA`: arte e guia.
+Os testes automatizados da 1.5.3 passaram no **Android 8 / API 26** e **Android 15 / API 35** em [execução do GitHub Actions](https://github.com/giulianocruz/boleto-rush-android/actions/runs/40918581451). Os testes cobrem tutorial 3/3, alternância de vibração, partida completa e resultado, mas não substituem uma sessão manual em celular físico.
 
-O workflow [Teste de abertura no emulador](https://github.com/giulianocruz/boleto-rush-android/actions/workflows/android-smoke.yml) instala e abre o app, captura imagens **reais** de menu/gameplay e verifica encerramento inesperado.
+## Desenvolvimento Android
 
-## Construir localmente
-Requisitos: JDK 21, Android SDK 36, Gradle 9.3.1 (wrapper) e Android Gradle Plugin 9.1.1.
+Requisitos: JDK 21, SDK Android 36 e Gradle wrapper do projeto.
 
 ```bash
-bash ./gradlew :app:assembleDebug :app:bundleRelease
+./gradlew :app:assembleDebug
+./gradlew :app:bundleRelease
 ```
 
-Para preparar produção, configurar `BOLETO_ADMOB_APP_ID`, `BOLETO_REWARDED_UNIT_ID` e a chave de upload em ambiente privado; `:app:verifyPlayConfiguration` bloqueia IDs demonstrativos e ausência de chave. Não colocar `.jks`, senhas ou credenciais no GitHub.
+No Windows, use `gradlew.bat` no lugar de `./gradlew`. O projeto utiliza `BOLETO_ADMOB_APP_ID` e `BOLETO_REWARDED_UNIT_ID` para publicidade; sem IDs próprios, os builds QA usam identificadores de teste, que não devem ser publicados comercialmente. Para distribuição pela Play, é necessário gerar o **AAB com a chave de upload original**, mantida fora do repositório. Nunca comite chaves, senhas ou segredos.
 
-## Google Play Console
-**[GUIA PASSO A PASSO — PLAY_CONSOLE_GUIA.md](PLAY_CONSOLE_GUIA.md)**
+## Desenvolvimento Windows
 
-- [Texto e checklist da loja](PLAY_STORE_LISTING.md)
-- [Política de privacidade](PRIVACIDADE.md)
-- [Configuração de AdMob](ADMOB_E_PUBLICACAO.md)
-- [Histórico de testes v1.4](TESTES_V14.md)
+O código e os scripts da versão nativa Windows estão em [`windows-port/`](windows-port/). O executável público foi validado com smoke test local, mas ainda é uma versão de testes e pode provocar avisos do SmartScreen por não estar assinado digitalmente.
 
-Arte oficial para a Play:
-- Ícone transparente correto: `store/play-icon-512.png`.
-- Banner 1024×500: `store/feature-graphic-1024x500.jpg`.
-- Capturas: atualizar para capturas reais da **RC atual** após validação no emulador/celular.
+## Publicação e suporte
 
-### Pendências reais
-Verificar abertura em celular físico (houve reclamação de travamento na beta antiga), final de partida nos dois modos, anúncio recompensado e consentimento; preparar uploads/assinatura do titular e cumprir testes exigidos pelo Play Console. As futuras edições políticas 13 e 22 ficam em projetos separados; **não são parte desta versão**.
+- [Guia de publicação Play Console](PLAY_CONSOLE_GUIA.md)
+- [Descrição da loja](PLAY_STORE_LISTING.md)
+- [Monetização e AdMob](ADMOB_E_PUBLICACAO.md)
+- [Política de Privacidade](PRIVACIDADE.md)
+- [Versões de teste e código-fonte](https://github.com/giulianocruz/boleto-rush-android/releases)
+
+**Próximo passo do Android:** upload da versão 1.5.3 assinada para Teste interno, instalação pela Play em aparelho físico e revisão da monetização antes da abertura ao público.
