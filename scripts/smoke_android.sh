@@ -11,7 +11,9 @@ adb wait-for-device
 adb shell wm size 1080x1920
 adb install -r "$APK"
 adb shell am force-stop "$PACKAGE" || true
-adb logcat -c
+# Certain Google API emulator images refuse to clear the log buffer.
+# Do not treat that platform diagnostic limitation as an app failure.
+adb logcat -c || echo 'WARN: logcat reset unavailable; continuing smoke test'
 adb shell am start -W -n "$ACTIVITY"
 sleep 8
 
