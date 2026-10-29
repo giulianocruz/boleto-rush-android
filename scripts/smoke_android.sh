@@ -49,6 +49,9 @@ for node in root.iter('node'):
         match = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds)
         if match:
             x1, y1, x2, y2 = map(int, match.groups())
+            # Compose can expose clipped labels with 0x0 bounds; they cannot be tapped.
+            if x2 - x1 < 8 or y2 - y1 < 8:
+                continue
             print((x1 + x2)//2, (y1 + y2)//2)
             raise SystemExit(0)
 raise SystemExit("UI BUTTON NOT FOUND: " + label)
