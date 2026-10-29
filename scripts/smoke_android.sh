@@ -49,6 +49,9 @@ for node in root.iter('node'):
         match = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds)
         if match:
             x1, y1, x2, y2 = map(int, match.groups())
+            # Compose can expose clipped labels with 0x0 bounds; they cannot be tapped.
+            if x2 - x1 < 8 or y2 - y1 < 8:
+                continue
             print((x1 + x2)//2, (y1 + y2)//2)
             raise SystemExit(0)
 raise SystemExit("UI BUTTON NOT FOUND: " + label)
@@ -78,7 +81,7 @@ PY
   sleep 2
 fi
 assert_alive
-capture menu-rc153
+capture menu-rc156
 
 # Confirm vibration preference is interactive and can be restored for the tester.
 read -r x y < <(find_button_center 'VIBRAÇÃO: LIGADA')
@@ -89,17 +92,36 @@ adb shell input tap "$x" "$y"
 sleep 1
 find_button_center 'VIBRAÇÃO: LIGADA' >/dev/null
 
+# Verify diagnostics. On shorter screens, scroll the menu to the lower buttons.
+if ! find_button_center 'DIAGNÓSTICO DO APARELHO' >/dev/null 2>&1; then
+  adb shell input swipe 540 1350 540 690 450
+  sleep 1
+fi
+read -r x y < <(find_button_center 'DIAGNÓSTICO DO APARELHO')
+adb shell input tap "$x" "$y"
+sleep 2
+find_button_center 'COMPARTILHAR' >/dev/null
+capture diagnostics-rc156
+read -r x y < <(find_button_center 'FECHAR')
+adb shell input tap "$x" "$y"
+sleep 1
+if ! find_button_center 'JOGAR AGORA' >/dev/null 2>&1; then
+  adb shell input swipe 540 700 540 1420 450
+  sleep 1
+fi
+find_button_center 'JOGAR AGORA' >/dev/null
+
 # Capture an authentic tutorial screen directly from the current app build.
 read -r x y < <(find_button_center 'COMO JOGAR')
 adb shell input tap "$x" "$y"
 sleep 2
 assert_alive
-capture instructions-rc153
+capture instructions-rc156
 read -r x y < <(find_button_center 'TREINAR CONTROLES')
 adb shell input tap "$x" "$y"
 sleep 2
 assert_alive
-capture tutorial-step1-rc153
+capture tutorial-step1-rc156
 find_button_center 'TREINO RÁPIDO' >/dev/null
 # Move right to collect the tutorial coin, then left to reach the shield.
 adb shell input swipe 540 1050 865 1050 350
@@ -108,12 +130,12 @@ find_button_center 'TREINO RÁPIDO • 2/3' >/dev/null
 adb shell input swipe 865 1050 210 1050 400
 sleep 1
 find_button_center 'TREINO RÁPIDO • 3/3' >/dev/null
-capture tutorial-complete-rc153
+capture tutorial-complete-rc156
 read -r x y < <(find_button_center 'COMEÇAR PARTIDA!')
 adb shell input tap "$x" "$y"
 sleep 3
 assert_alive
-capture gameplay-rc153
+capture gameplay-rc156
 
 # Let the actual 45s Classic gameplay finish. If the player lost, decline
 # the optional test ad and capture the genuine score/results screen.
@@ -125,10 +147,10 @@ if read -r x y < <(find_button_center 'NÃO, ENCERRAR PARTIDA' 2>/dev/null); the
 fi
 read -r x y < <(find_button_center 'JOGAR DE NOVO')
 assert_alive
-capture results-rc153
+capture results-rc156
 adb logcat -d -t 1500 -s AndroidRuntime:E > "$OUT/crash-log.txt" || true
 if grep -q 'FATAL EXCEPTION' "$OUT/crash-log.txt"; then
   cat "$OUT/crash-log.txt"
   exit 1
 fi
-echo "SMOKE PASSED: menu, interactive tutorial 3/3, full round, final result, no AndroidRuntime crashes — APK=$APK"
+echo "SMOKE PASSED: menu, device diagnostics, tutorial 3/3, full round, final result, no AndroidRuntime crashes — APK=$APK"
