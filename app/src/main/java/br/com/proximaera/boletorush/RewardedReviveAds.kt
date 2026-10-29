@@ -32,6 +32,7 @@ class RewardedReviveAds(private val activity: Activity) {
     private var loading = false
     private var consentStarted = false
     private var adRequested = false
+    private var consentComplete = false
 
     // Consent updates every launch; ad SDK initialization remains deferred until revive.
     fun refreshConsent() {
@@ -45,12 +46,14 @@ class RewardedReviveAds(private val activity: Activity) {
                     ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
                 UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { error ->
                     if (error != null) Log.w("BoletoRushAds", "Consent form: ${error.message}")
+                    consentComplete = true
                     initializeIfAllowed()
                 }
                 // Do not start the advertising SDK before the consent form closes.
             },
             { error ->
                 Log.w("BoletoRushAds", "Consent update: ${error.message}")
+                consentComplete = true
                 initializeIfAllowed()
             }
         )
@@ -71,7 +74,7 @@ class RewardedReviveAds(private val activity: Activity) {
     }
 
     private fun initializeIfAllowed() {
-        if (!adRequested || !consentInformation.canRequestAds() || sdkStarted) return
+        if (!adRequested || !consentComplete || !consentInformation.canRequestAds() || sdkStarted) return
         sdkStarted = true
         MobileAds.initialize(activity) { load() }
     }

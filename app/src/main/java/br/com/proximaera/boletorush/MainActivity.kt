@@ -89,10 +89,13 @@ class MainActivity : ComponentActivity() {
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         // Opening the game does not initialize any advertising SDK.
         // Ads are requested only if the player loses and reaches REVIVE.
-        adManager = RewardedReviveAds(this)
+        adManager = runCatching { RewardedReviveAds(this) }
+            .onFailure { Log.w("BoletoRush", "Optional consent services unavailable", it) }
+            .getOrNull()
         setContent { BoletoRush(foreground, adManager) }
-        // UMP consent is refreshed on every app launch, without loading an ad.
-        adManager?.refreshConsent()
+        // The game remains playable if optional ad/consent services are unavailable.
+        runCatching { adManager?.refreshConsent() }
+            .onFailure { Log.w("BoletoRush", "Consent initialization deferred", it) }
     }
     fun initializeRewardedAdsIfNeeded() {
         if (isFinishing || isDestroyed) return
