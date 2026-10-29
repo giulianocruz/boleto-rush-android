@@ -187,6 +187,10 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMode: Boolean) {
     val context = LocalContext.current
+    val appVersion = remember(context) {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
+            .getOrNull() ?: "QA"
+    }
     val prefs = remember { context.getSharedPreferences("boleto_rush", 0) }
     LaunchedEffect(Unit) {
         // Mark a successful first Compose frame for device diagnostics.
@@ -877,7 +881,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 GameButton("MENU",secondary=true){screen=Screen.MENU}
             }
         }
-        Text("v1.5.6 QA • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
+        Text("v$appVersion • FEITO NO BRASIL",color=Color.White.copy(alpha=.35f),
             fontSize=9.sp,modifier=Modifier.align(Alignment.BottomCenter)
                 .padding(bottom=7.dp))
     }
