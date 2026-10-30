@@ -71,7 +71,6 @@ private enum class Mode(val title: String, val duration: Float) {
     CLASSIC("CLÁSSICO",45f), MARATHON("MARATONA",90f)
 }
 
-private enum class Kind { COIN, BANKNOTE, CARD, OVERDRAFT, BILL, SHIELD, HEART, MAGNET }
 private data class Drop(val id: Int, val x: Float, val y: Float, val speed: Float, val kind: Kind)
 
 private val artworkLock = Any()
@@ -308,6 +307,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var drops by remember { mutableStateOf<List<Drop>>(emptyList()) }
     var shield by remember { mutableFloatStateOf(0f) }
     var magnetTime by remember { mutableFloatStateOf(0f) }
+    var pixTime by remember { mutableFloatStateOf(0f) }
+    var lastStage by remember { mutableIntStateOf(0) }
+    var stageAnnouncementSeconds by remember { mutableFloatStateOf(0f) }
     var invulnerable by remember { mutableFloatStateOf(0f) }
     var won by remember { mutableStateOf(false) }
     var reviveUsed by remember { mutableStateOf(false) }
@@ -349,6 +351,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         drops = emptyList()
         shield = GameEconomy.initialShieldSeconds(shieldLevel)
         magnetTime = 0f
+        pixTime = 0f
+        lastStage = 0
+        stageAnnouncementSeconds = 0f
         invulnerable = 0f
         won = false
         reviveUsed = false
@@ -457,6 +462,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         if (screen != Screen.PLAY) return@LaunchedEffect
         var lastFrame = withFrameNanos { it }
         var spawn = 0f
+        var nonCoinStreak = 0
+        var previousWasHazard = false
         var nextId = (elapsed * 100f).toInt()
         while (isActive && screen == Screen.PLAY) {
             val now = withFrameNanos { it }
@@ -472,25 +479,26 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 .coerceIn(0.09f, 0.91f)
             shield = (shield - dt).coerceAtLeast(0f)
             magnetTime = (magnetTime - dt).coerceAtLeast(0f)
+            pixTime = (pixTime - dt).coerceAtLeast(0f)
             invulnerable = (invulnerable - dt).coerceAtLeast(0f)
             feedbackSeconds = (feedbackSeconds - dt).coerceAtLeast(0f)
+            stageAnnouncementSeconds = (stageAnnouncementSeconds - dt).coerceAtLeast(0f)
+            val currentStage = GamePacing.chapter(elapsed, mode.duration)
+            if (currentStage != lastStage) {
+                lastStage = currentStage
+                stageAnnouncementSeconds = 2.2f
+                tone(ToneGenerator.TONE_PROP_ACK)
+            }
             spawn += dt
             val interval = GamePacing.spawnInterval(elapsed, mode.duration, gamesPlayed)
             if (spawn >= interval) {
                 spawn -= interval
-                val roll = rng.nextFloat()
-                // First seconds are safe; bills ramp up after the player learns the controls.
-                val billOdds = GamePacing.billOdds(elapsed, mode.duration, gamesPlayed)
-                val kind = when {
-                    roll < .043f -> Kind.SHIELD
-                    roll < .067f -> Kind.HEART
-                    roll < .102f && elapsed >= 6f -> Kind.MAGNET
-                    roll < .18f -> Kind.BANKNOTE
-                    roll < .211f && elapsed >= mode.duration * .23f -> Kind.CARD
-                    roll < .255f && elapsed >= mode.duration * .55f -> Kind.OVERDRAFT
-                    rng.nextFloat() < billOdds -> Kind.BILL
-                    else -> Kind.COIN
-                }
+                val kind = GameDrops.choose(
+                    rng.nextFloat(), rng.nextFloat(), elapsed, mode.duration,
+                    gamesPlayed, previousWasHazard, nonCoinStreak
+                )
+                nonCoinStreak = if (kind == Kind.COIN) 0 else (nonCoinStreak + 1).coerceAtMost(3)
+                previousWasHazard = GameDrops.harmful(kind)
                 drops = drops + Drop(nextId++, rng.nextFloat() * .82f + .09f,
                     -.065f, .27f + rng.nextFloat() * .08f + elapsed * .0028f, kind)
             }
@@ -504,11 +512,12 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     when (item.kind) {
                         Kind.COIN -> {
                             combo++
-                            val gained = 10 + (combo.coerceAtMost(10) - 1) * 2
+                            val gained = GameDrops.coinScore(combo, pixTime > 0f)
                             score += gained
                             coinsCollected++
                             maxCombo = max(maxCombo, combo)
-                            feedback = "+$gained  MOEDA!"
+                            feedback = if (pixTime > 0f) "+$gained MOEDA • PIX EM DOBRO!"
+                                       else "+$gained MOEDA!"
                             feedbackSeconds = if (combo % 5 == 0) 1.05f else 0.68f
                             if (combo % 5 == 0) feedback = "SUPER COMBO x$combo! +$gained"
                             if (combo == 8 && magnetTime <= 0f) {
@@ -522,7 +531,6 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         }
                         Kind.BANKNOTE -> {
                             cashCollected += 3
-                            score += 8
                             feedback = "+R$ 3 NOTAS PARA VISUAIS!"
                             feedbackSeconds = .95f
                             tone(ToneGenerator.TONE_PROP_BEEP2)
@@ -548,10 +556,16 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             feedbackSeconds = 1.25f
                             tone(ToneGenerator.TONE_PROP_NACK)
                         }
+                        Kind.PIX -> {
+                            pixTime = 6f
+                            feedback = "PIX TURBO! MOEDAS VALEM O DOBRO!"
+                            feedbackSeconds = 1.5f
+                            pulse(HapticFeedbackType.TextHandleMove)
+                            tone(ToneGenerator.TONE_PROP_ACK)
+                        }
                         Kind.MAGNET -> {
                             magnetTime = GameEconomy.magnetSeconds(magnetLevel)
                             magnetUses++
-                            score += 5
                             feedback = "🧲 ÍMÃ ATIVADO!"
                             feedbackSeconds = 1.2f
                             pulse(HapticFeedbackType.LongPress)
@@ -577,14 +591,12 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         }
                         Kind.SHIELD -> {
                             shield = 7f
-                            score += 5
                             feedback = "SALDO EXTRA ATIVADO!"
                             feedbackSeconds = 0.85f
                             tone(ToneGenerator.TONE_PROP_ACK)
                         }
                         Kind.HEART -> {
                             lives = (lives + 1).coerceAtMost(3)
-                            score += 5
                             feedback = "+1 VIDA!"
                             feedbackSeconds = 0.85f
                             tone(ToneGenerator.TONE_PROP_BEEP2)
@@ -654,6 +666,19 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         Offset(x + 4f, y), Size(w / 54f, 5f))
                 }
             }
+            // Discreet neighborhood signs help distinguish each financial chapter.
+            // Keep them in the background, below the pickups and outside the player's lane.
+            val neighborhood = when (chapter) {
+                0 -> "CENTRO"
+                1 -> "BANCO"
+                2 -> "COMÉRCIO"
+                else -> "COBRANÇA"
+            }
+            val signTint = if (chapter == 3) Color(0xFF62404D)
+                           else Color(0xFF38566B)
+            drawRoundRect(signTint.copy(alpha=.50f),
+                Offset(w*.075f,h*.68f),Size(w*.30f,h*.041f),CornerRadius(w*.014f))
+            drawTextAt(neighborhood,w*.225f,h*.709f,w*.042f,0xFF819FAB.toInt())
             for (i in 0..19) {
                 val y = (i / 19f) * h
                 drawLine(Teal.copy(alpha=.06f), Offset(0f, y), Offset(w, y), 1f)
@@ -693,6 +718,13 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             drawRoundRect(Color(0xFF3F7958), Offset(x-r*.92f,y-r*.51f),
                                 Size(r*1.84f,r*1.02f), CornerRadius(r*.18f))
                             drawTextAt("R$",x,y+r*.29f,r*1.04f,0xFFF4FFCC.toInt())
+                        }
+                        Kind.PIX -> {
+                            drawRoundRect(Color(0xFF73E4C0),Offset(x-r*1.2f,y-r*.75f),
+                                Size(r*2.4f,r*1.5f),CornerRadius(r*.30f))
+                            drawRoundRect(Color(0xFF175C50),Offset(x-r*1.02f,y-r*.54f),
+                                Size(r*2.04f,r*1.08f),CornerRadius(r*.22f))
+                            drawTextAt("PIX",x,y+r*.34f,r*1.05f,0xFFFFFFFF.toInt())
                         }
                         Kind.CARD -> {
                             drawRoundRect(Color(0xFF59A9FF),Offset(x-r*1.2f,y-r*.76f),
@@ -740,6 +772,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         drawCircle(skinGlow.copy(alpha=.62f),r*1.5f,Offset(x,y),
                             style=androidx.compose.ui.graphics.drawscope.Stroke(width=5f))
                     }
+                    if (pixTime > 0f) {
+                        drawCircle(Color(0xFF69EDAE).copy(alpha=.16f),r*2.7f,Offset(x,y))
+                    }
                     if (magnetTime > 0f) {
                         drawCircle(Color(0xFFE858FF).copy(alpha=.12f),r*2.4f,Offset(x,y))
                         drawCircle(Color(0xFFE858FF).copy(alpha=.80f),r*1.9f,Offset(x,y),
@@ -782,7 +817,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(12.dp))
                 Text(when(tutorialStep) {
                     0 -> "MOVA A CARTEIRA PARA A MOEDA À DIREITA"
-                    1 -> "DESVIE DO BOLETO E ALCANCE O ESCUDO À ESQUERDA"
+                    1 -> "DESVIE DO BOLETO E ALCANCE O SALDO EXTRA À ESQUERDA"
                     else -> "PRONTO! MOEDAS PONTUAM, BOLETOS TIRAM VIDAS"
                 },color=Color.White,fontSize=19.sp,fontWeight=FontWeight.Black,
                     textAlign=TextAlign.Center)
@@ -822,14 +857,18 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     Box(Modifier.fillMaxWidth((elapsed/mode.duration).coerceIn(0f,1f))
                         .fillMaxHeight().background(Teal,RoundedCornerShape(16.dp)))
                 }
+                Text("ETAPA ${GamePacing.chapter(elapsed,mode.duration)+1}/4 • ${GamePacing.chapterName(GamePacing.chapter(elapsed,mode.duration))}",
+                    color=Muted,fontSize=10.sp,letterSpacing=.3.sp)
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,
                     verticalAlignment=Alignment.CenterVertically) {
                     Text(when {
+                        pixTime>0f -> "PIX TURBO 2x • ${pixTime.toInt()+1}s"
                         magnetTime>0f -> "🧲 ÍMÃ ${magnetTime.toInt()+1}s • MOEDAS AUTOMÁTICAS"
                         shield>0f -> "✦ SALDO EXTRA ${shield.toInt()+1}s"
                         combo>=3 -> "COMBO x$combo"
                         else -> GamePacing.chapterName(GamePacing.chapter(elapsed, mode.duration))
-                    },color=if(magnetTime>0f) Color(0xFFECA8FF)
+                    },color=if(pixTime>0f) Color(0xFF8EF1C3)
+                        else if(magnetTime>0f) Color(0xFFECA8FF)
                         else if(shield>0f || combo>=3) Gold else Muted,
                         fontSize=11.sp,fontWeight=FontWeight.Bold)
                     Button(onClick={screen=if(screen==Screen.PLAY) Screen.PAUSE else Screen.PLAY},
@@ -839,6 +878,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         Text(if(screen==Screen.PLAY) "PAUSAR" else "RETOMAR",fontSize=11.sp)
                     }
                 }
+            }
+            if(screen==Screen.PLAY && stageAnnouncementSeconds>0f) {
+                Text("NOVO CAPÍTULO: ${GamePacing.chapterName(lastStage)}",
+                    color=Teal,fontSize=16.sp,fontWeight=FontWeight.Black,
+                    modifier=Modifier.align(Alignment.Center).offset(y=(-170).dp)
+                        .background(Navy.copy(alpha=.80f),RoundedCornerShape(14.dp))
+                        .padding(10.dp),
+                    textAlign=TextAlign.Center)
             }
             if(screen==Screen.PLAY && feedbackSeconds>0f) Text(feedback,
                 color=if(feedback.startsWith("AI")) Coral else Gold,
@@ -867,7 +914,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Text("🪙  Pegue moedas    🧾  Fuja dos boletos",
                     color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
                 Spacer(Modifier.height(8.dp))
-                Text("✦ Saldo extra   🧲 Ímã   💳 Cartão   R$ Notas",
+                Text("✦ Saldo extra   🧲 Ímã   💳 Cartão   PIX x2   R$ Notas",
                     color=Muted,textAlign=TextAlign.Center,fontSize=13.sp)
                 Spacer(Modifier.height(8.dp))
                 Text("${mode.duration.toInt()} SEGUNDOS  •  3 VIDAS  •  ANÚNCIO OPCIONAL",
@@ -918,7 +965,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Text("R$ $cashWallet NOTAS PARA VISUAIS",color=Teal,fontSize=17.sp,
                     fontWeight=FontWeight.Black)
                 Spacer(Modifier.height(6.dp))
-                Text("Moedas de melhoria são raras: a cada partida só uma parte das moedas coletadas vira saldo. As notas compram visuais.",
+                Text("Moedas de melhoria são raras: a cada partida só uma parte das moedas coletadas vira saldo. As notas compram visuais. PIX dobra pontos, mas não o saldo.",
                     color=Muted,fontSize=13.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
                 Text("💳 CRÉDITO: $creditAvailable  •  DÍVIDA: $creditDebt",color=Color(0xFF9DC7FF),
@@ -929,7 +976,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
 
                 Text("🧲 ÍMÃ MAGNÉTICO • NÍVEL $magnetLevel/3",color=Color(0xFFECA8FF),
                     fontSize=17.sp,fontWeight=FontWeight.Black)
-                Text("Atrai TODAS as moedas da tela por ${GameEconomy.magnetSeconds(magnetLevel).toInt()} segundos.",
+                Text("Atrai as moedas visíveis durante ${GameEconomy.magnetSeconds(magnetLevel).toInt()} segundos.",
                     color=Muted,fontSize=13.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
                 GameButton(GameEconomy.price(Upgrade.MAGNET,magnetLevel)?.let {
@@ -996,7 +1043,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         }
         if(screen==Screen.HOW) {
             Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.96f)))
-            Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(25.dp),
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(horizontal=25.dp,vertical=40.dp),
                 horizontalAlignment=Alignment.CenterHorizontally) {
                 Text("COMO JOGAR",color=Teal,fontSize=32.sp,fontWeight=FontWeight.Black)
                 Spacer(Modifier.height(19.dp))
@@ -1018,7 +1066,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(12.dp))
                 Text("ÍMÃ 🧲 COLETA MOEDAS VISÍVEIS",color=Color(0xFFECA8FF),
                     fontSize=15.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
-                Text("O cartão libera crédito para upgrades, mas as próximas moedas quitam a dívida.",
+                Text("O cartão libera crédito para upgrades, mas as próximas moedas quitam a dívida. PIX dobra apenas os pontos das moedas por 6 segundos.",
                     color=Color.White,fontSize=13.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(23.dp))
                 GameButton("TREINAR CONTROLES") { tutorialStep=0; tutorialX=.5f; screen=Screen.TUTORIAL }
