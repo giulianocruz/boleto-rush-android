@@ -499,7 +499,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 )
                 nonCoinStreak = if (kind == Kind.COIN) 0 else (nonCoinStreak + 1).coerceAtMost(3)
                 previousWasHazard = GameDrops.harmful(kind)
-                drops = drops + Drop(nextId++, rng.nextFloat() * .82f + .09f,
+                drops = drops + Drop(nextId++, GameDrops.spawnX(rng.nextFloat(), kind, playerX),
                     -.065f, .27f + rng.nextFloat() * .08f + elapsed * .0028f, kind)
             }
             val updated = ArrayList<Drop>(drops.size)
@@ -534,6 +534,13 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             feedback = "+R$ 3 NOTAS PARA VISUAIS!"
                             feedbackSeconds = .95f
                             tone(ToneGenerator.TONE_PROP_BEEP2)
+                        }
+                        Kind.PAYDAY -> {
+                            cashCollected += 12
+                            feedback = "DIA DO PAGAMENTO! +R$ 12"
+                            feedbackSeconds = 1.5f
+                            pulse(HapticFeedbackType.TextHandleMove)
+                            tone(ToneGenerator.TONE_PROP_ACK)
                         }
                         Kind.CARD -> {
                             val added = GameEconomy.addCredit(prefs, 10)
@@ -718,6 +725,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             drawRoundRect(Color(0xFF3F7958), Offset(x-r*.92f,y-r*.51f),
                                 Size(r*1.84f,r*1.02f), CornerRadius(r*.18f))
                             drawTextAt("R$",x,y+r*.29f,r*1.04f,0xFFF4FFCC.toInt())
+                        }
+                        Kind.PAYDAY -> {
+                            drawRoundRect(Color(0xFF2CBFA4),Offset(x-r*1.25f,y-r*.82f),
+                                Size(r*2.5f,r*1.64f),CornerRadius(r*.27f))
+                            drawRoundRect(Color(0xFF0D5D56),Offset(x-r*1.07f,y-r*.62f),
+                                Size(r*2.14f,r*1.24f),CornerRadius(r*.20f))
+                            drawTextAt("SAL",x,y-r*.13f,r*.72f,0xFFFFFFFF.toInt())
+                            drawTextAt("+12",x,y+r*.49f,r*.78f,0xFFFFE7A1.toInt())
                         }
                         Kind.PIX -> {
                             drawRoundRect(Color(0xFF73E4C0),Offset(x-r*1.2f,y-r*.75f),
@@ -914,7 +929,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Text("🪙  Pegue moedas    🧾  Fuja dos boletos",
                     color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
                 Spacer(Modifier.height(8.dp))
-                Text("✦ Saldo extra   🧲 Ímã   💳 Cartão   PIX x2   R$ Notas",
+                Text("✦ Saldo extra   🧲 Ímã   💳 Cartão   PIX x2   R$ Salário",
                     color=Muted,textAlign=TextAlign.Center,fontSize=13.sp)
                 Spacer(Modifier.height(8.dp))
                 Text("${mode.duration.toInt()} SEGUNDOS  •  3 VIDAS  •  ANÚNCIO OPCIONAL",
@@ -1066,7 +1081,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(12.dp))
                 Text("ÍMÃ 🧲 COLETA MOEDAS VISÍVEIS",color=Color(0xFFECA8FF),
                     fontSize=15.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
-                Text("O cartão libera crédito para upgrades, mas as próximas moedas quitam a dívida. PIX dobra apenas os pontos das moedas por 6 segundos.",
+                Text("O cartão libera crédito para upgrades, mas as próximas moedas quitam a dívida. PIX dobra apenas os pontos das moedas por 6 segundos. Salário é um bônus de R$ 12 para visuais.",
                     color=Color.White,fontSize=13.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(23.dp))
                 GameButton("TREINAR CONTROLES") { tutorialStep=0; tutorialX=.5f; screen=Screen.TUTORIAL }
