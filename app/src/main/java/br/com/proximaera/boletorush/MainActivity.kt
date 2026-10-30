@@ -282,6 +282,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var shieldLevel by remember { mutableIntStateOf(GameEconomy.level(prefs, Upgrade.START_SHIELD)) }
     var incomeLevel by remember { mutableIntStateOf(GameEconomy.level(prefs, Upgrade.COIN_BONUS)) }
     var roundEarnings by remember { mutableIntStateOf(0) }
+    var milestoneBonus by remember { mutableIntStateOf(0) }
+    var newMilestones by remember { mutableStateOf<List<Milestone>>(emptyList()) }
+    var settledRound by remember { mutableIntStateOf(-1) }
     var shopMessage by remember { mutableStateOf("") }
     var magnetUses by remember { mutableIntStateOf(0) }
     var soundOn by remember { mutableStateOf(prefs.getBoolean("sound", true)) }
@@ -327,6 +330,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         coinsCollected = 0
         billsHit = 0
         roundEarnings = 0
+        milestoneBonus = 0
+        newMilestones = emptyList()
         magnetUses = 0
         feedback = ""
         feedbackSeconds = 0f
@@ -367,10 +372,16 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         }
     }
     fun finish(victory: Boolean) {
+        // A screen transition, callback or repeated tap must never credit a round twice.
+        if (settledRound == round) return
+        settledRound = round
         won = victory
         screen = Screen.END
         gamesPlayed++
         roundEarnings = GameEconomy.creditRound(prefs, coinsCollected, incomeLevel)
+        val award = GameMilestones.awardRound(prefs, score, coinsCollected, victory)
+        milestoneBonus = award.coins
+        newMilestones = award.unlocked
         wallet = GameEconomy.wallet(prefs)
         prefs.edit().putInt("games", gamesPlayed).apply()
         if (score > best) {
@@ -855,7 +866,21 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(14.dp))
                 if (shopMessage.isNotEmpty()) Text(shopMessage,color=Gold,
                     fontSize=12.sp,textAlign=TextAlign.Center)
-                Spacer(Modifier.height(19.dp))
+                Spacer(Modifier.height(23.dp))
+                Text("🏆 CONQUISTAS • ${GameMilestones.claimedCount(prefs)}/${Milestone.entries.size}",
+                    color=Teal,fontSize=20.sp,fontWeight=FontWeight.Black)
+                Spacer(Modifier.height(10.dp))
+                Milestone.entries.forEach { milestone ->
+                    val claimed = GameMilestones.claimed(prefs, milestone)
+                    Text((if (claimed) "✓ " else "○ ") + milestone.title,
+                        color=if (claimed) Gold else Color.White,
+                        fontWeight=FontWeight.Bold,fontSize=15.sp)
+                    Text(milestone.goal + " • +" + milestone.reward + " moedas" +
+                            if (claimed) " • CONCLUÍDA" else "",
+                        color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                    Spacer(Modifier.height(10.dp))
+                }
+                Spacer(Modifier.height(9.dp))
                 GameButton("VOLTAR AO MENU"){shopMessage="";screen=Screen.MENU}
                 Spacer(Modifier.height(10.dp))
                 Text("SEM COMPRAS REAIS • PROGRESSO SALVO NO APARELHO",
@@ -910,6 +935,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 GameButton(if(hapticsOn) "VIBRAÇÃO: LIGADA" else "VIBRAÇÃO: DESLIGADA",
                     secondary=true){toggleHaptics()}
                 Spacer(Modifier.height(10.dp))
+                Text("Ao reiniciar ou sair, as moedas desta partida não serão guardadas.",
+                    color=Muted,fontSize=11.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(9.dp))
                 GameButton("RECOMEÇAR",secondary=true){begin()}
                 Spacer(Modifier.height(10.dp))
                 GameButton("MENU PRINCIPAL",secondary=true){screen=Screen.MENU}
@@ -974,7 +1002,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 modifier=Modifier.align(Alignment.TopCenter).fillMaxWidth()
                     .aspectRatio(1376f/768f),contentScale=ContentScale.Fit) }
             Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.80f)))
-            Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(30.dp),
+            Column(Modifier.align(Alignment.Center).fillMaxWidth().fillMaxHeight(.88f)
+                .verticalScroll(rememberScrollState()).padding(30.dp),
                 horizontalAlignment=Alignment.CenterHorizontally) {
                 Text(if(won) "SOBREVIVEU!" else "A FATURA CHEGOU!",
                     color=if(won) Teal else Coral,fontSize=27.sp,
@@ -991,6 +1020,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(8.dp))
                 Text("+ $roundEarnings MOEDAS PARA A LOJA  •  SALDO $wallet",color=Gold,
                     fontSize=14.sp,fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
+                if (newMilestones.isNotEmpty()) {
+                    Spacer(Modifier.height(7.dp))
+                    Text("🏆 NOVA CONQUISTA! +$milestoneBonus MOEDAS",
+                        color=Teal,fontSize=14.sp,fontWeight=FontWeight.Black,
+                        textAlign=TextAlign.Center)
+                    Text(newMilestones.joinToString(" • ") { it.title },
+                        color=Color.White,fontSize=12.sp,textAlign=TextAlign.Center)
+                }
                 if (magnetUses > 0) Text("ÍMÃ COLETADO $magnetUses VEZ(ES)",
                     color=Color(0xFFECA8FF),fontSize=11.sp)
                 Spacer(Modifier.height(14.dp))

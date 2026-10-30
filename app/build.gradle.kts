@@ -28,8 +28,8 @@ android {
         applicationId = "br.com.proximaera.boletorush"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.6.0-qa"
+        versionCode = 17
+        versionName = "1.6.1-qa"
         resValue("string", "admob_app_id", admobAppId)
         resValue("string", "admob_rewarded_unit_id", rewardedUnitId)
     }
@@ -44,6 +44,11 @@ android {
         }
     }
     buildTypes {
+        getByName("debug") {
+            // Install QA alongside the Play-signed app without replacing player data.
+            applicationIdSuffix = ".qa"
+            versionNameSuffix = ".debug"
+        }
         getByName("release") {
             if (signingConfigured) {
                 signingConfig = signingConfigs.getByName("playUpload")
@@ -85,4 +90,5 @@ dependencies {
     implementation("androidx.compose.ui:ui:1.7.2")
     implementation("androidx.compose.foundation:foundation:1.7.2")
     implementation("androidx.compose.material3:material3:1.3.0")
+    testImplementation("junit:junit:4.13.2")
 }
