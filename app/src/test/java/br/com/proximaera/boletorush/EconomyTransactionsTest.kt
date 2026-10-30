@@ -59,7 +59,7 @@ class EconomyTransactionsTest {
         assertEquals(370, receipt.best)
         assertEquals(2, receipt.unlocked.size)
         assertFalse(GameMilestones.claimed(prefs, Milestone.SURVIVOR))
-        assertEquals(null, GameSettlement.settle(prefs, "round-a", false,
+        assertEquals(receipt, GameSettlement.settle(prefs, "round-a", false,
             370, 15, 12, 20, 0, false))
         assertEquals(17, GameEconomy.wallet(prefs))
         assertEquals(1, prefs.getInt("games", 0))
@@ -99,9 +99,61 @@ class EconomyTransactionsTest {
         assertEquals(7, receipt.credit)
         assertEquals(5, receipt.creditGranted)
         assertEquals(3, receipt.unlocked.size)
-        assertEquals(null, GameSettlement.settle(prefs, "credit-repay", false,
+        assertEquals(receipt, GameSettlement.settle(prefs, "credit-repay", false,
             350, 15, 9, 5, 0, true))
         assertEquals(11, GameEconomy.wallet(prefs))
+    }
+
+
+    @Test fun lastRoundReceiptCanBeReplayedWithoutPayingTwice() {
+        val prefs = LocalTestPrefs()
+        val first = GameSettlement.settle(prefs, "receipt-01", false,
+            430, 22, 30, 15, 0, true)!!
+        val again = GameSettlement.settle(prefs, "receipt-01", false,
+            9999, 9999, 9999, 25, 3, true)
+        assertEquals(first, again)
+        assertEquals(first, GameSettlement.latestReceipt(prefs))
+        assertEquals(first.wallet, GameEconomy.wallet(prefs))
+        assertEquals(1, prefs.getInt("games", 0))
+        assertEquals(30, GameEconomy.cash(prefs))
+    }
+
+    @Test fun olderRoundCannotBePaidAfterAnotherRoundFinishes() {
+        val prefs = LocalTestPrefs()
+        GameSettlement.settle(prefs, "first", false, 10, 8, 3, 0, 0, false)!!
+        val second = GameSettlement.settle(prefs, "second", true, 20, 10, 6, 0, 0, false)!!
+        val priorWallet = GameEconomy.wallet(prefs)
+        val priorCash = GameEconomy.cash(prefs)
+        assertEquals(null, GameSettlement.settle(prefs, "first", false,
+            99999, 1000, 1000, 25, 3, true))
+        assertEquals(2, prefs.getInt("games", 0))
+        assertEquals(priorWallet, GameEconomy.wallet(prefs))
+        assertEquals(priorCash, GameEconomy.cash(prefs))
+        assertEquals(second, GameSettlement.settle(prefs, "second", true,
+            20, 10, 6, 0, 0, false))
+    }
+
+    @Test fun legacyLastIdIsRetainedOnMigration() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putString("last_settlement_id", "legacy-id").commit()
+        assertEquals(null, GameSettlement.settle(prefs, "legacy-id", false,
+            10, 5, 0, 0, 0, false))
+        GameSettlement.settle(prefs, "new-id", false, 10, 5, 0, 0, 0, false)!!
+        assertEquals(null, GameSettlement.settle(prefs, "legacy-id", false,
+            10, 5, 0, 0, 0, false))
+        assertEquals(1, prefs.getInt("games", 0))
+    }
+
+    @Test fun historyRemainsBoundedWhileRejectingRecentSettlements() {
+        val prefs = LocalTestPrefs()
+        for (i in 0..135) {
+            GameSettlement.settle(prefs, "round-$i", false, 0, 0, 0, 0, 0, false)!!
+        }
+        val ledger = prefs.getString("settled_round_ids_v2", "").orEmpty()
+        assertEquals(128, ledger.split("\n").size)
+        assertEquals(null, GameSettlement.settle(prefs, "round-50", false,
+            0, 99, 99, 10, 0, false))
+        assertEquals(136, prefs.getInt("games", 0))
     }
 
     @Test fun collectedCardsStayPendingUntilMatchSettles() {

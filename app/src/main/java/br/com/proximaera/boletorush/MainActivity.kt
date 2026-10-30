@@ -1026,6 +1026,15 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(12.dp))
                 Text("RECORDE $best  •  PARTIDAS $gamesPlayed  •  🪙 $wallet  •  R$ $cashWallet",color=Gold,
                     fontSize=13.sp,fontWeight=FontWeight.Bold)
+                GameSettlement.latestReceipt(prefs)?.let { last ->
+                    Spacer(Modifier.height(12.dp))
+                    Text("ÚLTIMO EXTRATO SALVO",color=Teal,
+                        fontSize=12.sp,fontWeight=FontWeight.Black)
+                    Text("+${last.coinsBanked} moedas • +R$ ${last.notesBanked} notas • cartão +${last.creditGranted}",
+                        color=Color.White,fontSize=12.sp,textAlign=TextAlign.Center)
+                    if (last.debtRepaid > 0) Text("Dívida quitada: ${last.debtRepaid} moedas",
+                        color=Muted,fontSize=11.sp,textAlign=TextAlign.Center)
+                }
             }
         }
         if (screen == Screen.STORE) {
