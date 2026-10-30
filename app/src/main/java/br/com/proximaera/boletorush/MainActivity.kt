@@ -288,6 +288,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var milestoneBonus by remember { mutableIntStateOf(0) }
     var newMilestones by remember { mutableStateOf<List<Milestone>>(emptyList()) }
     var settledRound by remember { mutableIntStateOf(-1) }
+    var cashedOut by remember { mutableStateOf(false) }
     var shopMessage by remember { mutableStateOf("") }
     var magnetUses by remember { mutableIntStateOf(0) }
     var soundOn by remember { mutableStateOf(prefs.getBoolean("sound", true)) }
@@ -348,6 +349,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         milestoneBonus = 0
         newMilestones = emptyList()
         magnetUses = 0
+        cashedOut = false
         feedback = ""
         feedbackSeconds = 0f
         elapsed = 0f
@@ -393,15 +395,18 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             pulse(HapticFeedbackType.TextHandleMove)
         }
     }
-    fun finish(victory: Boolean) {
+    fun finish(victory: Boolean, withdrawal: Boolean = false) {
         // A screen transition, callback or repeated tap must never credit a round twice.
         if (settledRound == round) return
+        if (withdrawal && !GameRoundExit.canCashOut(elapsed, mode.duration)) return
         settledRound = round
         won = victory
+        cashedOut = withdrawal
         screen = Screen.END
         gamesPlayed++
-        roundEarnings = GameEconomy.creditRound(prefs, coinsCollected, incomeLevel)
-        cashEarned = GameEconomy.creditCash(prefs, cashCollected)
+        roundEarnings = GameEconomy.creditRound(
+            prefs, GameRoundExit.eligibleCoins(coinsCollected), incomeLevel)
+        cashEarned = GameEconomy.creditCash(prefs, GameRoundExit.eligibleCash(cashCollected))
         val award = GameMilestones.awardRound(prefs, score, coinsCollected, victory)
         milestoneBonus = award.coins
         newMilestones = award.unlocked
@@ -912,22 +917,21 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     color=Muted,fontSize=10.sp,letterSpacing=.3.sp)
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,
                     verticalAlignment=Alignment.CenterVertically) {
-                    Text(when {
-                        pixTime>0f -> "PIX TURBO 2x • ${pixTime.toInt()+1}s"
-                        magnetTime>0f -> "🧲 ÍMÃ ${magnetTime.toInt()+1}s • MOEDAS ATRAÍDAS"
-                        shield>0f -> "✦ SALDO EXTRA ${shield.toInt()+1}s"
-                        combo>=3 -> "COMBO x$combo"
-                        else -> GamePacing.chapterName(GamePacing.chapter(elapsed, mode.duration))
-                    },color=if(pixTime>0f) Color(0xFF8EF1C3)
-                        else if(magnetTime>0f) Color(0xFFECA8FF)
-                        else if(shield>0f || combo>=3) Gold else Muted,
-                        fontSize=11.sp,fontWeight=FontWeight.Bold)
+                    Text("MOEDAS $coinsCollected  •  NOTAS R$ $cashCollected",
+                        color=Gold,fontSize=10.sp,fontWeight=FontWeight.Bold)
                     Button(onClick={screen=if(screen==Screen.PLAY) Screen.PAUSE else Screen.PLAY},
                         shape=RoundedCornerShape(10.dp),
                         contentPadding=PaddingValues(horizontal=14.dp,vertical=0.dp),
                         colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF1F3B52))) {
                         Text(if(screen==Screen.PLAY) "PAUSAR" else "RETOMAR",fontSize=11.sp)
                     }
+                }
+                val activePowers = GamePowerStatus.labels(pixTime, magnetTime, shield)
+                if (activePowers.isNotEmpty()) {
+                    Text(activePowers.joinToString("  •  "),
+                        color=Color(0xFF8EF1C3),fontSize=11.sp,fontWeight=FontWeight.Bold)
+                } else if (combo >= 3) {
+                    Text("COMBO x$combo",color=Gold,fontSize=11.sp,fontWeight=FontWeight.Bold)
                 }
             }
             if(screen==Screen.PLAY && stageAnnouncementSeconds>0f) {
@@ -1127,8 +1131,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         }
         if(screen==Screen.PAUSE) {
             Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.89f)))
-            Column(Modifier.align(Alignment.Center).fillMaxWidth().padding(32.dp),
-                horizontalAlignment=Alignment.CenterHorizontally) {
+            Column(Modifier.align(Alignment.Center).fillMaxWidth().fillMaxHeight(.94f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal=32.dp,vertical=20.dp),
+                horizontalAlignment=Alignment.CenterHorizontally,
+                verticalArrangement=Arrangement.Center) {
                 Text("PAUSA",color=Color.White,fontSize=45.sp,fontWeight=FontWeight.Black)
                 Spacer(Modifier.height(8.dp))
                 Text("Sua carteira merece um descanso.",color=Muted,fontSize=14.sp)
@@ -1141,12 +1148,24 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 GameButton(if(hapticsOn) "VIBRAÇÃO: LIGADA" else "VIBRAÇÃO: DESLIGADA",
                     secondary=true){toggleHaptics()}
                 Spacer(Modifier.height(10.dp))
-                Text("Ao reiniciar ou sair, as moedas desta partida não serão guardadas.",
+                if (GameRoundExit.canCashOut(elapsed, mode.duration)) {
+                    Text("Você já passou da metade! Pode guardar todas as moedas e notas coletadas, sem contar como vitória.",
+                        color=Teal,fontSize=12.sp,textAlign=TextAlign.Center)
+                    Spacer(Modifier.height(9.dp))
+                    GameButton("GUARDAR GANHOS E ENCERRAR",secondary=true) {
+                        finish(false, withdrawal=true)
+                    }
+                } else {
+                    Text("Resgate dos ganhos libera em ${GameRoundExit.secondsUntilCashOut(elapsed, mode.duration)}s (metade da partida).",
+                        color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                }
+                Spacer(Modifier.height(11.dp))
+                Text("Recomeçar ou voltar ao menu descarta os ganhos desta partida.",
                     color=Muted,fontSize=11.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(9.dp))
-                GameButton("RECOMEÇAR",secondary=true){begin()}
+                GameButton("RECOMEÇAR • DESCARTAR",secondary=true){begin()}
                 Spacer(Modifier.height(10.dp))
-                GameButton("MENU PRINCIPAL",secondary=true){screen=Screen.MENU}
+                GameButton("MENU • DESCARTAR",secondary=true){screen=Screen.MENU}
             }
         }
         if(screen==Screen.REVIVE) {
@@ -1211,12 +1230,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             Column(Modifier.align(Alignment.Center).fillMaxWidth().fillMaxHeight(.88f)
                 .verticalScroll(rememberScrollState()).padding(30.dp),
                 horizontalAlignment=Alignment.CenterHorizontally) {
-                Text(if(won) "SOBREVIVEU!" else "A FATURA CHEGOU!",
-                    color=if(won) Teal else Coral,fontSize=27.sp,
+                Text(GameRoundExit.resultTitle(won, cashedOut),
+                    color=if(won || cashedOut) Teal else Coral,fontSize=27.sp,
                     fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(12.dp))
                 Text("$score",color=Color.White,fontSize=72.sp,fontWeight=FontWeight.Black)
                 Text("PONTOS • ${mode.title}",color=Gold,fontSize=13.sp,letterSpacing=3.sp)
+                if (cashedOut) Text("PARTIDA ENCERRADA VOLUNTARIAMENTE • GANHOS SALVOS",
+                    color=Teal,fontSize=11.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(13.dp))
                 Text("RECORDE: $best",color=Teal,fontSize=17.sp,
                     fontWeight=FontWeight.Bold)
