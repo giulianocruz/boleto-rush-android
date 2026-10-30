@@ -81,7 +81,23 @@ PY
   sleep 2
 fi
 assert_alive
-capture menu-rc156
+capture menu-rc160
+
+# The new permanent progression store must be available without an account.
+read -r x y < <(find_button_center 'LOJA DE MELHORIAS')
+adb shell input tap "$x" "$y"
+sleep 2
+find_button_center 'COFRE DA CARTEIRA' >/dev/null
+find_button_center 'ÍMÃ MAGNÉTICO' >/dev/null
+find_button_center 'MELHORAR ÍMÃ' >/dev/null
+capture store-rc160
+if ! find_button_center 'VOLTAR AO MENU' >/dev/null 2>&1; then
+  adb shell input swipe 540 1450 540 580 550
+  sleep 1
+fi
+read -r x y < <(find_button_center 'VOLTAR AO MENU')
+adb shell input tap "$x" "$y"
+sleep 1
 
 # Confirm vibration preference is interactive and can be restored for the tester.
 read -r x y < <(find_button_center 'VIBRAÇÃO: LIGADA')
@@ -101,7 +117,7 @@ read -r x y < <(find_button_center 'DIAGNÓSTICO DO APARELHO')
 adb shell input tap "$x" "$y"
 sleep 2
 find_button_center 'COMPARTILHAR' >/dev/null
-capture diagnostics-rc156
+capture diagnostics-rc160
 read -r x y < <(find_button_center 'FECHAR')
 adb shell input tap "$x" "$y"
 sleep 1
@@ -116,12 +132,12 @@ read -r x y < <(find_button_center 'COMO JOGAR')
 adb shell input tap "$x" "$y"
 sleep 2
 assert_alive
-capture instructions-rc156
+capture instructions-rc160
 read -r x y < <(find_button_center 'TREINAR CONTROLES')
 adb shell input tap "$x" "$y"
 sleep 2
 assert_alive
-capture tutorial-step1-rc156
+capture tutorial-step1-rc160
 find_button_center 'TREINO RÁPIDO' >/dev/null
 # Move right to collect the tutorial coin, then left to reach the shield.
 adb shell input swipe 540 1050 865 1050 350
@@ -130,12 +146,12 @@ find_button_center 'TREINO RÁPIDO • 2/3' >/dev/null
 adb shell input swipe 865 1050 210 1050 400
 sleep 1
 find_button_center 'TREINO RÁPIDO • 3/3' >/dev/null
-capture tutorial-complete-rc156
+capture tutorial-complete-rc160
 read -r x y < <(find_button_center 'COMEÇAR PARTIDA!')
 adb shell input tap "$x" "$y"
 sleep 3
 assert_alive
-capture gameplay-rc156
+capture gameplay-rc160
 
 # Let the actual 45s Classic gameplay finish. If the player lost, decline
 # the optional test ad and capture the genuine score/results screen.
@@ -147,7 +163,7 @@ if read -r x y < <(find_button_center 'NÃO, ENCERRAR PARTIDA' 2>/dev/null); the
 fi
 read -r x y < <(find_button_center 'JOGAR DE NOVO')
 assert_alive
-capture results-rc156
+capture results-rc160
 adb logcat -d -t 1500 -s AndroidRuntime:E > "$OUT/crash-log.txt" || true
 if grep -q 'FATAL EXCEPTION' "$OUT/crash-log.txt"; then
   cat "$OUT/crash-log.txt"
