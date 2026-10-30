@@ -46,6 +46,37 @@ private class LocalTestPrefs : SharedPreferences {
 }
 
 class EconomyTransactionsTest {
+    @Test fun collectedCardsStayPendingUntilMatchSettles() {
+        val prefs = LocalTestPrefs()
+        var pending = 0
+        pending += GameEconomy.reserveCardCredit(prefs, pending)
+        pending += GameEconomy.reserveCardCredit(prefs, pending)
+        pending += GameEconomy.reserveCardCredit(prefs, pending)
+        assertEquals(25, pending)
+        assertEquals(0, GameEconomy.credit(prefs))
+        // Abandoning before cash-out does not invoke addCredit and leaves no persistent credit.
+        assertEquals(0, GameEconomy.debt(prefs))
+        assertEquals(25, GameEconomy.addCredit(prefs, pending))
+        assertEquals(25, GameEconomy.credit(prefs))
+        assertEquals(0, GameEconomy.reserveCardCredit(prefs, 0))
+        assertEquals(0, GameEconomy.addCredit(prefs, 0))
+    }
+
+    @Test fun pendingCardCannotBypassOutstandingCreditDebtCap() {
+        val prefs = LocalTestPrefs()
+        GameEconomy.addCredit(prefs, 20)
+        assertTrue(GameEconomy.buy(prefs, Upgrade.MAGNET))
+        assertEquals(18, GameEconomy.debt(prefs))
+        assertEquals(2, GameEconomy.credit(prefs))
+        var pending = GameEconomy.reserveCardCredit(prefs, 0, 10)
+        assertEquals(5, pending)
+        assertEquals(0, GameEconomy.reserveCardCredit(prefs, pending, 10))
+        assertEquals(2, GameEconomy.credit(prefs)) // all in-round rewards still pending
+        assertEquals(5, GameEconomy.addCredit(prefs, pending))
+        assertEquals(7, GameEconomy.credit(prefs))
+        assertEquals(18, GameEconomy.debt(prefs))
+    }
+
     @Test fun cardAllowsOnePurchaseAndDebtIsPaidFromFutureEarnings() {
         val prefs = LocalTestPrefs()
         assertEquals(10, GameEconomy.addCredit(prefs, 10))

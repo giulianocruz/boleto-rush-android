@@ -280,6 +280,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var cashWallet by remember { mutableIntStateOf(GameEconomy.cash(prefs)) }
     var creditAvailable by remember { mutableIntStateOf(GameEconomy.credit(prefs)) }
     var creditDebt by remember { mutableIntStateOf(GameEconomy.debt(prefs)) }
+    var pendingCardCredit by remember { mutableIntStateOf(0) }
+    var roundCreditGranted by remember { mutableIntStateOf(0) }
     var selectedCosmetic by remember { mutableStateOf(GameEconomy.selectedCosmetic(prefs)) }
     var magnetLevel by remember { mutableIntStateOf(GameEconomy.level(prefs, Upgrade.MAGNET)) }
     var shieldLevel by remember { mutableIntStateOf(GameEconomy.level(prefs, Upgrade.START_SHIELD)) }
@@ -344,6 +346,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         coinsCollected = 0
         cashCollected = 0
         cashEarned = 0
+        pendingCardCredit = 0
+        roundCreditGranted = 0
         billsHit = 0
         roundEarnings = 0
         milestoneBonus = 0
@@ -408,10 +412,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             prefs, GameRoundExit.eligibleCoins(coinsCollected), incomeLevel)
         cashEarned = GameEconomy.creditCash(prefs, GameRoundExit.eligibleCash(cashCollected))
         val award = GameMilestones.awardRound(prefs, score, coinsCollected, victory)
+        // Credit is granted only on a legitimate finished run, death or voluntary cash-out.
+        roundCreditGranted = GameEconomy.addCredit(prefs, pendingCardCredit)
+        pendingCardCredit = 0
         milestoneBonus = award.coins
         newMilestones = award.unlocked
         wallet = GameEconomy.wallet(prefs)
         cashWallet = GameEconomy.cash(prefs)
+        creditAvailable = GameEconomy.credit(prefs)
         creditDebt = GameEconomy.debt(prefs)
         prefs.edit().putInt("games", gamesPlayed).apply()
         if (score > best) {
@@ -559,9 +567,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             tone(ToneGenerator.TONE_PROP_ACK)
                         }
                         Kind.CARD -> {
-                            val added = GameEconomy.addCredit(prefs, 10)
-                            creditAvailable = GameEconomy.credit(prefs)
-                            feedback = if (added > 0) "CARTÃO! +$added LIMITE NA LOJA"
+                            val added = GameEconomy.reserveCardCredit(prefs, pendingCardCredit, 10)
+                            pendingCardCredit += added
+                            feedback = if (added > 0) "CARTÃO! +$added LIMITE PENDENTE"
                                        else "LIMITE DO CARTÃO JÁ ESTÁ CHEIO"
                             feedbackSeconds = 1.25f
                             tone(ToneGenerator.TONE_PROP_ACK)
@@ -917,7 +925,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     color=Muted,fontSize=10.sp,letterSpacing=.3.sp)
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,
                     verticalAlignment=Alignment.CenterVertically) {
-                    Text("MOEDAS $coinsCollected  •  NOTAS R$ $cashCollected",
+                    Text("MOEDAS $coinsCollected • R$ $cashCollected • CARTÃO +$pendingCardCredit",
                         color=Gold,fontSize=10.sp,fontWeight=FontWeight.Bold)
                     Button(onClick={screen=if(screen==Screen.PLAY) Screen.PAUSE else Screen.PLAY},
                         shape=RoundedCornerShape(10.dp),
@@ -1247,6 +1255,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(8.dp))
                 Text("+ $roundEarnings MOEDAS RARAS • +R$ $cashEarned NOTAS • SALDO 🪙 $wallet / R$ $cashWallet",color=Gold,
                     fontSize=14.sp,fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
+                if (roundCreditGranted > 0) Text("💳 +$roundCreditGranted LIMITE DE CARTÃO CONFIRMADO • DISPONÍVEL $creditAvailable",
+                    color=Color(0xFF9DC7FF),fontSize=12.sp,
+                    fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
                 if (newMilestones.isNotEmpty()) {
                     Spacer(Modifier.height(7.dp))
                     Text("🏆 NOVA CONQUISTA! +$milestoneBonus MOEDAS",
