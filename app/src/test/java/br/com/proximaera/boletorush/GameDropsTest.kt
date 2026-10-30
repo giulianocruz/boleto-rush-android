@@ -32,6 +32,8 @@ class GameDropsTest {
         assertEquals(Kind.CARD,choose(.23f,.99f,14f))
         assertEquals(Kind.OVERDRAFT,choose(.26f,.99f,30f))
         assertEquals(Kind.PIX,choose(.30f,.99f,12f))
+        assertEquals(Kind.PAYDAY,choose(.33f,.99f,14f))
+        assertEquals(Kind.COIN,choose(.33f,.99f,0f))
     }
 
     @Test fun pixDoublesOnlyCoinScoreNotWalletTokens() {
@@ -43,11 +45,31 @@ class GameDropsTest {
         assertTrue(GameDrops.coinScore(12,true) > GameDrops.coinScore(12,false))
     }
 
+    @Test fun generatedHazardsNeverStartDirectlyAbovePlayer() {
+        for (playerIndex in 1..9) {
+            val player = playerIndex / 10f
+            for (randomIndex in 0..100) {
+                val roll = randomIndex / 100f
+                for (kind in listOf(Kind.BILL,Kind.OVERDRAFT)) {
+                    val x = GameDrops.spawnX(roll,kind,player)
+                    assertTrue(x >= .09f && x <= .91f)
+                    assertTrue(kotlin.math.abs(x-player) >= .179f)
+                }
+            }
+        }
+    }
+
+    @Test fun coinsPreferReachablePositionsWithoutRemovingLaneVariety() {
+        assertEquals(.50f,GameDrops.spawnX(.26f,Kind.COIN,.50f),.001f)
+        assertTrue(GameDrops.spawnX(.90f,Kind.COIN,.50f) > .70f)
+        assertTrue(GameDrops.spawnX(.25f,Kind.PAYDAY,.50f) in .09f..91f)
+    }
+
     @Test fun everyGeneratedKindIsRecognized() {
         val drops = (0..999).map { i ->
             choose(i / 1000f, .9f,35f)
         }.toSet()
         assertTrue(drops.containsAll(listOf(Kind.COIN,Kind.BANKNOTE,Kind.PIX,
-            Kind.CARD,Kind.OVERDRAFT,Kind.SHIELD,Kind.HEART,Kind.MAGNET)))
+            Kind.CARD,Kind.OVERDRAFT,Kind.SHIELD,Kind.HEART,Kind.MAGNET,Kind.PAYDAY)))
     }
 }

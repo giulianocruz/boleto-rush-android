@@ -499,7 +499,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 )
                 nonCoinStreak = if (kind == Kind.COIN) 0 else (nonCoinStreak + 1).coerceAtMost(3)
                 previousWasHazard = GameDrops.harmful(kind)
-                drops = drops + Drop(nextId++, rng.nextFloat() * .82f + .09f,
+                drops = drops + Drop(nextId++, GameDrops.spawnX(rng.nextFloat(), kind, playerX),
                     -.065f, .27f + rng.nextFloat() * .08f + elapsed * .0028f, kind)
             }
             val updated = ArrayList<Drop>(drops.size)
@@ -534,6 +534,13 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             feedback = "+R$ 3 NOTAS PARA VISUAIS!"
                             feedbackSeconds = .95f
                             tone(ToneGenerator.TONE_PROP_BEEP2)
+                        }
+                        Kind.PAYDAY -> {
+                            cashCollected += 12
+                            feedback = "DIA DO PAGAMENTO! +R$ 12"
+                            feedbackSeconds = 1.5f
+                            pulse(HapticFeedbackType.TextHandleMove)
+                            tone(ToneGenerator.TONE_PROP_ACK)
                         }
                         Kind.CARD -> {
                             val added = GameEconomy.addCredit(prefs, 10)
@@ -719,6 +726,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                                 Size(r*1.84f,r*1.02f), CornerRadius(r*.18f))
                             drawTextAt("R$",x,y+r*.29f,r*1.04f,0xFFF4FFCC.toInt())
                         }
+                        Kind.PAYDAY -> {
+                            drawRoundRect(Color(0xFF2CBFA4),Offset(x-r*1.25f,y-r*.82f),
+                                Size(r*2.5f,r*1.64f),CornerRadius(r*.27f))
+                            drawRoundRect(Color(0xFF0D5D56),Offset(x-r*1.07f,y-r*.62f),
+                                Size(r*2.14f,r*1.24f),CornerRadius(r*.20f))
+                            drawTextAt("SAL",x,y-r*.13f,r*.72f,0xFFFFFFFF.toInt())
+                            drawTextAt("+12",x,y+r*.49f,r*.78f,0xFFFFE7A1.toInt())
+                        }
                         Kind.PIX -> {
                             drawRoundRect(Color(0xFF73E4C0),Offset(x-r*1.2f,y-r*.75f),
                                 Size(r*2.4f,r*1.5f),CornerRadius(r*.30f))
@@ -744,9 +759,28 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         }
                         Kind.SHIELD -> drawPremiumSprite(shieldCollect,x,y,r*1.42f)
                         Kind.MAGNET -> {
-                            drawRoundRect(Color(0xFFE858FF), Offset(x-r*1.05f,y-r*1.05f),
-                                Size(r*2.1f,r*2.1f), CornerRadius(r*.46f))
-                            drawTextAt("U",x,y+r*.50f,r*1.9f,0xFF301047.toInt())
+                            // Horseshoe icon: bright poles and a soft magnetic halo,
+                            // identifiable at a glance without placeholder lettering.
+                            drawCircle(Color(0xFFE858FF).copy(alpha=.16f),
+                                r*1.42f,Offset(x,y))
+                            drawArc(
+                                color=Color(0xFFBB48EA),
+                                startAngle=0f,sweepAngle=180f,useCenter=false,
+                                topLeft=Offset(x-r*.66f,y-r*.66f),
+                                size=Size(r*1.32f,r*1.32f),
+                                style=androidx.compose.ui.graphics.drawscope.Stroke(
+                                    width=r*.37f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
+                            )
+                            drawLine(Color(0xFF66DAFF),Offset(x-r*.66f,y),
+                                Offset(x-r*.66f,y-r*.56f),strokeWidth=r*.34f,
+                                cap=androidx.compose.ui.graphics.StrokeCap.Round)
+                            drawLine(Color(0xFFFF6E90),Offset(x+r*.66f,y),
+                                Offset(x+r*.66f,y-r*.56f),strokeWidth=r*.34f,
+                                cap=androidx.compose.ui.graphics.StrokeCap.Round)
+                            drawCircle(Teal.copy(alpha=.70f),r*.12f,
+                                Offset(x-r*.90f,y-r*.72f))
+                            drawCircle(Gold.copy(alpha=.65f),r*.10f,
+                                Offset(x+r*.91f,y-r*.75f))
                         }
                         Kind.HEART -> {
                             drawCircle(Coral.copy(alpha=.18f),r*1.45f,Offset(x,y))
@@ -914,7 +948,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Text("🪙  Pegue moedas    🧾  Fuja dos boletos",
                     color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
                 Spacer(Modifier.height(8.dp))
-                Text("✦ Saldo extra   🧲 Ímã   💳 Cartão   PIX x2   R$ Notas",
+                Text("✦ Saldo extra   🧲 Ímã   💳 Cartão   PIX x2   R$ Salário",
                     color=Muted,textAlign=TextAlign.Center,fontSize=13.sp)
                 Spacer(Modifier.height(8.dp))
                 Text("${mode.duration.toInt()} SEGUNDOS  •  3 VIDAS  •  ANÚNCIO OPCIONAL",
@@ -1066,7 +1100,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(12.dp))
                 Text("ÍMÃ 🧲 COLETA MOEDAS VISÍVEIS",color=Color(0xFFECA8FF),
                     fontSize=15.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
-                Text("O cartão libera crédito para upgrades, mas as próximas moedas quitam a dívida. PIX dobra apenas os pontos das moedas por 6 segundos.",
+                Text("O cartão libera crédito para upgrades, mas as próximas moedas quitam a dívida. PIX dobra apenas os pontos das moedas por 6 segundos. Salário é um bônus de R$ 12 para visuais.",
                     color=Color.White,fontSize=13.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(23.dp))
                 GameButton("TREINAR CONTROLES") { tutorialStep=0; tutorialX=.5f; screen=Screen.TUTORIAL }
