@@ -305,6 +305,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var playerX by remember { mutableFloatStateOf(0.5f) }
     var targetX by remember { mutableFloatStateOf(0.5f) }
     var drops by remember { mutableStateOf<List<Drop>>(emptyList()) }
+    // Keep generator state through pause/resume: otherwise the no-dry-spell rule resets.
+    var spawnElapsed by remember { mutableFloatStateOf(0f) }
+    var nonCoinStreak by remember { mutableIntStateOf(0) }
+    var previousWasHazard by remember { mutableStateOf(false) }
+    var nextDropId by remember { mutableIntStateOf(0) }
     var shield by remember { mutableFloatStateOf(0f) }
     var magnetTime by remember { mutableFloatStateOf(0f) }
     var pixTime by remember { mutableFloatStateOf(0f) }
@@ -349,6 +354,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         playerX = 0.5f
         targetX = 0.5f
         drops = emptyList()
+        spawnElapsed = 0f
+        nonCoinStreak = 0
+        previousWasHazard = false
+        nextDropId = 0
         shield = GameEconomy.initialShieldSeconds(shieldLevel)
         magnetTime = 0f
         pixTime = 0f
@@ -461,10 +470,6 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     LaunchedEffect(round, screen) {
         if (screen != Screen.PLAY) return@LaunchedEffect
         var lastFrame = withFrameNanos { it }
-        var spawn = 0f
-        var nonCoinStreak = 0
-        var previousWasHazard = false
-        var nextId = (elapsed * 100f).toInt()
         while (isActive && screen == Screen.PLAY) {
             val now = withFrameNanos { it }
             val dt = ((now - lastFrame) / 1_000_000_000f).coerceIn(0f, 0.05f)
@@ -489,26 +494,32 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 stageAnnouncementSeconds = 2.2f
                 tone(ToneGenerator.TONE_PROP_ACK)
             }
-            spawn += dt
+            spawnElapsed += dt
             val interval = GamePacing.spawnInterval(elapsed, mode.duration, gamesPlayed)
-            if (spawn >= interval) {
-                spawn -= interval
+            if (spawnElapsed >= interval) {
+                spawnElapsed -= interval
                 val kind = GameDrops.choose(
                     rng.nextFloat(), rng.nextFloat(), elapsed, mode.duration,
                     gamesPlayed, previousWasHazard, nonCoinStreak
                 )
                 nonCoinStreak = if (kind == Kind.COIN) 0 else (nonCoinStreak + 1).coerceAtMost(3)
                 previousWasHazard = GameDrops.harmful(kind)
-                drops = drops + Drop(nextId++, GameDrops.spawnX(rng.nextFloat(), kind, playerX),
+                drops = drops + Drop(nextDropId++, GameDrops.spawnX(rng.nextFloat(), kind, playerX),
                     -.065f, .27f + rng.nextFloat() * .08f + elapsed * .0028f, kind)
             }
             val updated = ArrayList<Drop>(drops.size)
             for (item in drops) {
-                val ny = item.y + item.speed * dt
-                // An active magnet grabs every visible coin, never bills or hearts.
-                val magnetCatch = item.kind == Kind.COIN && magnetTime > 0f &&
-                    GamePacing.magnetCanCollect(ny)
-                if (magnetCatch || (item.y < .80f && ny >= .80f && abs(item.x - playerX) < .118f)) {
+                val freeFallY = item.y + item.speed * dt
+                // Pull only coins that have entered the visible gameplay region.
+                val coinIsPulled = item.kind == Kind.COIN && magnetTime > 0f &&
+                    GamePacing.magnetCanCollect(item.y)
+                val position = GameMagnet.pull(
+                    item.x, freeFallY, playerX, dt, coinIsPulled
+                )
+                val nx = position.x
+                val ny = position.y
+                val magnetCatch = coinIsPulled && GameMagnet.reachedWallet(nx, ny, playerX)
+                if (magnetCatch || (item.y < .80f && ny >= .80f && abs(nx - playerX) < .118f)) {
                     when (item.kind) {
                         Kind.COIN -> {
                             combo++
@@ -610,7 +621,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         }
                     }
                 } else if (ny < 1.02f) {
-                    updated.add(item.copy(y = ny))
+                    updated.add(item.copy(x = nx, y = ny))
                 }
             }
             drops = updated
@@ -710,6 +721,12 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     val x = item.x * w
                     val y = item.y * h
                     val r = w * .056f
+                    if (item.kind == Kind.COIN && magnetTime > 0f &&
+                        GamePacing.magnetCanCollect(item.y)) {
+                        // A subtle, readable trail shows why this coin is moving.
+                        drawLine(Color(0xFFECA8FF).copy(alpha=.20f),
+                            Offset(x,y), Offset(playerX*w,h*.82f), strokeWidth=1.4f)
+                    }
                     when (item.kind) {
                         Kind.COIN -> {
                             val frame = when ((elapsed*7f).toInt()%3) {
@@ -897,7 +914,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     verticalAlignment=Alignment.CenterVertically) {
                     Text(when {
                         pixTime>0f -> "PIX TURBO 2x • ${pixTime.toInt()+1}s"
-                        magnetTime>0f -> "🧲 ÍMÃ ${magnetTime.toInt()+1}s • MOEDAS AUTOMÁTICAS"
+                        magnetTime>0f -> "🧲 ÍMÃ ${magnetTime.toInt()+1}s • MOEDAS ATRAÍDAS"
                         shield>0f -> "✦ SALDO EXTRA ${shield.toInt()+1}s"
                         combo>=3 -> "COMBO x$combo"
                         else -> GamePacing.chapterName(GamePacing.chapter(elapsed, mode.duration))
@@ -1010,7 +1027,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
 
                 Text("🧲 ÍMÃ MAGNÉTICO • NÍVEL $magnetLevel/3",color=Color(0xFFECA8FF),
                     fontSize=17.sp,fontWeight=FontWeight.Black)
-                Text("Atrai as moedas visíveis durante ${GameEconomy.magnetSeconds(magnetLevel).toInt()} segundos.",
+                Text("Puxa suavemente moedas visíveis até a carteira por ${GameEconomy.magnetSeconds(magnetLevel).toInt()} segundos.",
                     color=Muted,fontSize=13.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
                 GameButton(GameEconomy.price(Upgrade.MAGNET,magnetLevel)?.let {
