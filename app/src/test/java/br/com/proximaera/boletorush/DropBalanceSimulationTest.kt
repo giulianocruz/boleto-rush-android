@@ -11,7 +11,7 @@ import kotlin.math.sin
 class DropBalanceSimulationTest {
     @Test fun severalFullRoundsRemainFairAndContainEnoughCoins() {
         for (duration in listOf(45f, 90f)) {
-            for (seed in 0L..19L) {
+            for (seed in 0L..99L) {
                 val rng = Random(seed + duration.toLong() * 100)
                 var elapsed = 0f
                 var nonCoinStreak = 0

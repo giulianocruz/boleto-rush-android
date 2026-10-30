@@ -759,9 +759,28 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         }
                         Kind.SHIELD -> drawPremiumSprite(shieldCollect,x,y,r*1.42f)
                         Kind.MAGNET -> {
-                            drawRoundRect(Color(0xFFE858FF), Offset(x-r*1.05f,y-r*1.05f),
-                                Size(r*2.1f,r*2.1f), CornerRadius(r*.46f))
-                            drawTextAt("U",x,y+r*.50f,r*1.9f,0xFF301047.toInt())
+                            // Horseshoe icon: bright poles and a soft magnetic halo,
+                            // identifiable at a glance without placeholder lettering.
+                            drawCircle(Color(0xFFE858FF).copy(alpha=.16f),
+                                r*1.42f,Offset(x,y))
+                            drawArc(
+                                color=Color(0xFFBB48EA),
+                                startAngle=0f,sweepAngle=180f,useCenter=false,
+                                topLeft=Offset(x-r*.66f,y-r*.66f),
+                                size=Size(r*1.32f,r*1.32f),
+                                style=androidx.compose.ui.graphics.drawscope.Stroke(
+                                    width=r*.37f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
+                            )
+                            drawLine(Color(0xFF66DAFF),Offset(x-r*.66f,y),
+                                Offset(x-r*.66f,y-r*.56f),strokeWidth=r*.34f,
+                                cap=androidx.compose.ui.graphics.StrokeCap.Round)
+                            drawLine(Color(0xFFFF6E90),Offset(x+r*.66f,y),
+                                Offset(x+r*.66f,y-r*.56f),strokeWidth=r*.34f,
+                                cap=androidx.compose.ui.graphics.StrokeCap.Round)
+                            drawCircle(Teal.copy(alpha=.70f),r*.12f,
+                                Offset(x-r*.90f,y-r*.72f))
+                            drawCircle(Gold.copy(alpha=.65f),r*.10f,
+                                Offset(x+r*.91f,y-r*.75f))
                         }
                         Kind.HEART -> {
                             drawCircle(Coral.copy(alpha=.18f),r*1.45f,Offset(x,y))
