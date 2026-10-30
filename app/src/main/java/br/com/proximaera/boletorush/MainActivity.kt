@@ -273,6 +273,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     val shieldImpact = artworkWhen(screen == Screen.PLAY || screen == Screen.PAUSE || screen == Screen.REVIVE || screen == Screen.TUTORIAL, R.drawable.spr_shield_impact)
     var mode by remember { mutableStateOf(if (prefs.getInt("mode", 0) == 1) Mode.MARATHON else Mode.CLASSIC) }
     var round by remember { mutableIntStateOf(0) }
+    var roundId by remember { mutableStateOf("") }
+    var settlementError by remember { mutableStateOf("") }
     var score by remember { mutableIntStateOf(0) }
     var best by remember { mutableIntStateOf(prefs.getInt(if(mode==Mode.CLASSIC) "best" else "best_marathon", 0)) }
     var gamesPlayed by remember { mutableIntStateOf(prefs.getInt("games", 0)) }
@@ -282,6 +284,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var creditDebt by remember { mutableIntStateOf(GameEconomy.debt(prefs)) }
     var pendingCardCredit by remember { mutableIntStateOf(0) }
     var roundCreditGranted by remember { mutableIntStateOf(0) }
+    var roundDebtRepaid by remember { mutableIntStateOf(0) }
     var selectedCosmetic by remember { mutableStateOf(GameEconomy.selectedCosmetic(prefs)) }
     var magnetLevel by remember { mutableIntStateOf(GameEconomy.level(prefs, Upgrade.MAGNET)) }
     var shieldLevel by remember { mutableIntStateOf(GameEconomy.level(prefs, Upgrade.START_SHIELD)) }
@@ -346,8 +349,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         coinsCollected = 0
         cashCollected = 0
         cashEarned = 0
+        settlementError = ""
         pendingCardCredit = 0
         roundCreditGranted = 0
+        roundDebtRepaid = 0
         billsHit = 0
         roundEarnings = 0
         milestoneBonus = 0
@@ -374,6 +379,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         reviveUsed = false
         reviveError = ""
         round++
+        roundId = java.util.UUID.randomUUID().toString()
         screen = Screen.PLAY
     }
     fun startOrTutorial() {
@@ -403,29 +409,36 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         // A screen transition, callback or repeated tap must never credit a round twice.
         if (settledRound == round) return
         if (withdrawal && !GameRoundExit.canCashOut(elapsed, mode.duration)) return
+        val receipt = runCatching {
+            GameSettlement.settle(prefs, roundId, mode == Mode.MARATHON,
+                score, coinsCollected, cashCollected, pendingCardCredit,
+                incomeLevel, victory)
+        }.getOrNull()
+        if (receipt == null) {
+            settlementError = "Não foi possível salvar. Tente resgatar novamente."
+            feedback = settlementError
+            feedbackSeconds = 2f
+            screen = if (screen == Screen.REVIVE) Screen.REVIVE else Screen.PAUSE
+            return
+        }
         settledRound = round
+        settlementError = ""
         won = victory
         cashedOut = withdrawal
         screen = Screen.END
-        gamesPlayed++
-        roundEarnings = GameEconomy.creditRound(
-            prefs, GameRoundExit.eligibleCoins(coinsCollected), incomeLevel)
-        cashEarned = GameEconomy.creditCash(prefs, GameRoundExit.eligibleCash(cashCollected))
-        val award = GameMilestones.awardRound(prefs, score, coinsCollected, victory)
-        // Credit is granted only on a legitimate finished run, death or voluntary cash-out.
-        roundCreditGranted = GameEconomy.addCredit(prefs, pendingCardCredit)
+        gamesPlayed = receipt.gamesPlayed
+        roundEarnings = receipt.coinsBanked
+        cashEarned = receipt.notesBanked
+        roundCreditGranted = receipt.creditGranted
+        roundDebtRepaid = receipt.debtRepaid
         pendingCardCredit = 0
-        milestoneBonus = award.coins
-        newMilestones = award.unlocked
-        wallet = GameEconomy.wallet(prefs)
-        cashWallet = GameEconomy.cash(prefs)
-        creditAvailable = GameEconomy.credit(prefs)
-        creditDebt = GameEconomy.debt(prefs)
-        prefs.edit().putInt("games", gamesPlayed).apply()
-        if (score > best) {
-            best = score
-            prefs.edit().putInt(if(mode==Mode.CLASSIC) "best" else "best_marathon", best).apply()
-        }
+        milestoneBonus = receipt.unlocked.sumOf { it.reward }
+        newMilestones = receipt.unlocked
+        wallet = receipt.wallet
+        cashWallet = receipt.notes
+        creditAvailable = receipt.credit
+        creditDebt = receipt.debt
+        best = receipt.best
     }
     fun upgrade(type: Upgrade) {
         if (GameEconomy.level(prefs, type) >= type.maxLevel) {
@@ -1147,6 +1160,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Text("PAUSA",color=Color.White,fontSize=45.sp,fontWeight=FontWeight.Black)
                 Spacer(Modifier.height(8.dp))
                 Text("Sua carteira merece um descanso.",color=Muted,fontSize=14.sp)
+                if (settlementError.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(settlementError,color=Coral,fontSize=12.sp,
+                        textAlign=TextAlign.Center)
+                }
                 Spacer(Modifier.height(30.dp))
                 GameButton("CONTINUAR"){screen=Screen.PLAY}
                 Spacer(Modifier.height(10.dp))
@@ -1255,6 +1273,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(8.dp))
                 Text("+ $roundEarnings MOEDAS RARAS • +R$ $cashEarned NOTAS • SALDO 🪙 $wallet / R$ $cashWallet",color=Gold,
                     fontSize=14.sp,fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
+                if (roundDebtRepaid > 0) Text("DÍVIDA REDUZIDA EM $roundDebtRepaid MOEDAS",
+                    color=Teal,fontSize=12.sp,fontWeight=FontWeight.Bold,
+                    textAlign=TextAlign.Center)
                 if (roundCreditGranted > 0) Text("💳 +$roundCreditGranted LIMITE DE CARTÃO CONFIRMADO • DISPONÍVEL $creditAvailable",
                     color=Color(0xFF9DC7FF),fontSize=12.sp,
                     fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)

@@ -8,6 +8,7 @@ import org.junit.Test
 
 private class LocalTestPrefs : SharedPreferences {
     private val data = mutableMapOf<String, Any?>()
+    var allowCommit = true
 
     override fun getAll(): MutableMap<String, *> = data
     override fun contains(key: String?): Boolean = data.containsKey(key)
@@ -37,6 +38,7 @@ private class LocalTestPrefs : SharedPreferences {
         override fun clear(): SharedPreferences.Editor = apply { clearFirst = true }
         override fun apply() { commit() }
         override fun commit(): Boolean {
+            if (!allowCommit) return false
             if (clearFirst) data.clear()
             removed.forEach { data.remove(it) }
             data.putAll(changes)
@@ -46,6 +48,62 @@ private class LocalTestPrefs : SharedPreferences {
 }
 
 class EconomyTransactionsTest {
+    @Test fun finalSettlementIsAtomicAndIdempotent() {
+        val prefs = LocalTestPrefs()
+        val receipt = GameSettlement.settle(prefs, "round-a", false,
+            370, 15, 12, 20, 0, false)!!
+        assertEquals(17, receipt.wallet) // 3 earned + 6 collector + 8 scorer
+        assertEquals(12, receipt.notes)
+        assertEquals(20, receipt.credit)
+        assertEquals(1, receipt.gamesPlayed)
+        assertEquals(370, receipt.best)
+        assertEquals(2, receipt.unlocked.size)
+        assertFalse(GameMilestones.claimed(prefs, Milestone.SURVIVOR))
+        assertEquals(null, GameSettlement.settle(prefs, "round-a", false,
+            370, 15, 12, 20, 0, false))
+        assertEquals(17, GameEconomy.wallet(prefs))
+        assertEquals(1, prefs.getInt("games", 0))
+        assertEquals(20, GameEconomy.credit(prefs))
+    }
+
+    @Test fun failedStorageTransactionCanBeRetriedWithoutPartialRewards() {
+        val prefs = LocalTestPrefs()
+        prefs.allowCommit = false
+        assertEquals(null, GameSettlement.settle(prefs, "failed-round", true,
+            40, 6, 24, 10, 0, false))
+        assertEquals(0, GameEconomy.cash(prefs))
+        assertEquals(0, GameEconomy.wallet(prefs))
+        assertEquals(0, GameEconomy.credit(prefs))
+        assertEquals(0, prefs.getInt("games", 0))
+        prefs.allowCommit = true
+        val receipt = GameSettlement.settle(prefs, "failed-round", true,
+            40, 6, 24, 10, 0, false)!!
+        assertEquals(1, receipt.coinsBanked)
+        assertEquals(24, receipt.notesBanked)
+        assertEquals(10, receipt.creditGranted)
+        assertEquals(1, receipt.gamesPlayed)
+        assertEquals(40, prefs.getInt("best_marathon", 0))
+    }
+
+    @Test fun debtAchievementsAndCardsSettleInOneTransaction() {
+        val prefs = LocalTestPrefs()
+        GameEconomy.addCredit(prefs, 20)
+        assertTrue(GameEconomy.buy(prefs, Upgrade.MAGNET))
+        assertEquals(18, GameEconomy.debt(prefs))
+        val receipt = GameSettlement.settle(prefs, "credit-repay", false,
+            350, 15, 9, 5, 0, true)!!
+        assertEquals(18, receipt.debtRepaid)
+        assertEquals(0, receipt.debt)
+        assertEquals(11, receipt.wallet)
+        assertEquals(9, receipt.notes)
+        assertEquals(7, receipt.credit)
+        assertEquals(5, receipt.creditGranted)
+        assertEquals(3, receipt.unlocked.size)
+        assertEquals(null, GameSettlement.settle(prefs, "credit-repay", false,
+            350, 15, 9, 5, 0, true))
+        assertEquals(11, GameEconomy.wallet(prefs))
+    }
+
     @Test fun collectedCardsStayPendingUntilMatchSettles() {
         val prefs = LocalTestPrefs()
         var pending = 0
