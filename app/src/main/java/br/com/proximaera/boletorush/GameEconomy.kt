@@ -63,6 +63,17 @@ internal object GameEconomy {
         return value
     }
 
+    /**
+     * Keep collected cards pending until the round is settled. Leaving the match
+     * without saving must never mint permanent shop credit.
+     * Uses Long arithmetic to tolerate corrupted or unexpectedly large preferences.
+     */
+    fun reserveCardCredit(prefs: SharedPreferences, pending: Int, amount: Int = 10): Int {
+        val room = (25L - debt(prefs) - credit(prefs) - pending.coerceAtLeast(0))
+            .coerceIn(0L, 25L).toInt()
+        return amount.coerceIn(0, room)
+    }
+
     /** Cards grant spending room, never wallet coins. New earnings pay down spent credit first. */
     @Synchronized
     fun addCredit(prefs: SharedPreferences, amount: Int): Int {
