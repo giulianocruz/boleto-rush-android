@@ -2,7 +2,7 @@ package br.com.proximaera.boletorush
 
 import android.content.SharedPreferences
 
-/** A receipt is returned only after the complete local transaction is committed. */
+/** The actual amounts committed to disk in one local game settlement. */
 internal data class GameReceipt(
     val gamesPlayed: Int,
     val best: Int,
@@ -18,15 +18,44 @@ internal data class GameReceipt(
 )
 
 /**
- * Finishes a game in ONE SharedPreferences.Editor.commit() transaction.
- * Neither a second callback nor a process interruption can partially record
- * coins, salary, milestones, cards or best score.
+ * One transaction for coins, notes, cards, milestones, debt and record.
+ * A durable receipt permits retrying the most recent round even if its first
+ * commit succeeded but the app was interrupted before displaying the result.
+ * A bounded history also rejects old round IDs (128 recent settlements).
  */
 internal object GameSettlement {
     private const val LastIdKey = "last_settlement_id"
+    private const val ReceiptKey = "last_settlement_receipt_v2"
+    private const val HistoryKey = "settled_round_ids_v2"
+    private const val HistoryLimit = 128
     private const val CoinWalletKey = "wallet_coins"
     private const val NoteWalletKey = "wallet_cash"
     private const val CreditKey = "store_credit"
+
+    private fun encode(receipt: GameReceipt): String = listOf(
+        "1", receipt.gamesPlayed, receipt.best, receipt.coinsBanked,
+        receipt.notesBanked, receipt.creditGranted, receipt.debtRepaid,
+        receipt.wallet, receipt.notes, receipt.credit, receipt.debt,
+        receipt.unlocked.joinToString(",") { it.name }.ifEmpty { "-" }
+    ).joinToString("|")
+
+    private fun decode(value: String?): GameReceipt? {
+        if (value == null) return null
+        val parts = value.split('|')
+        if (parts.size != 12 || parts[0] != "1") return null
+        val numbers = parts.subList(1, 11).map { it.toIntOrNull() ?: return null }
+        val names = if (parts[11] == "-") emptyList() else parts[11].split(',')
+        val unlocked = Milestone.entries.filter { it.name in names }
+        if (unlocked.size != names.size) return null
+        return GameReceipt(
+            numbers[0], numbers[1], numbers[2], numbers[3], numbers[4],
+            numbers[5], numbers[6], numbers[7], numbers[8], numbers[9], unlocked
+        )
+    }
+
+    /** Available again after reopening the app; no round needs to be replayed. */
+    fun latestReceipt(prefs: SharedPreferences): GameReceipt? =
+        decode(prefs.getString(ReceiptKey, null))
 
     @Synchronized
     fun settle(
@@ -40,8 +69,20 @@ internal object GameSettlement {
         incomeLevel: Int,
         victory: Boolean
     ): GameReceipt? {
-        require(roundId.isNotBlank()) { "The round must have a unique identifier" }
-        if (prefs.getString(LastIdKey, null) == roundId) return null
+        require(roundId.isNotBlank() && '\n' !in roundId && '\r' !in roundId) {
+            "The round must have a valid unique identifier"
+        }
+
+        val lastId = prefs.getString(LastIdKey, null)
+        // A retried save must show the original receipt, not pay twice or falsely fail.
+        if (lastId == roundId) return decode(prefs.getString(ReceiptKey, null))
+
+        val history = prefs.getString(HistoryKey, "")
+            .orEmpty().split('\n').filter { it.isNotBlank() }
+        if (roundId in history) return null // Older settled round: reject any replay.
+
+        // Upgrade path from v1.7.6: preserve its most recent ID in the ledger.
+        val priorIds = (history + listOfNotNull(lastId)).distinct().takeLast(HistoryLimit - 1)
 
         val earned = GameEconomy.earnings(coinsCollected, incomeLevel)
         val milestones = Milestone.entries.filter {
@@ -73,8 +114,14 @@ internal object GameSettlement {
         val bestKey = if (modeIsMarathon) "best_marathon" else "best"
         val nextBest = maxOf(score.coerceAtLeast(0), prefs.getInt(bestKey, 0))
 
+        val receipt = GameReceipt(nextGames, nextBest, coinsBanked, notesBanked,
+            creditGranted, previousDebt - nextDebt, nextCoins,
+            nextNotes, nextCredit, nextDebt, milestones)
+
         val editor = prefs.edit()
             .putString(LastIdKey, roundId)
+            .putString(ReceiptKey, encode(receipt))
+            .putString(HistoryKey, (priorIds + roundId).joinToString("\n"))
             .putInt(CoinWalletKey, nextCoins)
             .putInt(NoteWalletKey, nextNotes)
             .putInt(CreditKey, nextCredit)
@@ -83,8 +130,6 @@ internal object GameSettlement {
             .putInt(bestKey, nextBest)
         milestones.forEach { editor.putBoolean(it.key, true) }
         if (!editor.commit()) return null
-        return GameReceipt(nextGames, nextBest, coinsBanked, notesBanked,
-            creditGranted, previousDebt - nextDebt, nextCoins,
-            nextNotes, nextCredit, nextDebt, milestones)
+        return receipt
     }
 }
