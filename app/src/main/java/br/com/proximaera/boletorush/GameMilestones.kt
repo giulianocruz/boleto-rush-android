@@ -12,9 +12,9 @@ internal enum class Milestone(
     val goal: String,
     val reward: Int
 ) {
-    COLLECTOR("milestone_15_coins", "PRIMEIRA RESERVA", "Colete 15 moedas em uma partida", 20),
-    SCORER("milestone_350_score", "BOLSO CHEIO", "Faça 350 pontos em uma partida", 25),
-    SURVIVOR("milestone_first_win", "FATURA VENCIDA", "Sobreviva até o fim de uma partida", 40);
+    COLLECTOR("milestone_15_coins", "PRIMEIRA RESERVA", "Colete 15 moedas em uma partida", 6),
+    SCORER("milestone_350_score", "BOLSO CHEIO", "Faça 350 pontos em uma partida", 8),
+    SURVIVOR("milestone_first_win", "FATURA VENCIDA", "Sobreviva até o fim de uma partida", 12);
 
     fun reached(score: Int, collectedCoins: Int, victory: Boolean): Boolean = when (this) {
         COLLECTOR -> collectedCoins >= 15
@@ -44,9 +44,11 @@ internal object GameMilestones {
         }
         if (unlocked.isEmpty()) return MilestoneAward()
         val award = MilestoneAward(unlocked)
-        val newWallet = (GameEconomy.wallet(prefs).toLong() + award.coins)
+        val paidDebt = minOf(award.coins, GameEconomy.debt(prefs))
+        val newWallet = (GameEconomy.wallet(prefs).toLong() + award.coins - paidDebt)
             .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         val edit = prefs.edit().putInt("wallet_coins", newWallet)
+            .putInt(GameEconomy.DebtKey, GameEconomy.debt(prefs) - paidDebt)
         unlocked.forEach { edit.putBoolean(it.key, true) }
         return if (edit.commit()) award else MilestoneAward()
     }
