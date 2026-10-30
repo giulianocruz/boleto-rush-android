@@ -74,6 +74,25 @@ class EconomyTransactionsTest {
         assertEquals(2, GameEconomy.cash(prefs))
     }
 
+    @Test fun voluntaryCashoutBanksNotesAndCoinsButNotVictoryMilestone() {
+        val prefs = LocalTestPrefs()
+        // An eligible voluntary exit uses the normal settlement path with victory=false.
+        assertTrue(GameRoundExit.canCashOut(23f,45f))
+        assertEquals(3,GameEconomy.creditRound(prefs,
+            GameRoundExit.eligibleCoins(15),0))
+        assertEquals(12,GameEconomy.creditCash(prefs,
+            GameRoundExit.eligibleCash(12)))
+        val award = GameMilestones.awardRound(prefs,180,15,false)
+        assertEquals(listOf(Milestone.COLLECTOR),award.unlocked)
+        assertEquals(9,GameEconomy.wallet(prefs))
+        assertEquals(12,GameEconomy.cash(prefs))
+        assertFalse(GameMilestones.claimed(prefs,Milestone.SURVIVOR))
+        // Later winning another round must still unlock the survivor milestone.
+        assertEquals(listOf(Milestone.SURVIVOR),
+            GameMilestones.awardRound(prefs,180,0,true).unlocked)
+        assertEquals(21,GameEconomy.wallet(prefs))
+    }
+
     @Test fun milestonesRepayDebtAndNeverPayTwice() {
         val prefs = LocalTestPrefs()
         GameEconomy.addCredit(prefs, 20)
