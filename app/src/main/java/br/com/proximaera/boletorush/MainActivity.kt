@@ -302,6 +302,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var combo by remember { mutableIntStateOf(0) }
     var maxCombo by remember { mutableIntStateOf(0) }
     var coinsCollected by remember { mutableIntStateOf(0) }
+    var chapterCoins by remember { mutableIntStateOf(0) }
+    var chapterMissionMask by remember { mutableIntStateOf(0) }
+    var chapterMissionNotes by remember { mutableIntStateOf(0) }
     var cashCollected by remember { mutableIntStateOf(0) }
     var cashEarned by remember { mutableIntStateOf(0) }
     var billsHit by remember { mutableIntStateOf(0) }
@@ -348,6 +351,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         combo = 0
         maxCombo = 0
         coinsCollected = 0
+        chapterCoins = 0
+        chapterMissionMask = 0
+        chapterMissionNotes = 0
         cashCollected = 0
         cashEarned = 0
         settlementError = ""
@@ -520,6 +526,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             val currentStage = GamePacing.chapter(elapsed, mode.duration)
             if (currentStage != lastStage) {
                 lastStage = currentStage
+                chapterCoins = 0
                 stageAnnouncementSeconds = 2.2f
                 tone(ToneGenerator.TONE_PROP_ACK)
             }
@@ -564,6 +571,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             val gained = GameDrops.coinScore(combo, pixTime > 0f)
                             score += gained
                             coinsCollected++
+                            val mission = GameChapterMissions.recordCoin(
+                                lastStage, chapterCoins, chapterMissionMask)
+                            chapterCoins = mission.coins
+                            chapterMissionMask = mission.claimedMask
+                            if (mission.cosmeticNotes > 0) {
+                                cashCollected += mission.cosmeticNotes
+                                chapterMissionNotes += mission.cosmeticNotes
+                            }
                             maxCombo = max(maxCombo, combo)
                             feedback = if (pixTime > 0f) "+$gained MOEDA • PIX EM DOBRO!"
                                        else "+$gained MOEDA!"
@@ -574,6 +589,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                                 magnetUses++
                                 feedback = "COMBO x8 • ÍMÃ CONQUISTADO!"
                                 feedbackSeconds = 1.2f
+                            }
+                            if (mission.cosmeticNotes > 0) {
+                                feedback = "META CONCLUÍDA! +R$ ${mission.cosmeticNotes} PARA VISUAIS"
+                                feedbackSeconds = 1.6f
                             }
                             pulse(HapticFeedbackType.TextHandleMove)
                             tone(if (combo % 5 == 0) ToneGenerator.TONE_PROP_ACK else ToneGenerator.TONE_PROP_BEEP)
@@ -588,6 +607,13 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             cashCollected += 12
                             feedback = "DIA DO PAGAMENTO! +R$ 12"
                             feedbackSeconds = 1.5f
+                            pulse(HapticFeedbackType.TextHandleMove)
+                            tone(ToneGenerator.TONE_PROP_ACK)
+                        }
+                        Kind.CASHBACK -> {
+                            cashCollected += 6
+                            feedback = "CASHBACK! +R$ 6 PARA VISUAIS"
+                            feedbackSeconds = 1.25f
                             pulse(HapticFeedbackType.TextHandleMove)
                             tone(ToneGenerator.TONE_PROP_ACK)
                         }
@@ -849,6 +875,18 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             drawTextAt("SAL",x,y-r*.13f,r*.72f,0xFFFFFFFF.toInt())
                             drawTextAt("+12",x,y+r*.49f,r*.78f,0xFFFFE7A1.toInt())
                         }
+                        Kind.CASHBACK -> {
+                            drawCircle(Color(0xFFA8F0BD).copy(alpha=.20f),
+                                r*1.44f,Offset(x,y))
+                            drawRoundRect(Color(0xFF89DBA7),
+                                Offset(x-r*1.18f,y-r*.77f), Size(r*2.36f,r*1.54f),
+                                CornerRadius(r*.24f))
+                            drawRoundRect(Color(0xFF245D4E),
+                                Offset(x-r*.97f,y-r*.54f),Size(r*1.94f,r*1.08f),
+                                CornerRadius(r*.19f))
+                            drawTextAt("CB",x,y-r*.10f,r*.79f,0xFFDEFFE3.toInt())
+                            drawTextAt("+6",x,y+r*.42f,r*.69f,0xFFFFD166.toInt())
+                        }
                         Kind.PIX -> {
                             drawRoundRect(Color(0xFF73E4C0),Offset(x-r*1.2f,y-r*.75f),
                                 Size(r*2.4f,r*1.5f),CornerRadius(r*.30f))
@@ -1027,6 +1065,15 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         Text(if(screen==Screen.PLAY) "PAUSAR" else "RETOMAR",fontSize=11.sp)
                     }
                 }
+                val chapter = GamePacing.chapter(elapsed, mode.duration)
+                val done = GameChapterMissions.completed(chapter, chapterMissionMask)
+                Text(
+                    if (done) "META CONCLUÍDA • +R$ ${GameChapterMissions.reward(chapter)}"
+                    else "META: ${GameChapterMissions.title(chapter)}  ${chapterCoins}/${GameChapterMissions.goal(chapter)}  • +R$ ${GameChapterMissions.reward(chapter)}",
+                    color=if(done) Teal else Muted,
+                    fontSize=10.sp,fontWeight=FontWeight.Bold,
+                    textAlign=TextAlign.Center
+                )
                 val activePowers = GamePowerStatus.labels(pixTime, magnetTime, shield)
                 if (activePowers.isNotEmpty()) {
                     Text(activePowers.joinToString("  •  "),
@@ -1233,6 +1280,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     fontSize=15.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
                 Text("O cartão libera crédito para upgrades, mas as próximas moedas quitam a dívida. PIX dobra apenas os pontos das moedas por 6 segundos. Salário é um bônus de R$ 12 para visuais.",
                     color=Color.White,fontSize=13.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(8.dp))
+                Text("Cada capítulo tem uma meta de moedas. Cumpra-a para ganhar notas de cosméticos. O cashback também rende notas, mas não aumenta pontos ou moedas raras.",
+                    color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(23.dp))
                 GameButton("TREINAR CONTROLES") { tutorialStep=0; tutorialX=.5f; screen=Screen.TUTORIAL }
                 Spacer(Modifier.height(10.dp))
@@ -1368,6 +1418,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 if (roundCreditGranted > 0) Text("💳 +$roundCreditGranted LIMITE DE CARTÃO CONFIRMADO • DISPONÍVEL $creditAvailable",
                     color=Color(0xFF9DC7FF),fontSize=12.sp,
                     fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
+                if (chapterMissionNotes > 0) Text(
+                    "METAS DO MÊS: ${GameChapterMissions.countCompleted(chapterMissionMask)}/4 • +R$ $chapterMissionNotes EM NOTAS",
+                    color=Teal,fontSize=12.sp,fontWeight=FontWeight.Bold,
+                    textAlign=TextAlign.Center
+                )
                 if (newMilestones.isNotEmpty()) {
                     Spacer(Modifier.height(7.dp))
                     Text("🏆 NOVA CONQUISTA! +$milestoneBonus MOEDAS",
