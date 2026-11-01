@@ -22,9 +22,9 @@ class GameDropsTest {
         assertFalse(GameDrops.harmful(choose(.26f,0f,35f,true)))
     }
 
-    @Test fun threeNonCoinsGuaranteeNextCoin() {
-        assertEquals(Kind.COIN, choose(.03f,0f,35f,false,3))
-        assertEquals(Kind.COIN, choose(.26f,0f,35f,false,3))
+    @Test fun twoNonCoinsGuaranteeNextCoin() {
+        assertEquals(Kind.COIN, choose(.03f,0f,35f,false,2))
+        assertEquals(Kind.COIN, choose(.26f,0f,35f,false,2))
     }
 
     @Test fun financialItemsBecomeAvailableByChapter() {

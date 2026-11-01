@@ -39,7 +39,7 @@ class DropBalanceSimulationTest {
                         nonCoinStreak = 0
                     } else {
                         nonCoinStreak++
-                        assertTrue("Too many drops without coins", nonCoinStreak <= 3)
+                        assertTrue("Too many drops without coins", nonCoinStreak <= 2)
                     }
                     previousHazard = GameDrops.harmful(kind)
                     totalDrops++
