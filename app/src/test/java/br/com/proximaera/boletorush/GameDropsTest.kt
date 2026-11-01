@@ -34,6 +34,7 @@ class GameDropsTest {
         assertEquals(Kind.PIX,choose(.30f,.99f,12f))
         assertEquals(Kind.PAYDAY,choose(.33f,.99f,14f))
         assertEquals(Kind.COIN,choose(.33f,.99f,0f))
+        assertEquals(Kind.CASHBACK,choose(.355f,.99f,35f))
     }
 
     @Test fun pixDoublesOnlyCoinScoreNotWalletTokens() {
@@ -70,6 +71,7 @@ class GameDropsTest {
             choose(i / 1000f, .9f,35f)
         }.toSet()
         assertTrue(drops.containsAll(listOf(Kind.COIN,Kind.BANKNOTE,Kind.PIX,
-            Kind.CARD,Kind.OVERDRAFT,Kind.SHIELD,Kind.HEART,Kind.MAGNET,Kind.PAYDAY)))
+            Kind.CARD,Kind.OVERDRAFT,Kind.SHIELD,Kind.HEART,Kind.MAGNET,Kind.PAYDAY,
+            Kind.CASHBACK)))
     }
 }
