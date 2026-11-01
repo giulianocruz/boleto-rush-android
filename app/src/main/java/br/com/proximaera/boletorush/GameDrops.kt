@@ -7,14 +7,14 @@ internal object GameDrops {
     fun harmful(kind: Kind): Boolean = kind == Kind.BILL || kind == Kind.OVERDRAFT
 
     /**
-     * No dry spells longer than three non-coins, no successive hazards,
+     * At most two non-coin items between coins, no successive hazards,
      * and no bills until after the player has learned to move.
      */
     fun choose(
         itemRoll: Float, hazardRoll: Float, elapsed: Float, duration: Float,
         gamesPlayed: Int, previousWasHazard: Boolean, nonCoinStreak: Int
     ): Kind {
-        if (nonCoinStreak >= 3) return Kind.COIN
+        if (nonCoinStreak >= 2) return Kind.COIN
         val stage = GamePacing.chapter(elapsed, duration)
         return when {
             itemRoll < .040f -> Kind.SHIELD

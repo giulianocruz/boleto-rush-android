@@ -307,6 +307,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var billsHit by remember { mutableIntStateOf(0) }
     var feedback by remember { mutableStateOf("") }
     var feedbackSeconds by remember { mutableFloatStateOf(0f) }
+    var coinFlashSeconds by remember { mutableFloatStateOf(0f) }
     var elapsed by remember { mutableFloatStateOf(0f) }
     var playerX by remember { mutableFloatStateOf(0.5f) }
     var targetX by remember { mutableFloatStateOf(0.5f) }
@@ -361,6 +362,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         cashedOut = false
         feedback = ""
         feedbackSeconds = 0f
+        coinFlashSeconds = 0f
         elapsed = 0f
         playerX = 0.5f
         targetX = 0.5f
@@ -513,6 +515,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             pixTime = (pixTime - dt).coerceAtLeast(0f)
             invulnerable = (invulnerable - dt).coerceAtLeast(0f)
             feedbackSeconds = (feedbackSeconds - dt).coerceAtLeast(0f)
+            coinFlashSeconds = (coinFlashSeconds - dt).coerceAtLeast(0f)
             stageAnnouncementSeconds = (stageAnnouncementSeconds - dt).coerceAtLeast(0f)
             val currentStage = GamePacing.chapter(elapsed, mode.duration)
             if (currentStage != lastStage) {
@@ -524,14 +527,17 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             val interval = GamePacing.spawnInterval(elapsed, mode.duration, gamesPlayed)
             if (spawnElapsed >= interval) {
                 spawnElapsed -= interval
-                val kind = GameDrops.choose(
+                // The opening drop teaches the player the currency; after that,
+                // never generate more than two non-coins in a row.
+                val kind = if (nextDropId == 0) Kind.COIN else GameDrops.choose(
                     rng.nextFloat(), rng.nextFloat(), elapsed, mode.duration,
                     gamesPlayed, previousWasHazard, nonCoinStreak
                 )
-                nonCoinStreak = if (kind == Kind.COIN) 0 else (nonCoinStreak + 1).coerceAtMost(3)
+                nonCoinStreak = if (kind == Kind.COIN) 0 else (nonCoinStreak + 1).coerceAtMost(2)
                 previousWasHazard = GameDrops.harmful(kind)
                 drops = drops + Drop(nextDropId++, GameDrops.spawnX(rng.nextFloat(), kind, playerX),
-                    -.065f, .27f + rng.nextFloat() * .08f + elapsed * .0028f, kind)
+                    -.065f, GamePacing.dropSpeed(elapsed, mode.duration, gamesPlayed,
+                        rng.nextFloat()), kind)
             }
             val updated = ArrayList<Drop>(drops.size)
             for (item in drops) {
@@ -545,9 +551,15 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 val nx = position.x
                 val ny = position.y
                 val magnetCatch = coinIsPulled && GameMagnet.reachedWallet(nx, ny, playerX)
-                if (magnetCatch || (item.y < .80f && ny >= .80f && abs(nx - playerX) < .118f)) {
+                val normalContact = item.y < .80f && ny >= .80f &&
+                    abs(nx - playerX) < .118f
+                val collected = if (item.kind == Kind.COIN) {
+                    GamePickup.coinContact(item.y, ny, nx, playerX, magnetCatch)
+                } else normalContact
+                if (collected) {
                     when (item.kind) {
                         Kind.COIN -> {
+                            coinFlashSeconds = .42f
                             combo++
                             val gained = GameDrops.coinScore(combo, pixTime > 0f)
                             score += gained
@@ -710,6 +722,57 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         Offset(x + 4f, y), Size(w / 54f, 5f))
                 }
             }
+            // Four understated landmarks vary the journey without competing with pickups.
+            // All landmarks stay behind the player and use desaturated, low-contrast colors.
+            when (chapter) {
+                0 -> { // Centro: street lamp and a quiet city bus stop.
+                    drawLine(Color(0xFF536A79).copy(alpha=.40f),
+                        Offset(w*.84f,h*.50f),Offset(w*.84f,h*.77f),strokeWidth=w*.014f)
+                    drawRoundRect(Color(0xFF6C8491).copy(alpha=.42f),
+                        Offset(w*.77f,h*.485f),Size(w*.15f,h*.012f),
+                        CornerRadius(w*.012f))
+                    drawRoundRect(Color(0xFF304A5E).copy(alpha=.40f),
+                        Offset(w*.62f,h*.64f),Size(w*.14f,h*.10f),
+                        CornerRadius(w*.012f))
+                    drawTextAt("PONTO",w*.69f,h*.665f,w*.021f,0xFF7891A0.toInt())
+                }
+                1 -> { // Dia do pagamento: bank frontage with pillars.
+                    drawRoundRect(Color(0xFF32495A).copy(alpha=.62f),
+                        Offset(w*.66f,h*.48f),Size(w*.28f,h*.27f),
+                        CornerRadius(w*.008f))
+                    drawRect(Color(0xFF8092A0).copy(alpha=.35f),
+                        Offset(w*.64f,h*.46f),Size(w*.32f,h*.022f))
+                    for (i in 0..2) {
+                        drawRect(Color(0xFF94A3AC).copy(alpha=.34f),
+                            Offset(w*(.69f+i*.092f),h*.52f),Size(w*.022f,h*.21f))
+                    }
+                    drawTextAt("BANCO",w*.80f,h*.505f,w*.032f,0xFFA2B2BD.toInt())
+                }
+                2 -> { // Fim do mês: subdued shops, not a wall of competing icons.
+                    for (i in 0..1) {
+                        val left = w*(.64f+i*.16f)
+                        drawRoundRect(Color(0xFF445468).copy(alpha=.50f),
+                            Offset(left,h*.56f),Size(w*.15f,h*.18f),
+                            CornerRadius(w*.009f))
+                        drawRect(Color(0xFF907D7B).copy(alpha=.45f),
+                            Offset(left,h*.55f),Size(w*.15f,h*.023f))
+                        drawRect(Color(0xFF637C87).copy(alpha=.45f),
+                            Offset(left+w*.027f,h*.61f),Size(w*.086f,h*.060f))
+                    }
+                    drawTextAt("COMÉRCIO",w*.78f,h*.54f,w*.030f,0xFFA5A6B0.toInt())
+                }
+                else -> { // Fechamento: tall collections office with red muted accents.
+                    drawRoundRect(Color(0xFF3A3E50).copy(alpha=.60f),
+                        Offset(w*.73f,h*.43f),Size(w*.22f,h*.32f),
+                        CornerRadius(w*.008f))
+                    for (i in 0..2) {
+                        drawRect(Color(0xFF8D6974).copy(alpha=.32f),
+                            Offset(w*.76f,h*(.47f+i*.075f)),
+                            Size(w*.15f,h*.025f))
+                    }
+                    drawTextAt("FATURAS",w*.84f,h*.70f,w*.032f,0xFF9F8490.toInt())
+                }
+            }
             // Discreet neighborhood signs help distinguish each financial chapter.
             // Keep them in the background, below the pickups and outside the player's lane.
             val neighborhood = when (chapter) {
@@ -755,12 +818,21 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     }
                     when (item.kind) {
                         Kind.COIN -> {
+                            // Golden silhouette stays readable even when a sprite is missing
+                            // or the rotating side frame is visually narrow.
+                            drawCircle(Gold.copy(alpha=.13f),r*1.55f,Offset(x,y))
+                            drawCircle(Gold.copy(alpha=.67f),r*.92f,Offset(x,y),
+                                style=androidx.compose.ui.graphics.drawscope.Stroke(width=r*.14f))
                             val frame = when ((elapsed*7f).toInt()%3) {
                                 0 -> coinFront
                                 1 -> coinAngle
                                 else -> coinSide
                             }
-                            drawPremiumSprite(frame,x,y,r*1.35f)
+                            if (frame != null) drawPremiumSprite(frame,x,y,r*1.35f)
+                            else {
+                                drawCircle(Gold,r*.87f,Offset(x,y))
+                                drawTextAt("$",x,y+r*.37f,r*1.22f,0xFF644514.toInt())
+                            }
                         }
                         Kind.BANKNOTE -> {
                             drawRoundRect(Gold, Offset(x-r*1.15f,y-r*.72f),
@@ -870,6 +942,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         else -> heroIdle
                     }
                     drawPremiumSprite(avatar,x,y,r*1.65f)
+                    if (coinFlashSeconds > 0f) {
+                        // The coin's impact is visible even if COMBO or PIX replaces feedback.
+                        val a = (coinFlashSeconds / .42f).coerceIn(0f,1f)
+                        drawCircle(Gold.copy(alpha=.60f*a),r*(2.2f-a*.35f),
+                            Offset(x,y),style=androidx.compose.ui.graphics.drawscope.Stroke(width=5f))
+                        drawPremiumSprite(coinCollect,x+r*.92f,y-r*1.75f,
+                            r*.66f,opacity=a)
+                    }
                     if (feedbackSeconds>0f) {
                         when {
                             (feedback.contains("MOEDA") || feedback.contains("SUPER COMBO")) ->

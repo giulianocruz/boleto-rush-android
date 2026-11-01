@@ -45,7 +45,7 @@ object DropSimulation {
                         streak = 0
                     } else {
                         streak++
-                        check(streak <= 3) { "Too many non-coin drops" }
+                        check(streak <= 2) { "Too many non-coin drops" }
                     }
                     totals[kind] = totals.getValue(kind) + 1
                     totalDrops++

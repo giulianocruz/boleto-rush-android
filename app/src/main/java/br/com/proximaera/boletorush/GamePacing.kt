@@ -15,13 +15,20 @@ internal object GamePacing {
         else -> "FECHAMENTO DA FATURA"
     }
 
+    // Gentle progression: a round speeds up by at most ~13%, even for experienced players.
     fun spawnInterval(elapsed: Float, duration: Float, gamesPlayed: Int): Float =
-        (.96f - .16f * progress(elapsed, duration) -
-            .002f * gamesPlayed.coerceIn(0, 20)).coerceAtLeast(.75f)
+        (.98f - .10f * progress(elapsed, duration) -
+            .0015f * gamesPlayed.coerceIn(0, 20)).coerceAtLeast(.84f)
 
     fun billOdds(elapsed: Float, duration: Float, gamesPlayed: Int): Float =
-        (.065f + .16f * progress(elapsed, duration) +
-            .0015f * gamesPlayed.coerceIn(0, 20)).coerceAtMost(.255f)
+        (.065f + .10f * progress(elapsed, duration) +
+            .001f * gamesPlayed.coerceIn(0, 20)).coerceAtMost(.185f)
+
+    /** Objects no longer accelerate twice as much in 90s mode as in 45s. */
+    fun dropSpeed(elapsed: Float, duration: Float, gamesPlayed: Int, roll: Float): Float =
+        .275f + .070f * roll.coerceIn(0f, 1f) +
+        .045f * progress(elapsed, duration) +
+        .004f * (gamesPlayed.coerceIn(0, 20) / 20f)
 
     // Canvas gameplay region begins at y=.195. Coins must be seen before the magnet scores.
     fun magnetCanCollect(y: Float): Boolean = y >= .40f
