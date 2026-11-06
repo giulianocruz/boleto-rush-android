@@ -117,6 +117,13 @@ class MainActivity : ComponentActivity() {
     private var foreground by mutableStateOf(true)
     private var recoveryMode = false
     private var adManager by mutableStateOf<RewardedReviveAds?>(null)
+    private var adConsentMenuSafe = false
+
+    fun setAdConsentMenuSafe(safe: Boolean) {
+        if (adConsentMenuSafe == safe) return
+        adConsentMenuSafe = safe
+        if (safe) adManager?.resumeSafeMenu()
+    }
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -137,10 +144,9 @@ class MainActivity : ComponentActivity() {
         window.decorView.systemUiVisibility =
             View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        // Opening the game does not initialize any advertising SDK.
-        // Ads are requested only if the player loses and reaches REVIVE.
-        // Keep Google Play Services and the ad SDK out of the startup path while
-        // diagnosing a device-specific launch crash. Revive initializes ads on demand.
+        // OnCreate never initializes advertising. Consent/preload may run only
+        // after the first Compose menu frame; full-screen rewarded ads are
+        // always shown by explicit player action, never during gameplay.
         setContent { BoletoRush(foreground, adManager, recoveryMode) }
     }
     private fun installCrashRecorder() {
@@ -169,7 +175,7 @@ class MainActivity : ComponentActivity() {
     fun initializeRewardedAdsIfNeeded() {
         if (isFinishing || isDestroyed) return
         runCatching {
-            if (adManager == null) adManager = RewardedReviveAds(this)
+            if (adManager == null) adManager = RewardedReviveAds(this) { adConsentMenuSafe }
             adManager?.start()
         }.onFailure { Log.w("BoletoRush", "Optional ads unavailable", it) }
     }
@@ -252,10 +258,21 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         if (prefs.getInt("theme", 0) == 1) GameTheme.BRASIL_EM_APUROS else GameTheme.BOLETO_RUSH
     ) }
     var screen by remember { mutableStateOf(Screen.MENU) }
+    // Consent forms must never be initiated from a live run.
+    // If a consent update returns after the player has started, it is held
+    // until returning to the menu rather than interrupting gameplay.
+    SideEffect {
+        (context as? MainActivity)?.setAdConsentMenuSafe(
+            GameAdScreenPolicy.canPresentConsent(
+                screen == Screen.MENU, foreground, showDiagnostics || lastCrash != null
+            )
+        )
+    }
     LaunchedEffect(screen) {
-        if (screen == Screen.PLAY || screen == Screen.CHAPTER_BONUS ||
-            screen == Screen.REVIVE || screen == Screen.END)
+        if (screen == Screen.MENU) {
+            withFrameNanos { } // allow the menu to render before optional ad setup
             (context as? MainActivity)?.initializeRewardedAdsIfNeeded()
+        }
     }
     val premiumPromo = artworkWhen(screen == Screen.MENU && !recoveryMode, R.drawable.premium_promo)
     val premiumRunning = artworkWhen(screen == Screen.END || screen == Screen.REVIVE, R.drawable.premium_running)
@@ -594,8 +611,13 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             }
             val updated = ArrayList<Drop>(drops.size)
             var clearHazards = false
-            // Deterministic, stable priority: defensive pickups before danger.
-            for (item in drops.sortedBy { GamePowerRules.collisionPriority(it.kind) }) {
+            // Avoid allocating/sorting lists in ordinary frames with no
+            // defensive pickups, while preserving same-frame collision fairness.
+            val hasDefense = drops.any { GamePowerRules.collisionPriority(it.kind) < 2 }
+            val frameDrops = if (hasDefense)
+                drops.sortedBy { GamePowerRules.collisionPriority(it.kind) }
+                else drops
+            for (item in frameDrops) {
                 // Clearing the screen this frame must also cancel pending
                 // collision damage, not just remove the drawn sprites later.
                 if (clearHazards && GamePowerRules.screenClear(item.kind)) continue
@@ -1090,6 +1112,27 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         drawCircle(Color(0xFFE858FF).copy(alpha=.12f),r*2.4f,Offset(x,y))
                         drawCircle(Color(0xFFE858FF).copy(alpha=.80f),r*1.9f,Offset(x,y),
                             style=androidx.compose.ui.graphics.drawscope.Stroke(width=4f))
+                    }
+                    if (sprintTime > 0f) {
+                        // Visible movement streaks without new bitmap allocations.
+                        for (i in 0..2) {
+                            drawLine(Gold.copy(alpha=.35f - i*.08f),
+                                Offset(x-r*(1.95f+i*.20f),y+r*(.18f+i*.35f)),
+                                Offset(x-r*(1.18f+i*.16f),y+r*(.18f+i*.35f)),
+                                strokeWidth=r*.065f)
+                        }
+                    }
+                    if (slowTime > 0f) {
+                        drawCircle(Color(0xFF88B7FF).copy(alpha=.23f),
+                            r*2.15f,Offset(x,y),
+                            style=androidx.compose.ui.graphics.drawscope.Stroke(width=4f))
+                    }
+                    if (armorHits > 0 && armorTime > 0f) {
+                        drawCircle(Color(0xFFB0EDFF).copy(alpha=.72f),
+                            r*1.68f,Offset(x,y),
+                            style=androidx.compose.ui.graphics.drawscope.Stroke(width=6f))
+                        drawTextAt("ARM " + armorHits,x,y-r*1.82f,r*.48f,
+                            0xFFB0EDFF.toInt())
                     }
                     if (sprintTime > 0f) {
                         // Visible movement streaks without new bitmap allocations.
