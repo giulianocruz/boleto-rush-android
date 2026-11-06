@@ -17,4 +17,15 @@ internal object GamePowerRules {
         if (armorSeconds > 0f) hits.coerceIn(0, ArmorHits) else 0
 
     fun screenClear(kind: Kind): Boolean = GameDrops.harmful(kind)
+
+    /** Handle helpful pickups before hazards in the same frame.
+     *  Prevents an armor or screen-clear collected together with a bill
+     *  from unfairly consuming a life because of insertion order.
+     */
+    fun collisionPriority(kind: Kind): Int = when (kind) {
+        Kind.SCREEN_CLEAR -> 0
+        Kind.ARMOR, Kind.SHIELD, Kind.HEART -> 1
+        Kind.BILL, Kind.OVERDRAFT -> 3
+        else -> 2
+    }
 }

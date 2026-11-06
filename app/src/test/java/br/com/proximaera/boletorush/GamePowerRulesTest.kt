@@ -32,6 +32,18 @@ class GamePowerRulesTest {
         assertEquals(0,GamePowerRules.armorRemaining(-1,4f))
     }
 
+    @Test fun defensivePowerUpsResolveBeforeDamageOnSameFrame() {
+        val kinds = listOf(Kind.BILL, Kind.OVERDRAFT, Kind.COIN,
+            Kind.ARMOR, Kind.SCREEN_CLEAR, Kind.SHIELD, Kind.HEART)
+        val ordered = kinds.sortedBy(GamePowerRules::collisionPriority)
+        assertEquals(Kind.SCREEN_CLEAR, ordered.first())
+        assertTrue(ordered.indexOf(Kind.ARMOR) < ordered.indexOf(Kind.BILL))
+        assertTrue(ordered.indexOf(Kind.SHIELD) < ordered.indexOf(Kind.OVERDRAFT))
+        assertTrue(ordered.indexOf(Kind.HEART) < ordered.indexOf(Kind.BILL))
+        assertTrue(ordered.indexOf(Kind.COIN) < ordered.indexOf(Kind.OVERDRAFT))
+        assertEquals(Kind.OVERDRAFT, ordered.last())
+    }
+
     @Test fun screenClearNeverRemovesGoodPickups() {
         assertTrue(GamePowerRules.screenClear(Kind.BILL))
         assertTrue(GamePowerRules.screenClear(Kind.OVERDRAFT))

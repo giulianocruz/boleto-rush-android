@@ -566,9 +566,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 stageAnnouncementSeconds = 2.2f
                 tone(ToneGenerator.TONE_PROP_ACK)
                 val bit = 1 shl finishedChapter
-                if (finishedChapter in 0..2 &&
-                    GameChapterMissions.completed(finishedChapter, chapterMissionMask) &&
-                    chapterBonusOfferedMask and bit == 0) {
+                if (GameChapterBonusOffer.shouldOffer(
+                        finishedChapter, chapterMissionMask,
+                        chapterBonusOfferedMask, ads?.ready == true)) {
                     chapterBonusOfferedMask = chapterBonusOfferedMask or bit
                     chapterBonusChapter = finishedChapter
                     bonusAdError = ""
@@ -594,7 +594,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             }
             val updated = ArrayList<Drop>(drops.size)
             var clearHazards = false
-            for (item in drops) {
+            // Deterministic, stable priority: defensive pickups before danger.
+            for (item in drops.sortedBy { GamePowerRules.collisionPriority(it.kind) }) {
+                // Clearing the screen this frame must also cancel pending
+                // collision damage, not just remove the drawn sprites later.
+                if (clearHazards && GamePowerRules.screenClear(item.kind)) continue
                 val freeFallY = item.y + item.speed * dt * GamePowerRules.fallingSpeedFactor(slowTime)
                 // Pull only coins that have entered the visible gameplay region.
                 val coinIsPulled = item.kind == Kind.COIN && magnetTime > 0f &&
@@ -1087,6 +1091,27 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         drawCircle(Color(0xFFE858FF).copy(alpha=.80f),r*1.9f,Offset(x,y),
                             style=androidx.compose.ui.graphics.drawscope.Stroke(width=4f))
                     }
+                    if (sprintTime > 0f) {
+                        // Visible movement streaks without new bitmap allocations.
+                        for (i in 0..2) {
+                            drawLine(Gold.copy(alpha=.35f - i*.08f),
+                                Offset(x-r*(1.95f+i*.20f),y+r*(.18f+i*.35f)),
+                                Offset(x-r*(1.18f+i*.16f),y+r*(.18f+i*.35f)),
+                                strokeWidth=r*.065f)
+                        }
+                    }
+                    if (slowTime > 0f) {
+                        drawCircle(Color(0xFF88B7FF).copy(alpha=.23f),
+                            r*2.15f,Offset(x,y),
+                            style=androidx.compose.ui.graphics.drawscope.Stroke(width=4f))
+                    }
+                    if (armorHits > 0 && armorTime > 0f) {
+                        drawCircle(Color(0xFFB0EDFF).copy(alpha=.72f),
+                            r*1.68f,Offset(x,y),
+                            style=androidx.compose.ui.graphics.drawscope.Stroke(width=6f))
+                        drawTextAt("ARM " + armorHits,x,y-r*1.82f,r*.48f,
+                            0xFFB0EDFF.toInt())
+                    }
                     if (shield > 0f) {
                         drawPremiumSprite(shieldIdle,x,y,r*1.95f,opacity=.45f)
                         drawCircle(Teal.copy(alpha=.30f),r*1.48f,Offset(x,y),
@@ -1207,8 +1232,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         if (armorHits > 0 && armorTime > 0f) "ARMADURA " + armorHits else null
                     )
                 if (activePowers.isNotEmpty()) {
-                    Text(activePowers.joinToString("  •  "),
-                        color=Color(0xFF8EF1C3),fontSize=11.sp,fontWeight=FontWeight.Bold)
+                    // Keep simultaneous powers legible on narrow phones.
+                    Text(activePowers.chunked(2).joinToString("\n") { it.joinToString("  •  ") },
+                        color=Color(0xFF8EF1C3),fontSize=10.sp,fontWeight=FontWeight.Bold,
+                        lineHeight=13.sp)
                 } else if (combo >= 3) {
                     Text("COMBO x$combo",color=Gold,fontSize=11.sp,fontWeight=FontWeight.Bold)
                 }
@@ -1506,7 +1533,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     }
                     Spacer(Modifier.height(10.dp))
                 } else {
-                    Text("Vídeo ainda não disponível. Você pode continuar normalmente.",
+                    Text("Vídeo indisponível. Continue normalmente.",
                         color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
                     Spacer(Modifier.height(10.dp))
                 }
