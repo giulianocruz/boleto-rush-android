@@ -66,7 +66,7 @@ private val Teal = Color(0xFF25E2D1)
 private val Gold = Color(0xFFFFD166)
 private val Coral = Color(0xFFFF657C)
 private val Muted = Color(0xFFA7BBCF)
-private enum class Screen { MENU, STORE, HOW, TUTORIAL, PLAY, PAUSE, REVIVE, END }
+private enum class Screen { MENU, STORE, HOW, TUTORIAL, PLAY, PAUSE, CHAPTER_BONUS, REVIVE, END }
 private enum class Mode(val title: String, val duration: Float) {
     CLASSIC("CLÁSSICO",45f), MARATHON("MARATONA",90f)
 }
@@ -253,7 +253,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     ) }
     var screen by remember { mutableStateOf(Screen.MENU) }
     LaunchedEffect(screen) {
-        if (screen == Screen.REVIVE)
+        if (screen == Screen.PLAY || screen == Screen.CHAPTER_BONUS ||
+            screen == Screen.REVIVE || screen == Screen.END)
             (context as? MainActivity)?.initializeRewardedAdsIfNeeded()
     }
     val premiumPromo = artworkWhen(screen == Screen.MENU && !recoveryMode, R.drawable.premium_promo)
@@ -327,6 +328,15 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var shield by remember { mutableFloatStateOf(0f) }
     var magnetTime by remember { mutableFloatStateOf(0f) }
     var pixTime by remember { mutableFloatStateOf(0f) }
+    var sprintTime by remember { mutableFloatStateOf(0f) }
+    var slowTime by remember { mutableFloatStateOf(0f) }
+    var armorTime by remember { mutableFloatStateOf(0f) }
+    var armorHits by remember { mutableIntStateOf(0) }
+    var chapterBonusChapter by remember { mutableIntStateOf(-1) }
+    var chapterBonusOfferedMask by remember { mutableIntStateOf(0) }
+    var chapterBonusClaimedMask by remember { mutableIntStateOf(0) }
+    var bonusAdError by remember { mutableStateOf("") }
+    var roundDoubleClaimed by remember { mutableStateOf(false) }
     var lastStage by remember { mutableIntStateOf(0) }
     var stageAnnouncementSeconds by remember { mutableFloatStateOf(0f) }
     var invulnerable by remember { mutableFloatStateOf(0f) }
@@ -390,6 +400,15 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         shield = GameEconomy.initialShieldSeconds(shieldLevel)
         magnetTime = 0f
         pixTime = 0f
+        sprintTime = 0f
+        slowTime = 0f
+        armorTime = 0f
+        armorHits = 0
+        chapterBonusChapter = -1
+        chapterBonusOfferedMask = 0
+        chapterBonusClaimedMask = 0
+        bonusAdError = ""
+        roundDoubleClaimed = false
         lastStage = 0
         stageAnnouncementSeconds = 0f
         invulnerable = 0f
@@ -440,6 +459,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             return
         }
         settledRound = round
+        bonusAdError = ""
         settlementError = ""
         won = victory
         cashedOut = withdrawal
@@ -499,6 +519,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         if (screen == Screen.REVIVE) { finish(false) } else screen = when (screen) {
             Screen.PLAY -> Screen.PAUSE
             Screen.PAUSE -> Screen.PLAY
+            Screen.CHAPTER_BONUS -> Screen.PLAY
             Screen.HOW -> Screen.MENU
             Screen.STORE -> Screen.MENU
             Screen.TUTORIAL -> Screen.MENU
@@ -524,21 +545,36 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 tone(ToneGenerator.TONE_PROP_ACK)
                 break
             }
-            playerX = (playerX + (targetX - playerX) * (dt * 17f).coerceAtMost(1f))
+            playerX = (playerX + (targetX - playerX) * (dt * GamePowerRules.playerResponse(sprintTime)).coerceAtMost(1f))
                 .coerceIn(0.09f, 0.91f)
             shield = (shield - dt).coerceAtLeast(0f)
             magnetTime = (magnetTime - dt).coerceAtLeast(0f)
             pixTime = (pixTime - dt).coerceAtLeast(0f)
+            sprintTime = (sprintTime - dt).coerceAtLeast(0f)
+            slowTime = (slowTime - dt).coerceAtLeast(0f)
+            armorTime = (armorTime - dt).coerceAtLeast(0f)
+            armorHits = GamePowerRules.armorRemaining(armorHits, armorTime)
             invulnerable = (invulnerable - dt).coerceAtLeast(0f)
             feedbackSeconds = (feedbackSeconds - dt).coerceAtLeast(0f)
             coinFlashSeconds = (coinFlashSeconds - dt).coerceAtLeast(0f)
             stageAnnouncementSeconds = (stageAnnouncementSeconds - dt).coerceAtLeast(0f)
             val currentStage = GamePacing.chapter(elapsed, mode.duration)
             if (currentStage != lastStage) {
+                val finishedChapter = lastStage
                 lastStage = currentStage
                 chapterCoins = 0
                 stageAnnouncementSeconds = 2.2f
                 tone(ToneGenerator.TONE_PROP_ACK)
+                val bit = 1 shl finishedChapter
+                if (finishedChapter in 0..2 &&
+                    GameChapterMissions.completed(finishedChapter, chapterMissionMask) &&
+                    chapterBonusOfferedMask and bit == 0) {
+                    chapterBonusOfferedMask = chapterBonusOfferedMask or bit
+                    chapterBonusChapter = finishedChapter
+                    bonusAdError = ""
+                    screen = Screen.CHAPTER_BONUS
+                    break
+                }
             }
             spawnElapsed += dt
             val interval = GamePacing.spawnInterval(elapsed, mode.duration, gamesPlayed)
@@ -557,8 +593,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         rng.nextFloat()), kind, if (kind == Kind.COIN) GameRunProgression.coinValue(rng.nextFloat(), lastStage) else 0)
             }
             val updated = ArrayList<Drop>(drops.size)
+            var clearHazards = false
             for (item in drops) {
-                val freeFallY = item.y + item.speed * dt
+                val freeFallY = item.y + item.speed * dt * GamePowerRules.fallingSpeedFactor(slowTime)
                 // Pull only coins that have entered the visible gameplay region.
                 val coinIsPulled = item.kind == Kind.COIN && magnetTime > 0f &&
                     GamePacing.magnetCanCollect(item.y)
@@ -644,7 +681,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             tone(ToneGenerator.TONE_PROP_ACK)
                         }
                         Kind.OVERDRAFT -> {
-                            if (shield > 0f) {
+                            if (armorHits > 0 && armorTime > 0f) {
+                                armorHits--
+                                feedback = "ARMADURA BLOQUEOU O CHEQUE!"
+                            } else if (shield > 0f) {
                                 shield = 0f
                                 feedback = "SALDO EXTRA COBRIU OS JUROS!"
                             } else {
@@ -672,7 +712,12 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             tone(ToneGenerator.TONE_PROP_ACK)
                         }
                         Kind.BILL -> {
-                            if (shield > 0f) {
+                            if (armorHits > 0 && armorTime > 0f) {
+                                armorHits--
+                                feedback = "ARMADURA BLOQUEOU O BOLETO!"
+                                feedbackSeconds = .85f
+                                tone(ToneGenerator.TONE_PROP_ACK)
+                            } else if (shield > 0f) {
                                 shield = 0f
                                 feedback = "SALDO EXTRA COBRIU O BOLETO!"
                                 feedbackSeconds = 0.85f
@@ -701,12 +746,38 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             feedbackSeconds = 0.85f
                             tone(ToneGenerator.TONE_PROP_BEEP2)
                         }
+                        Kind.SPRINT -> {
+                            sprintTime = GamePowerRules.SprintDuration
+                            feedback = "TURBO! MOVIMENTO ACELERADO"
+                            feedbackSeconds = 1.2f
+                            tone(ToneGenerator.TONE_PROP_ACK)
+                        }
+                        Kind.SLOW -> {
+                            slowTime = GamePowerRules.SlowDuration
+                            feedback = "CÂMERA LENTA! QUEDA REDUZIDA"
+                            feedbackSeconds = 1.2f
+                            tone(ToneGenerator.TONE_PROP_ACK)
+                        }
+                        Kind.ARMOR -> {
+                            armorHits = GamePowerRules.ArmorHits
+                            armorTime = GamePowerRules.ArmorDuration
+                            feedback = "ARMADURA! 2 IMPACTOS"
+                            feedbackSeconds = 1.2f
+                            tone(ToneGenerator.TONE_PROP_ACK)
+                        }
+                        Kind.SCREEN_CLEAR -> {
+                            clearHazards = true
+                            feedback = "LIMPA-TELA! ADEUS, TAXAS!"
+                            feedbackSeconds = 1.4f
+                            pulse(HapticFeedbackType.LongPress)
+                            tone(ToneGenerator.TONE_PROP_ACK)
+                        }
                     }
                 } else if (ny < 1.02f) {
                     updated.add(item.copy(x = nx, y = ny))
                 }
             }
-            drops = updated
+            drops = if (clearHazards) updated.filterNot { GamePowerRules.screenClear(it.kind) } else updated
             if (lives <= 0) {
                 if (!reviveUsed) {
                     reviveError = ""
@@ -940,6 +1011,26 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             }
                         }
                         Kind.SHIELD -> drawPremiumSprite(shieldCollect,x,y,r*1.42f)
+                        Kind.SPRINT -> {
+                            drawCircle(Teal.copy(alpha=.30f),r*1.35f,Offset(x,y))
+                            drawCircle(Teal,r*.90f,Offset(x,y))
+                            drawTextAt(">>",x,y+r*.34f,r*.90f,0xFF071326.toInt())
+                        }
+                        Kind.SLOW -> {
+                            drawCircle(Color(0xFF9DC7FF).copy(alpha=.35f),r*1.35f,Offset(x,y))
+                            drawCircle(Color(0xFF668CFF),r*.90f,Offset(x,y))
+                            drawTextAt("0.6x",x,y+r*.30f,r*.66f,0xFFFFFFFF.toInt())
+                        }
+                        Kind.ARMOR -> {
+                            drawRoundRect(Color(0xFF8ED7EE),Offset(x-r,y-r),
+                                Size(r*2,r*2),CornerRadius(r*.38f))
+                            drawTextAt("ARM",x,y+r*.25f,r*.63f,0xFF123247.toInt())
+                        }
+                        Kind.SCREEN_CLEAR -> {
+                            drawCircle(Coral.copy(alpha=.22f),r*1.43f,Offset(x,y))
+                            drawCircle(Color(0xFFFFA3B8),r*.95f,Offset(x,y))
+                            drawTextAt("X",x,y+r*.43f,r*1.0f,0xFF602137.toInt())
+                        }
                         Kind.MAGNET -> {
                             // Horseshoe icon: bright poles and a soft magnetic halo,
                             // identifiable at a glance without placeholder lettering.
@@ -1109,7 +1200,12 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     (GameRunProgression.nextLevelXp(runXp)?.let { " / " + it } ?: " • MÁX"),
                     color=if(theme==GameTheme.BRASIL_EM_APUROS) Gold else Teal,
                     fontSize=10.sp,fontWeight=FontWeight.Bold)
-                val activePowers = GamePowerStatus.labels(pixTime, magnetTime, shield)
+                val activePowers = GamePowerStatus.labels(pixTime, magnetTime, shield) +
+                    listOfNotNull(
+                        if (sprintTime > 0f) "TURBO " + (sprintTime.toInt()+1) + "s" else null,
+                        if (slowTime > 0f) "LENTO " + (slowTime.toInt()+1) + "s" else null,
+                        if (armorHits > 0 && armorTime > 0f) "ARMADURA " + armorHits else null
+                    )
                 if (activePowers.isNotEmpty()) {
                     Text(activePowers.joinToString("  •  "),
                         color=Color(0xFF8EF1C3),fontSize=11.sp,fontWeight=FontWeight.Bold)
@@ -1321,6 +1417,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(8.dp))
                 Text("Cada capítulo tem uma meta de moedas. Cumpra-a para ganhar notas de cosméticos. O cashback também rende notas, mas não aumenta pontos ou moedas raras.",
                     color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                Text("Poderes raros: Turbo acelera a carteira, Câmera Lenta reduz a queda, Armadura bloqueia dois impactos e Limpa-tela remove os perigos. Vídeos premiados são sempre opcionais.",
+                    color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(23.dp))
                 GameButton("TREINAR CONTROLES") { tutorialStep=0; tutorialX=.5f; screen=Screen.TUTORIAL }
                 Spacer(Modifier.height(10.dp))
@@ -1369,6 +1467,54 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 GameButton("RECOMEÇAR • DESCARTAR",secondary=true){begin()}
                 Spacer(Modifier.height(10.dp))
                 GameButton("MENU • DESCARTAR",secondary=true){screen=Screen.MENU}
+            }
+        }
+        if(screen==Screen.CHAPTER_BONUS) {
+            Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.95f)))
+            Column(Modifier.align(Alignment.Center).fillMaxWidth()
+                .padding(horizontal=30.dp,vertical=16.dp),
+                horizontalAlignment=Alignment.CenterHorizontally) {
+                Text("ETAPA CONCLUÍDA!",color=Teal,fontSize=27.sp,
+                    fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(12.dp))
+                Text(GameRunProgression.chapterName(theme,chapterBonusChapter),color=Gold,
+                    fontSize=17.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(17.dp))
+                Text("Você cumpriu a meta desta etapa! O prêmio normal já foi ganho.",
+                    color=Color.White,fontSize=14.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(12.dp))
+                val stageReward = GameChapterMissions.reward(chapterBonusChapter)
+                Text("Assista voluntariamente a um vídeo para duplicar o prêmio da meta: +R$ " +
+                    stageReward + " em notas para visuais.",
+                    color=Muted,fontSize=13.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(16.dp))
+                if (ads?.ready == true) {
+                    GameButton("ASSISTIR VÍDEO • +R$ " + stageReward) {
+                        val bit = 1 shl chapterBonusChapter
+                        bonusAdError = ""
+                        ads.offerReward(onEarned = {
+                            if (screen == Screen.CHAPTER_BONUS &&
+                                chapterBonusClaimedMask and bit == 0) {
+                                cashCollected += stageReward
+                                chapterMissionNotes += stageReward
+                                chapterBonusClaimedMask = chapterBonusClaimedMask or bit
+                                screen = Screen.PLAY
+                            }
+                        }, onUnavailable = {
+                            bonusAdError = "Vídeo indisponível. Continue sem perder seu prêmio."
+                        })
+                    }
+                    Spacer(Modifier.height(10.dp))
+                } else {
+                    Text("Vídeo ainda não disponível. Você pode continuar normalmente.",
+                        color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                    Spacer(Modifier.height(10.dp))
+                }
+                if(bonusAdError.isNotBlank()) Text(bonusAdError,color=Coral,
+                    fontSize=12.sp,textAlign=TextAlign.Center)
+                GameButton("CONTINUAR SEM ANÚNCIO",secondary=true) {
+                    screen = Screen.PLAY
+                }
             }
         }
         if(screen==Screen.REVIVE) {
@@ -1472,6 +1618,46 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 if (magnetUses > 0) Text("ÍMÃ COLETADO $magnetUses VEZ(ES)",
                     color=Color(0xFFECA8FF),fontSize=11.sp)
                 Spacer(Modifier.height(14.dp))
+                if (roundDoubleClaimed || RewardedRoundBonus.wasClaimed(prefs,roundId)) {
+                    Text("BÔNUS DOBRADO RECEBIDO!",color=Teal,
+                        fontSize=13.sp,fontWeight=FontWeight.Black)
+                    Spacer(Modifier.height(10.dp))
+                } else if (RewardedRoundBonus.eligible(prefs,roundId)) {
+                    val receiptForBonus = GameSettlement.latestReceipt(prefs)
+                    Text("BÔNUS OPCIONAL: assista a um vídeo e receba mais " +
+                        (receiptForBonus?.coinsBanked ?: 0) + " moedas raras e R$ " +
+                        (receiptForBonus?.notesBanked ?: 0) +
+                        " notas. Apenas uma vez por partida.",
+                        color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                    Spacer(Modifier.height(9.dp))
+                    if (ads?.ready == true) {
+                        GameButton("ASSISTIR VÍDEO • DOBRAR RECOMPENSAS") {
+                            bonusAdError = ""
+                            ads.offerReward(onEarned = {
+                                if (screen == Screen.END && !roundDoubleClaimed) {
+                                    val claim = RewardedRoundBonus.claimDouble(prefs,roundId)
+                                    if (claim != null) {
+                                        roundDoubleClaimed = true
+                                        wallet = claim.wallet
+                                        cashWallet = claim.cash
+                                    } else if (!RewardedRoundBonus.wasClaimed(prefs,roundId)) {
+                                        bonusAdError = "Não foi possível confirmar o bônus."
+                                    }
+                                }
+                            }, onUnavailable = {
+                                bonusAdError = "Vídeo indisponível. Seus ganhos normais estão salvos."
+                            })
+                        }
+                        Spacer(Modifier.height(9.dp))
+                    } else {
+                        Text("Anúncio recompensado indisponível agora.",
+                            color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                    }
+                }
+                if (bonusAdError.isNotBlank()) {
+                    Text(bonusAdError,color=Coral,fontSize=12.sp,textAlign=TextAlign.Center)
+                    Spacer(Modifier.height(10.dp))
+                }
                 GameButton("JOGAR DE NOVO"){begin()}
                 Spacer(Modifier.height(10.dp))
                 GameButton("COMPARTILHAR PONTOS",secondary=true){

@@ -100,7 +100,10 @@ class RewardedReviveAds(private val activity: Activity) {
         )
     }
 
-    fun offerRevive(onEarned: () -> Unit, onUnavailable: () -> Unit) {
+    fun offerRevive(onEarned: () -> Unit, onUnavailable: () -> Unit) =
+        offerReward(onEarned, onUnavailable)
+
+    fun offerReward(onEarned: () -> Unit, onUnavailable: () -> Unit) {
         val ad = rewardedAd
         if (ad == null) {
             onUnavailable()
