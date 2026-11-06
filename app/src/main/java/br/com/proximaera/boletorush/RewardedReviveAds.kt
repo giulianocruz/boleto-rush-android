@@ -60,9 +60,13 @@ class RewardedReviveAds(private val activity: Activity) {
     }
 
     fun start() {
+        val initializedEarlier = sdkStarted
         adRequested = true
         refreshConsent()
         initializeIfAllowed()
+        // Retry on the next eligible screen after no-fill/network failure,
+        // but never request before the initial SDK callback has run.
+        if (initializedEarlier) load()
     }
 
     fun showPrivacyOptions() {
@@ -114,7 +118,7 @@ class RewardedReviveAds(private val activity: Activity) {
         var earned = false
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
-                if (earned) onEarned()
+                if (earned) onEarned() else onUnavailable()
                 load()
             }
             override fun onAdFailedToShowFullScreenContent(error: AdError) {
