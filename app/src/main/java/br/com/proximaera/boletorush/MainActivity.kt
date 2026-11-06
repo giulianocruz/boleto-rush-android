@@ -71,7 +71,7 @@ private enum class Mode(val title: String, val duration: Float) {
     CLASSIC("CLÁSSICO",45f), MARATHON("MARATONA",90f)
 }
 
-private data class Drop(val id: Int, val x: Float, val y: Float, val speed: Float, val kind: Kind)
+private data class Drop(val id: Int, val x: Float, val y: Float, val speed: Float, val kind: Kind, val value: Int = 0)
 
 private val artworkLock = Any()
 private val artworkCache = object : LruCache<Int, ImageBitmap>(18 * 1024) {
@@ -248,6 +248,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         )
     }
     val haptics = LocalHapticFeedback.current
+    var theme by remember { mutableStateOf(
+        if (prefs.getInt("theme", 0) == 1) GameTheme.BRASIL_EM_APUROS else GameTheme.BOLETO_RUSH
+    ) }
     var screen by remember { mutableStateOf(Screen.MENU) }
     LaunchedEffect(screen) {
         if (screen == Screen.REVIVE)
@@ -302,6 +305,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var combo by remember { mutableIntStateOf(0) }
     var maxCombo by remember { mutableIntStateOf(0) }
     var coinsCollected by remember { mutableIntStateOf(0) }
+    var runXp by remember { mutableIntStateOf(0) }
     var chapterCoins by remember { mutableIntStateOf(0) }
     var chapterMissionMask by remember { mutableIntStateOf(0) }
     var chapterMissionNotes by remember { mutableIntStateOf(0) }
@@ -345,12 +349,18 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         best = prefs.getInt(if(mode==Mode.CLASSIC) "best" else "best_marathon", 0)
         prefs.edit().putInt("mode", if(mode==Mode.CLASSIC) 0 else 1).apply()
     }
+    fun switchTheme() {
+        theme = if (theme == GameTheme.BOLETO_RUSH) GameTheme.BRASIL_EM_APUROS
+                else GameTheme.BOLETO_RUSH
+        prefs.edit().putInt("theme", if (theme == GameTheme.BRASIL_EM_APUROS) 1 else 0).apply()
+    }
     fun begin() {
         score = 0
         lives = 3
         combo = 0
         maxCombo = 0
         coinsCollected = 0
+        runXp = 0
         chapterCoins = 0
         chapterMissionMask = 0
         chapterMissionNotes = 0
@@ -486,13 +496,13 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     }
 
     BackHandler(enabled = screen != Screen.MENU) {
-        screen = when (screen) {
+        if (screen == Screen.REVIVE) { finish(false) } else screen = when (screen) {
             Screen.PLAY -> Screen.PAUSE
             Screen.PAUSE -> Screen.PLAY
             Screen.HOW -> Screen.MENU
             Screen.STORE -> Screen.MENU
             Screen.TUTORIAL -> Screen.MENU
-            Screen.REVIVE -> { finish(false); Screen.END }
+            Screen.REVIVE -> Screen.REVIVE
             Screen.END -> Screen.MENU
             Screen.MENU -> Screen.MENU
         }
@@ -544,7 +554,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 previousWasHazard = GameDrops.harmful(kind)
                 drops = drops + Drop(nextDropId++, GameDrops.spawnX(rng.nextFloat(), kind, playerX),
                     -.065f, GamePacing.dropSpeed(elapsed, mode.duration, gamesPlayed,
-                        rng.nextFloat()), kind)
+                        rng.nextFloat()), kind, if (kind == Kind.COIN) GameRunProgression.coinValue(rng.nextFloat(), lastStage) else 0)
             }
             val updated = ArrayList<Drop>(drops.size)
             for (item in drops) {
@@ -568,9 +578,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         Kind.COIN -> {
                             coinFlashSeconds = .42f
                             combo++
-                            val gained = GameDrops.coinScore(combo, pixTime > 0f)
+                            val gained = GameDrops.coinScore(combo, pixTime > 0f, item.value)
                             score += gained
                             coinsCollected++
+                            val previousLevel = GameRunProgression.level(runXp)
+                            runXp += item.value
                             val mission = GameChapterMissions.recordCoin(
                                 lastStage, chapterCoins, chapterMissionMask)
                             chapterCoins = mission.coins
@@ -593,6 +605,12 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             if (mission.cosmeticNotes > 0) {
                                 feedback = "META CONCLUÍDA! +R$ ${mission.cosmeticNotes} PARA VISUAIS"
                                 feedbackSeconds = 1.6f
+                            }
+                            val achievedLevel = GameRunProgression.level(runXp)
+                            if (achievedLevel > previousLevel) {
+                                shield = maxOf(shield, 2.5f)
+                                feedback = "NÍVEL " + achievedLevel + "! +2,5s DE PROTEÇÃO"
+                                feedbackSeconds = 1.8f
                             }
                             pulse(HapticFeedbackType.TextHandleMove)
                             tone(if (combo % 5 == 0) ToneGenerator.TONE_PROP_ACK else ToneGenerator.TONE_PROP_BEEP)
@@ -729,7 +747,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             val w = size.width
             val h = size.height
             val chapter = GamePacing.chapter(elapsed, mode.duration)
-            val skies = when (if (screen == Screen.PLAY || screen == Screen.PAUSE) chapter else 0) {
+            val skies = if (theme == GameTheme.BRASIL_EM_APUROS &&
+                (screen == Screen.PLAY || screen == Screen.PAUSE))
+                listOf(Color(0xFF304F49), Color(0xFF173340), Color(0xFF071326))
+            else when (if (screen == Screen.PLAY || screen == Screen.PAUSE) chapter else 0) {
                 1 -> listOf(Color(0xFF493D51), Color(0xFF1D2638), Color(0xFF0B1926))
                 2 -> listOf(Color(0xFF42364D), Color(0xFF1E2139), Color(0xFF0B172A))
                 3 -> listOf(Color(0xFF493038), Color(0xFF231A2C), Color(0xFF0D1427))
@@ -760,7 +781,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     drawRoundRect(Color(0xFF304A5E).copy(alpha=.40f),
                         Offset(w*.62f,h*.64f),Size(w*.14f,h*.10f),
                         CornerRadius(w*.012f))
-                    drawTextAt("PONTO",w*.69f,h*.665f,w*.021f,0xFF7891A0.toInt())
+                    drawTextAt(if (theme == GameTheme.BRASIL_EM_APUROS) "PRAÇA" else "PONTO",w*.69f,h*.665f,w*.021f,0xFF7891A0.toInt())
                 }
                 1 -> { // Dia do pagamento: bank frontage with pillars.
                     drawRoundRect(Color(0xFF32495A).copy(alpha=.62f),
@@ -772,7 +793,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         drawRect(Color(0xFF94A3AC).copy(alpha=.34f),
                             Offset(w*(.69f+i*.092f),h*.52f),Size(w*.022f,h*.21f))
                     }
-                    drawTextAt("BANCO",w*.80f,h*.505f,w*.032f,0xFFA2B2BD.toInt())
+                    drawTextAt(if (theme == GameTheme.BRASIL_EM_APUROS) "PALÁCIO" else "BANCO",w*.80f,h*.505f,w*.032f,0xFFA2B2BD.toInt())
                 }
                 2 -> { // Fim do mês: subdued shops, not a wall of competing icons.
                     for (i in 0..1) {
@@ -785,7 +806,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         drawRect(Color(0xFF637C87).copy(alpha=.45f),
                             Offset(left+w*.027f,h*.61f),Size(w*.086f,h*.060f))
                     }
-                    drawTextAt("COMÉRCIO",w*.78f,h*.54f,w*.030f,0xFFA5A6B0.toInt())
+                    drawTextAt(if (theme == GameTheme.BRASIL_EM_APUROS) "PLENÁRIO" else "COMÉRCIO",w*.78f,h*.54f,w*.030f,0xFFA5A6B0.toInt())
                 }
                 else -> { // Fechamento: tall collections office with red muted accents.
                     drawRoundRect(Color(0xFF3A3E50).copy(alpha=.60f),
@@ -796,7 +817,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             Offset(w*.76f,h*(.47f+i*.075f)),
                             Size(w*.15f,h*.025f))
                     }
-                    drawTextAt("FATURAS",w*.84f,h*.70f,w*.032f,0xFF9F8490.toInt())
+                    drawTextAt(if (theme == GameTheme.BRASIL_EM_APUROS) "DÍVIDA" else "FATURAS",w*.84f,h*.70f,w*.032f,0xFF9F8490.toInt())
                 }
             }
             // Discreet neighborhood signs help distinguish each financial chapter.
@@ -859,6 +880,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                                 drawCircle(Gold,r*.87f,Offset(x,y))
                                 drawTextAt("$",x,y+r*.37f,r*1.22f,0xFF644514.toInt())
                             }
+                            drawRoundRect(Navy.copy(alpha=.85f), Offset(x-r*.78f,y+r*.25f),
+                                Size(r*1.56f,r*.68f),CornerRadius(r*.17f))
+                            drawTextAt("+" + item.value,x,y+r*.75f,r*.72f,0xFFFFFFFF.toInt())
                         }
                         Kind.BANKNOTE -> {
                             drawRoundRect(Gold, Offset(x-r*1.15f,y-r*.72f),
@@ -909,6 +933,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         Kind.BILL -> {
                             val frame = if(item.y>.53f) billAttack else billIdle
                             drawPremiumSprite(frame,x,y,r*1.52f)
+                            if (theme == GameTheme.BRASIL_EM_APUROS) {
+                                drawRoundRect(Coral.copy(alpha=.93f),Offset(x-r*.73f,y+r*.36f),
+                                    Size(r*1.46f,r*.50f),CornerRadius(r*.14f))
+                                drawTextAt("TAXA",x,y+r*.76f,r*.58f,0xFFFFFFFF.toInt())
+                            }
                         }
                         Kind.SHIELD -> drawPremiumSprite(shieldCollect,x,y,r*1.42f)
                         Kind.MAGNET -> {
@@ -1052,7 +1081,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     Box(Modifier.fillMaxWidth((elapsed/mode.duration).coerceIn(0f,1f))
                         .fillMaxHeight().background(Teal,RoundedCornerShape(16.dp)))
                 }
-                Text("ETAPA ${GamePacing.chapter(elapsed,mode.duration)+1}/4 • ${GamePacing.chapterName(GamePacing.chapter(elapsed,mode.duration))}",
+                Text("ETAPA ${GamePacing.chapter(elapsed,mode.duration)+1}/4 • ${GameRunProgression.chapterName(theme,GamePacing.chapter(elapsed,mode.duration))}",
                     color=Muted,fontSize=10.sp,letterSpacing=.3.sp)
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,
                     verticalAlignment=Alignment.CenterVertically) {
@@ -1069,11 +1098,17 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 val done = GameChapterMissions.completed(chapter, chapterMissionMask)
                 Text(
                     if (done) "META CONCLUÍDA • +R$ ${GameChapterMissions.reward(chapter)}"
-                    else "META: ${GameChapterMissions.title(chapter)}  ${chapterCoins}/${GameChapterMissions.goal(chapter)}  • +R$ ${GameChapterMissions.reward(chapter)}",
+                    else "META: ${GameChapterMissions.title(chapter, theme)}  ${chapterCoins}/${GameChapterMissions.goal(chapter)}  • +R$ ${GameChapterMissions.reward(chapter)}",
                     color=if(done) Teal else Muted,
                     fontSize=10.sp,fontWeight=FontWeight.Bold,
                     textAlign=TextAlign.Center
                 )
+                val currentLevel = GameRunProgression.level(runXp)
+                Text("CARREIRA: " + GameRunProgression.rank(theme,currentLevel) +
+                    " • NÍVEL " + currentLevel + "/6 • XP " + runXp +
+                    (GameRunProgression.nextLevelXp(runXp)?.let { " / " + it } ?: " • MÁX"),
+                    color=if(theme==GameTheme.BRASIL_EM_APUROS) Gold else Teal,
+                    fontSize=10.sp,fontWeight=FontWeight.Bold)
                 val activePowers = GamePowerStatus.labels(pixTime, magnetTime, shield)
                 if (activePowers.isNotEmpty()) {
                     Text(activePowers.joinToString("  •  "),
@@ -1083,7 +1118,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 }
             }
             if(screen==Screen.PLAY && stageAnnouncementSeconds>0f) {
-                Text("NOVO CAPÍTULO: ${GamePacing.chapterName(lastStage)}",
+                Text("NOVO CAPÍTULO: ${GameRunProgression.chapterName(theme,lastStage)}",
                     color=Teal,fontSize=16.sp,fontWeight=FontWeight.Black,
                     modifier=Modifier.align(Alignment.Center).offset(y=(-170).dp)
                         .background(Navy.copy(alpha=.80f),RoundedCornerShape(14.dp))
@@ -1110,11 +1145,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(.71f)
                 .verticalScroll(rememberScrollState()).padding(horizontal=28.dp,vertical=10.dp),
                 horizontalAlignment=Alignment.CenterHorizontally) {
-                Text("ESCOLHA SEU DESAFIO",color=Gold,fontSize=16.sp,
+                Text(if(theme==GameTheme.BRASIL_EM_APUROS) "BRASIL EM APUROS • SÁTIRA" else "ESCOLHA SEU DESAFIO",color=Gold,fontSize=16.sp,
                     fontWeight=FontWeight.Black,letterSpacing=1.5.sp)
                 Spacer(Modifier.height(8.dp))
                 Spacer(Modifier.height(22.dp))
-                Text("🪙  Pegue moedas    🧾  Fuja dos boletos",
+                Text(if(theme==GameTheme.BRASIL_EM_APUROS) "🪙 +5/+10/+20  🧾 Desvie das taxas!" else "🪙 +5/+10/+20  🧾 Fuja dos boletos",
                     color=Color.White,textAlign=TextAlign.Center,fontSize=14.sp)
                 Spacer(Modifier.height(8.dp))
                 Text("✦ Saldo extra   🧲 Ímã   💳 Cartão   PIX x2   R$ Salário",
@@ -1124,6 +1159,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     color=Muted,textAlign=TextAlign.Center,fontSize=10.sp,letterSpacing=1.sp)
                 Spacer(Modifier.height(16.dp))
                 GameButton("MODO: ${mode.title}  (${mode.duration.toInt()}s) ↻",secondary=true){switchMode()}
+                Spacer(Modifier.height(9.dp))
+                GameButton("UNIVERSO: " + if(theme==GameTheme.BRASIL_EM_APUROS)
+                    "BRASIL EM APUROS" else "BOLETO RUSH",secondary=true){switchTheme()}
                 Spacer(Modifier.height(9.dp))
                 GameButton("JOGAR AGORA"){startOrTutorial()}
                 Spacer(Modifier.height(9.dp))

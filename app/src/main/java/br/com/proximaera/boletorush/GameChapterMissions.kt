@@ -22,6 +22,11 @@ internal object GameChapterMissions {
     fun goal(chapter: Int): Int = goals[chapter.coerceIn(0, 3)]
     fun reward(chapter: Int): Int = rewards[chapter.coerceIn(0, 3)]
     fun title(chapter: Int): String = names[chapter.coerceIn(0, 3)]
+    fun title(chapter: Int, theme: GameTheme): String =
+        if (theme == GameTheme.BRASIL_EM_APUROS)
+            arrayOf("FUGIR DAS TAXAS", "VIGIAR A VERBA",
+                "SALVAR O ORÇAMENTO", "QUITAR A DÍVIDA")[chapter.coerceIn(0, 3)]
+        else title(chapter)
 
     fun completed(chapter: Int, mask: Int): Boolean =
         chapter in 0..3 && mask and (1 shl chapter) != 0
