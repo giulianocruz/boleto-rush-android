@@ -53,8 +53,8 @@ internal object GameDrops {
     }
 
     /** Score is earned only when a visible coin is collected. Powers and notes have other rewards. */
-    fun coinScore(combo: Int, pixActive: Boolean): Int {
-        val base = 10 + (combo.coerceIn(1, 10) - 1) * 2
+    fun coinScore(combo: Int, pixActive: Boolean, faceValue: Int = 10): Int {
+        val base = faceValue.coerceIn(5, 20) + (combo.coerceIn(1, 10) - 1) * 2
         return if (pixActive) base * 2 else base
     }
 }
