@@ -245,4 +245,43 @@ class EconomyTransactionsTest {
         assertTrue(GameMilestones.awardRound(prefs,350,15,true).unlocked.isEmpty())
         assertEquals(8, GameEconomy.wallet(prefs))
     }
+
+    @Test fun rewardedDoubleCreditsExactlyOnceAndPreservesDebtAndRecord() {
+        val prefs = LocalTestPrefs()
+        val receipt = GameSettlement.settle(prefs,"rewarded-01",false,
+            70,10,24,0,0,false)!!
+        assertTrue(RewardedRoundBonus.eligible(prefs,"rewarded-01"))
+        val bonus = RewardedRoundBonus.claimDouble(prefs,"rewarded-01")!!
+        assertEquals(receipt.coinsBanked,bonus.coins)
+        assertEquals(24,bonus.notes)
+        assertEquals(receipt.wallet + bonus.coins, GameEconomy.wallet(prefs))
+        assertEquals(48, GameEconomy.cash(prefs))
+        assertTrue(RewardedRoundBonus.wasClaimed(prefs,"rewarded-01"))
+        assertEquals(null,RewardedRoundBonus.claimDouble(prefs,"rewarded-01"))
+        assertEquals(bonus.wallet,GameEconomy.wallet(prefs))
+        assertEquals(70,prefs.getInt("best",0))
+    }
+
+    @Test fun failedRewardCommitDoesNotPayAnyPartialBonus() {
+        val prefs = LocalTestPrefs()
+        GameSettlement.settle(prefs,"reward-fail",false,0,7,9,0,0,false)!!
+        val beforeCoins = GameEconomy.wallet(prefs)
+        val beforeNotes = GameEconomy.cash(prefs)
+        prefs.allowCommit = false
+        assertEquals(null,RewardedRoundBonus.claimDouble(prefs,"reward-fail"))
+        assertEquals(beforeCoins,GameEconomy.wallet(prefs))
+        assertEquals(beforeNotes,GameEconomy.cash(prefs))
+        prefs.allowCommit = true
+        assertTrue(RewardedRoundBonus.claimDouble(prefs,"reward-fail") != null)
+    }
+
+    @Test fun rewardedBonusRejectsUnknownOldAndEmptyRounds() {
+        val prefs = LocalTestPrefs()
+        assertFalse(RewardedRoundBonus.eligible(prefs,"missing"))
+        GameSettlement.settle(prefs,"round-first",false,0,8,6,0,0,false)!!
+        GameSettlement.settle(prefs,"round-second",false,0,0,0,0,0,false)!!
+        assertFalse(RewardedRoundBonus.eligible(prefs,"round-first"))
+        assertFalse(RewardedRoundBonus.eligible(prefs,"round-second"))
+        assertEquals(null,RewardedRoundBonus.claimDouble(prefs,"round-first"))
+    }
 }
