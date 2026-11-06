@@ -12,6 +12,7 @@ import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+import com.google.android.ump.ConsentForm
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
@@ -21,7 +22,10 @@ import com.google.android.ump.UserMessagingPlatform
  * The publisher test identifiers below NEVER generate monetizable revenue.
  * Replace both IDs with your own AdMob IDs and recheck consent before store launch.
  */
-class RewardedReviveAds(private val activity: Activity) {
+class RewardedReviveAds(
+    private val activity: Activity,
+    private val consentUiAllowed: () -> Boolean = { true }
+) {
     var ready by mutableStateOf(false)
         private set
     var privacyOptionsRequired by mutableStateOf(false)
@@ -33,8 +37,60 @@ class RewardedReviveAds(private val activity: Activity) {
     private var consentStarted = false
     private var adRequested = false
     private var consentComplete = false
+    private var consentInfoAvailable = false
+    private var consentFormRequested = false
+    private var pendingConsentForm: ConsentForm? = null
 
-    // Consent updates every launch; ad SDK initialization remains deferred until revive.
+    // Consent info can update in the background, but any required form must
+    // wait for the menu instead of appearing over a live round.
+    fun resumeSafeMenu() {
+        if (!consentUiAllowed()) return
+        showConsentIfReady()
+        showPendingFormAtMenu()
+        initializeIfAllowed()
+        if (sdkStarted) load()
+    }
+
+    private fun showConsentIfReady() {
+        if (!consentInfoAvailable || consentFormRequested ||
+            consentComplete || !consentUiAllowed()) return
+
+        if (consentInformation.consentStatus != ConsentInformation.ConsentStatus.REQUIRED ||
+            !consentInformation.isConsentFormAvailable) {
+            // There is no form to show; canRequestAds still decides whether
+            // advertising is permitted, including unusual configuration errors.
+            consentComplete = true
+            initializeIfAllowed()
+            return
+        }
+        consentFormRequested = true
+        // Separating loading from showing prevents a slow network response
+        // from opening a privacy form after the user starts a round.
+        UserMessagingPlatform.loadConsentForm(
+            activity,
+            { form ->
+                pendingConsentForm = form
+                showPendingFormAtMenu()
+            },
+            { error ->
+                Log.w("BoletoRushAds", "Consent form unavailable: ${error.message}")
+                consentComplete = true
+                initializeIfAllowed()
+            }
+        )
+    }
+
+    private fun showPendingFormAtMenu() {
+        if (!consentUiAllowed()) return
+        val form = pendingConsentForm ?: return
+        pendingConsentForm = null
+        form.show(activity) { error ->
+            if (error != null) Log.w("BoletoRushAds", "Consent form: ${error.message}")
+            consentComplete = true
+            initializeIfAllowed()
+        }
+    }
+
     fun refreshConsent() {
         if (consentStarted) return
         consentStarted = true
@@ -44,12 +100,9 @@ class RewardedReviveAds(private val activity: Activity) {
                 privacyOptionsRequired =
                     consentInformation.privacyOptionsRequirementStatus ==
                     ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
-                UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { error ->
-                    if (error != null) Log.w("BoletoRushAds", "Consent form: ${error.message}")
-                    consentComplete = true
-                    initializeIfAllowed()
-                }
-                // Do not start the advertising SDK before the consent form closes.
+                consentInfoAvailable = true
+                showConsentIfReady()
+                // A late network response cannot open the consent form over gameplay.
             },
             { error ->
                 Log.w("BoletoRushAds", "Consent update: ${error.message}")
@@ -66,7 +119,7 @@ class RewardedReviveAds(private val activity: Activity) {
         initializeIfAllowed()
         // Retry on the next eligible screen after no-fill/network failure,
         // but never request before the initial SDK callback has run.
-        if (initializedEarlier) load()
+        if (initializedEarlier && consentUiAllowed()) load()
     }
 
     fun showPrivacyOptions() {
@@ -78,7 +131,8 @@ class RewardedReviveAds(private val activity: Activity) {
     }
 
     private fun initializeIfAllowed() {
-        if (!adRequested || !consentComplete || !consentInformation.canRequestAds() || sdkStarted) return
+        if (!adRequested || !consentComplete || !consentUiAllowed() ||
+            !consentInformation.canRequestAds() || sdkStarted) return
         sdkStarted = true
         MobileAds.initialize(activity) { load() }
     }
