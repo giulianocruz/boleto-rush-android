@@ -44,6 +44,19 @@ class GamePowerRulesTest {
         assertEquals(Kind.OVERDRAFT, ordered.last())
     }
 
+    @Test fun defenseSortingOnlyNeededForActualSameFrameWalletContact() {
+        val hits = GamePowerRules::defensivePickupWillCollide
+        assertTrue(hits(Kind.ARMOR, .79f, .81f, .50f, .50f))
+        assertTrue(hits(Kind.SHIELD, .79f, .81f, .50f, .50f))
+        assertTrue(hits(Kind.HEART, .79f, .81f, .50f, .50f))
+        assertTrue(hits(Kind.SCREEN_CLEAR, .79f, .81f, .50f, .50f))
+        assertFalse(hits(Kind.BILL, .79f, .81f, .50f, .50f))
+        assertFalse(hits(Kind.SHIELD, .50f, .53f, .50f, .50f))
+        assertFalse(hits(Kind.SHIELD, .79f, .81f, .20f, .50f))
+        assertFalse(hits(Kind.ARMOR, .80f, .82f, .50f, .50f))
+        assertFalse(hits(Kind.ARMOR, .79f, Float.NaN, .50f, .50f))
+    }
+
     @Test fun screenClearNeverRemovesGoodPickups() {
         assertTrue(GamePowerRules.screenClear(Kind.BILL))
         assertTrue(GamePowerRules.screenClear(Kind.OVERDRAFT))

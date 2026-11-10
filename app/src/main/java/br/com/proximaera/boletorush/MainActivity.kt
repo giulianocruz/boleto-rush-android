@@ -613,7 +613,13 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             var clearHazards = false
             // Avoid allocating/sorting lists in ordinary frames with no
             // defensive pickups, while preserving same-frame collision fairness.
-            val hasDefense = drops.any { GamePowerRules.collisionPriority(it.kind) < 2 }
+            val hasDefense = drops.any { item ->
+                GamePowerRules.defensivePickupWillCollide(
+                    item.kind, item.y,
+                    item.y + item.speed * dt * GamePowerRules.fallingSpeedFactor(slowTime),
+                    item.x, playerX
+                )
+            }
             val frameDrops = if (hasDefense)
                 drops.sortedBy { GamePowerRules.collisionPriority(it.kind) }
                 else drops

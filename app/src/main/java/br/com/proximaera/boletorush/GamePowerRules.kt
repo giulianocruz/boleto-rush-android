@@ -18,6 +18,16 @@ internal object GamePowerRules {
 
     fun screenClear(kind: Kind): Boolean = GameDrops.harmful(kind)
 
+    /** Sort the drop list only when a defensive pickup crosses the wallet lane.
+     *  A shield still falling elsewhere must not trigger allocations every frame.
+     */
+    fun defensivePickupWillCollide(
+        kind: Kind, previousY: Float, nextY: Float, itemX: Float, playerX: Float
+    ): Boolean = collisionPriority(kind) < 2 &&
+        previousY < .80f && nextY >= .80f &&
+        nextY.isFinite() && itemX.isFinite() && playerX.isFinite() &&
+        kotlin.math.abs(itemX - playerX) < .118f
+
     /** Handle helpful pickups before hazards in the same frame.
      *  Prevents an armor or screen-clear collected together with a bill
      *  from unfairly consuming a life because of insertion order.
