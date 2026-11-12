@@ -1,0 +1,118 @@
+package br.com.proximaera.boletorush
+
+import android.content.SharedPreferences
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
+/** The boss has three predictable waves, with exactly one safe lane per wave. */
+internal data class MonthBossWave(
+    val number: Int,
+    val safeLane: Int,
+    val safeX: Float,
+    val hazardXs: List<Float>,
+    val hazardKind: Kind
+)
+
+internal data class MonthStampProgress(
+    val lastAwardedMonth: String,
+    val earnedStamps: Int
+)
+
+internal data class MonthStampUpdate(
+    val month: String,
+    val awarded: Boolean,
+    val notesAward: Int,
+    val stampCount: Int
+)
+
+/** A calendar-month collectible. No online server, purchase, or advertising required. */
+internal object GameMonthChallenge {
+    private const val LastMonthKey = "month_boss_last_award_v1"
+    private const val StampCountKey = "month_boss_stamp_count_v1"
+    private val MonthFormat = DateTimeFormatter.ofPattern("uuuu-MM")
+
+    const val WaveCount = 3
+    const val FinalWindowSeconds = 18f
+    const val WaveSpacingSeconds = 6f
+    const val NotesAward = 25
+    const val MaxStamps = 999
+
+    fun monthId(day: LocalDate = LocalDate.now()): String = day.format(MonthFormat)
+
+    /** A single run must finish its full duration to earn the month-end stamp. */
+    fun waveIndex(elapsed: Float, duration: Float): Int {
+        if (!elapsed.isFinite() || !duration.isFinite() ||
+            duration < FinalWindowSeconds || elapsed >= duration) return -1
+        val fromStart = elapsed - (duration - FinalWindowSeconds)
+        if (fromStart < 0f) return -1
+        return (fromStart / WaveSpacingSeconds).toInt().coerceIn(0, WaveCount - 1)
+    }
+
+    fun safeLaneLabel(index: Int): String = when (index) {
+        0 -> "ESQUERDA"
+        1 -> "CENTRO"
+        2 -> "DIREITA"
+        else -> "INDEFINIDA"
+    }
+
+    fun laneX(index: Int): Float = when (index) {
+        0 -> .18f
+        1 -> .50f
+        2 -> .82f
+        else -> throw IllegalArgumentException("Invalid lane")
+    }
+
+    /** Vary lane order by month without random, impossible cross-lane patterns. */
+    fun wave(index: Int, month: String): MonthBossWave {
+        require(index in 0 until WaveCount) { "Invalid boss wave" }
+        val monthNumber = month.substringAfter('-', "").toIntOrNull()
+            ?.takeIf { it in 1..12 } ?: 1
+        val safeLane = (index + monthNumber) % 3
+        return MonthBossWave(
+            number = index + 1,
+            safeLane = safeLane,
+            safeX = laneX(safeLane),
+            hazardXs = (0..2).filter { it != safeLane }.map(::laneX),
+            hazardKind = if (index == 1) Kind.OVERDRAFT else Kind.BILL
+        )
+    }
+
+    fun qualified(victory: Boolean, wavesLaunched: Int, bossContacts: Int): Boolean =
+        victory && wavesLaunched == WaveCount && bossContacts == 0
+
+    fun progress(prefs: SharedPreferences): MonthStampProgress =
+        MonthStampProgress(
+            prefs.getString(LastMonthKey, "").orEmpty(),
+            prefs.getInt(StampCountKey, 0).coerceIn(0, MaxStamps)
+        )
+
+    /** Plan only; GameSettlement persists the plan in its own atomic editor. */
+    fun plan(
+        prefs: SharedPreferences,
+        victory: Boolean,
+        wavesLaunched: Int,
+        bossContacts: Int,
+        challengeMonth: String,
+        today: LocalDate = LocalDate.now()
+    ): MonthStampUpdate {
+        val old = progress(prefs)
+        val current = monthId(today)
+        val eligible = qualified(victory, wavesLaunched, bossContacts) &&
+            challengeMonth == current &&
+            (old.lastAwardedMonth.isBlank() || current > old.lastAwardedMonth) &&
+            old.earnedStamps < MaxStamps
+        return MonthStampUpdate(
+            month = if (eligible) current else old.lastAwardedMonth,
+            awarded = eligible,
+            notesAward = if (eligible) NotesAward else 0,
+            stampCount = old.earnedStamps + if (eligible) 1 else 0
+        )
+    }
+
+    fun write(
+        editor: SharedPreferences.Editor,
+        update: MonthStampUpdate
+    ): SharedPreferences.Editor =
+        editor.putString(LastMonthKey, update.month)
+            .putInt(StampCountKey, update.stampCount)
+}

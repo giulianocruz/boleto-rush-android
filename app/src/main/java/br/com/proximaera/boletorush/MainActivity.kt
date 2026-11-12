@@ -71,7 +71,7 @@ private enum class Mode(val title: String, val duration: Float) {
     CLASSIC("CLÁSSICO",45f), MARATHON("MARATONA",90f)
 }
 
-private data class Drop(val id: Int, val x: Float, val y: Float, val speed: Float, val kind: Kind, val value: Int = 0)
+private data class Drop(val id: Int, val x: Float, val y: Float, val speed: Float, val kind: Kind, val value: Int = 0, val boss: Boolean = false)
 
 private val artworkLock = Any()
 private val artworkCache = object : LruCache<Int, ImageBitmap>(18 * 1024) {
@@ -331,6 +331,13 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var relicsPending by remember { mutableIntStateOf(0) }
     var relicsEarned by remember { mutableIntStateOf(0) }
     var relicWallet by remember { mutableIntStateOf(GameRelics.balance(prefs)) }
+    var bossMonth by remember { mutableStateOf(GameMonthChallenge.monthId()) }
+    var bossWave by remember { mutableIntStateOf(-1) }
+    var bossContacts by remember { mutableIntStateOf(0) }
+    var bossNoticeSeconds by remember { mutableFloatStateOf(0f) }
+    var monthStampAwarded by remember { mutableStateOf(false) }
+    var monthNotesEarned by remember { mutableIntStateOf(0) }
+    var monthStamps by remember { mutableIntStateOf(GameMonthChallenge.progress(prefs).earnedStamps) }
     var album by remember { mutableStateOf(GameRelicAlbum.progress(prefs)) }
     var relicBronze by remember { mutableIntStateOf(0) }
     var relicSilver by remember { mutableIntStateOf(0) }
@@ -410,6 +417,12 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         cashCollected = 0
         relicsPending = 0
         relicsEarned = 0
+        bossMonth = GameMonthChallenge.monthId()
+        bossWave = -1
+        bossContacts = 0
+        bossNoticeSeconds = 0f
+        monthStampAwarded = false
+        monthNotesEarned = 0
         relicBronze = 0
         relicSilver = 0
         relicGold = 0
@@ -497,7 +510,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             GameSettlement.settle(prefs, roundId, mode == Mode.MARATHON,
                 score, coinsCollected, cashCollected, pendingCardCredit,
                 incomeLevel, victory, relicsCollected = relicsPending,
-                relicBronze = relicBronze, relicSilver = relicSilver, relicGold = relicGold)
+                relicBronze = relicBronze, relicSilver = relicSilver, relicGold = relicGold,
+                monthlyBossWaves = bossWave + 1, monthlyBossContacts = bossContacts,
+                challengeMonth = bossMonth)
         }.getOrNull()
         if (receipt == null) {
             settlementError = "Não foi possível salvar. Tente resgatar novamente."
@@ -519,6 +534,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         relicWallet = receipt.relicWallet
         weeklyNotesEarned = receipt.weeklyNotesAward
         albumNewlyUnlocked = receipt.albumUnlocked
+        monthStampAwarded = receipt.monthStampAwarded
+        monthNotesEarned = receipt.monthNotesAward
+        monthStamps = receipt.monthStampCount
         album = GameRelicAlbum.progress(prefs)
         roundCreditGranted = receipt.creditGranted
         roundDebtRepaid = receipt.debtRepaid
@@ -627,6 +645,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             coinFlashSeconds = (coinFlashSeconds - dt).coerceAtLeast(0f)
             nearMissFlashSeconds = (nearMissFlashSeconds - dt).coerceAtLeast(0f)
             stageAnnouncementSeconds = (stageAnnouncementSeconds - dt).coerceAtLeast(0f)
+            bossNoticeSeconds = (bossNoticeSeconds - dt).coerceAtLeast(0f)
             val currentStage = GamePacing.chapter(elapsed, mode.duration)
             if (currentStage != lastStage) {
                 val finishedChapter = lastStage
@@ -645,21 +664,40 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     break
                 }
             }
-            spawnElapsed += dt
-            val interval = GamePacing.spawnInterval(elapsed, mode.duration, gamesPlayed)
-            if (spawnElapsed >= interval) {
-                spawnElapsed -= interval
-                // The opening drop teaches the player the currency; after that,
-                // never generate more than two non-coins in a row.
-                val kind = if (nextDropId == 0) Kind.COIN else GameDrops.choose(
-                    rng.nextFloat(), rng.nextFloat(), elapsed, mode.duration,
-                    gamesPlayed, previousWasHazard, nonCoinStreak
-                )
-                nonCoinStreak = if (kind == Kind.COIN) 0 else (nonCoinStreak + 1).coerceAtMost(2)
-                previousWasHazard = GameDrops.harmful(kind)
-                drops = drops + Drop(nextDropId++, GameDrops.spawnX(rng.nextFloat(), kind, playerX),
-                    -.065f, GamePacing.dropSpeed(elapsed, mode.duration, gamesPlayed,
-                        rng.nextFloat()), kind, if (kind == Kind.COIN) GameRunProgression.coinValue(rng.nextFloat(), lastStage) else 0)
+            val newBossWave = GameMonthChallenge.waveIndex(elapsed, mode.duration)
+            if (newBossWave >= 0) {
+                if (newBossWave > bossWave) {
+                    // Clear pre-event bills only; keep any previously earned pickups.
+                    if (bossWave == -1) drops = drops.filterNot { GameDrops.harmful(it.kind) }
+                    bossWave = newBossWave
+                    val wave = GameMonthChallenge.wave(bossWave,bossMonth)
+                    bossNoticeSeconds = 5.5f
+                    stageAnnouncementSeconds = 0f
+                    wave.hazardXs.forEach { lane ->
+                        drops = drops + Drop(nextDropId++,lane,-.065f,.32f,
+                            wave.hazardKind,boss=true)
+                    }
+                    // A coin visibly marks the safe corridor on every wave.
+                    drops = drops + Drop(nextDropId++,wave.safeX,-.065f,.32f,
+                        Kind.COIN,value=10)
+                    tone(ToneGenerator.TONE_PROP_NACK)
+                }
+            } else {
+                spawnElapsed += dt
+                val interval = GamePacing.spawnInterval(elapsed, mode.duration, gamesPlayed)
+                if (spawnElapsed >= interval) {
+                    spawnElapsed -= interval
+                    // Original paced drops resume unchanged until the boss window.
+                    val kind = if (nextDropId == 0) Kind.COIN else GameDrops.choose(
+                        rng.nextFloat(), rng.nextFloat(), elapsed, mode.duration,
+                        gamesPlayed, previousWasHazard, nonCoinStreak
+                    )
+                    nonCoinStreak = if (kind == Kind.COIN) 0 else (nonCoinStreak + 1).coerceAtMost(2)
+                    previousWasHazard = GameDrops.harmful(kind)
+                    drops = drops + Drop(nextDropId++, GameDrops.spawnX(rng.nextFloat(), kind, playerX),
+                        -.065f, GamePacing.dropSpeed(elapsed, mode.duration, gamesPlayed,
+                            rng.nextFloat()), kind, if (kind == Kind.COIN) GameRunProgression.coinValue(rng.nextFloat(), lastStage) else 0)
+                }
             }
             val updated = ArrayList<Drop>(drops.size)
             var clearHazards = false
@@ -695,6 +733,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     GamePickup.coinContact(item.y, ny, nx, playerX, magnetCatch)
                 } else normalContact
                 if (collected) {
+                    if (item.boss && GameDrops.harmful(item.kind)) bossContacts++
                     when (item.kind) {
                         Kind.COIN -> {
                             coinFlashSeconds = .42f
@@ -1391,6 +1430,16 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     Text("COMBO x$combo",color=Gold,fontSize=11.sp,fontWeight=FontWeight.Bold)
                 }
             }
+            if(screen==Screen.PLAY && bossWave>=0 && bossNoticeSeconds>0f) {
+                Text("🧾 FECHAMENTO • ONDA ${bossWave+1}/3\nFAIXA SEGURA: " +
+                    GameMonthChallenge.safeLaneLabel(
+                        GameMonthChallenge.wave(bossWave,bossMonth).safeLane),
+                    color=Gold,fontSize=17.sp,fontWeight=FontWeight.Black,
+                    modifier=Modifier.align(Alignment.Center).offset(y=(-180).dp)
+                        .background(Navy.copy(alpha=.88f),RoundedCornerShape(12.dp))
+                        .padding(horizontal=15.dp,vertical=9.dp),
+                    textAlign=TextAlign.Center)
+            }
             if(screen==Screen.PLAY && stageAnnouncementSeconds>0f) {
                 Text("NOVO CAPÍTULO: ${GameRunProgression.chapterName(theme,lastStage)}",
                     color=Teal,fontSize=16.sp,fontWeight=FontWeight.Black,
@@ -1667,6 +1716,13 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(9.dp))
                 GameButton("VOLTAR AO MENU"){screen=Screen.MENU}
                 Spacer(Modifier.height(9.dp))
+                Text("🏆 FECHAMENTO DO MÊS: " + monthStamps + " SELO(S) CONQUISTADO(S)",
+                    color=Gold,fontSize=14.sp,fontWeight=FontWeight.Bold,
+                    textAlign=TextAlign.Center)
+                Text("Sobreviva às 3 ondas finais sem tocar nos boletos para receber " +
+                    "um selo mensal e R$ 25 em notas virtuais (uma vez por mês).",
+                    color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(15.dp))
                 Text("COLEÇÃO E RECOMPENSAS VIRTUAIS • SEM DINHEIRO REAL",
                     color=Muted,fontSize=10.sp,textAlign=TextAlign.Center)
             }
@@ -1887,6 +1943,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     "📅 MISSÃO SEMANAL! +R$ $weeklyNotesEarned EM NOTAS",
                     color=Teal,fontSize=14.sp,fontWeight=FontWeight.Black,
                     textAlign=TextAlign.Center)
+                if (monthStampAwarded) Text(
+                    "🧾 FECHAMENTO VENCIDO! NOVO SELO MENSAL + R$ $monthNotesEarned",
+                    color=Gold,fontSize=15.sp,fontWeight=FontWeight.Black,
+                    textAlign=TextAlign.Center)
+                else if (won && bossWave >= 2) Text(
+                    if (bossContacts > 0) "FECHAMENTO SUPERADO, MAS O SELO PEDE DESVIOS PERFEITOS."
+                    else "FECHAMENTO CONCLUÍDO • SELO DO MÊS JÁ CONQUISTADO!",
+                    color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
                 if (albumNewlyUnlocked) Text(
                     "🏆 ÁLBUM COMPLETO! NOVO VISUAL EXCLUSIVO DISPONÍVEL!",
                     color=Gold,fontSize=13.sp,fontWeight=FontWeight.Black,
