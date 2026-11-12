@@ -2060,20 +2060,25 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 if (magnetUses > 0) Text("ÍMÃ COLETADO $magnetUses VEZ(ES)",
                     color=Color(0xFFECA8FF),fontSize=11.sp)
                 Spacer(Modifier.height(14.dp))
+                val bonusPreview = RewardedRoundBonus.preview(prefs, roundId)
                 if (roundDoubleClaimed || RewardedRoundBonus.wasClaimed(prefs,roundId)) {
-                    Text("BÔNUS DOBRADO RECEBIDO!",color=Teal,
+                    Text("BÔNUS DO VÍDEO RECEBIDO!",color=Teal,
                         fontSize=13.sp,fontWeight=FontWeight.Black)
                     Spacer(Modifier.height(10.dp))
-                } else if (RewardedRoundBonus.eligible(prefs,roundId)) {
+                } else if (bonusPreview != null) {
                     val receiptForBonus = GameSettlement.latestReceipt(prefs)
-                    Text("BÔNUS OPCIONAL: assista a um vídeo e receba mais " +
-                        (receiptForBonus?.coinsBanked ?: 0) + " moedas raras e R$ " +
-                        (receiptForBonus?.notesBanked ?: 0) +
-                        " notas. Apenas uma vez por partida.",
+                    val fullBonus = bonusPreview.coins == (receiptForBonus?.coinsBanked ?: 0) &&
+                        bonusPreview.notes == (receiptForBonus?.notesBanked ?: 0)
+                    Text((if (fullBonus) "BÔNUS OPCIONAL: " else "CARTEIRA QUASE CHEIA: ") +
+                        "assista voluntariamente a um vídeo e receba +" +
+                        bonusPreview.coins + " moedas raras e +R$ " +
+                        bonusPreview.notes +
+                        " em notas. Apenas uma vez por partida.",
                         color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
                     Spacer(Modifier.height(9.dp))
                     if (ads?.ready == true) {
-                        GameButton("ASSISTIR VÍDEO • DOBRAR RECOMPENSAS") {
+                        GameButton(if (fullBonus) "ASSISTIR VÍDEO • DOBRAR RECOMPENSAS"
+                            else "ASSISTIR VÍDEO • BÔNUS DISPONÍVEL") {
                             bonusAdError = ""
                             ads.offerReward(onEarned = {
                                 if (screen == Screen.END && !roundDoubleClaimed) {

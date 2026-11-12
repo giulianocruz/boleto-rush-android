@@ -48,6 +48,70 @@ private class LocalTestPrefs : SharedPreferences {
 }
 
 class EconomyTransactionsTest {
+    @Test fun rewardedVideoIsNotOfferedWhenBothWalletsAreCompletelyFull() {
+        val prefs = LocalTestPrefs()
+        GameSettlement.settle(prefs,"reward-at-cap",false,25,10,20,0,0,false)!!
+        prefs.edit().putInt("wallet_coins", Int.MAX_VALUE)
+            .putInt("wallet_cash", Int.MAX_VALUE).commit()
+        assertEquals(null, RewardedRoundBonus.preview(prefs,"reward-at-cap"))
+        assertFalse(RewardedRoundBonus.eligible(prefs,"reward-at-cap"))
+        assertEquals(null, RewardedRoundBonus.claimDouble(prefs,"reward-at-cap"))
+        assertFalse(RewardedRoundBonus.wasClaimed(prefs,"reward-at-cap"))
+        assertEquals(Int.MAX_VALUE, GameEconomy.wallet(prefs))
+        assertEquals(Int.MAX_VALUE, GameEconomy.cash(prefs))
+    }
+
+    @Test fun rewardedVideoDisplaysAndCreditsOnlyAmountsThatFit() {
+        val prefs = LocalTestPrefs()
+        val receipt = GameSettlement.settle(
+            prefs,"reward-partial",false,15,10,20,0,0,false
+        )!!
+        assertTrue(receipt.coinsBanked > 1 && receipt.notesBanked > 7)
+        prefs.edit().putInt("wallet_coins", Int.MAX_VALUE - 1)
+            .putInt("wallet_cash", Int.MAX_VALUE - 7).commit()
+        val preview = RewardedRoundBonus.preview(prefs,"reward-partial")!!
+        assertEquals(1, preview.coins)
+        assertEquals(7, preview.notes)
+        assertEquals(Int.MAX_VALUE, preview.wallet)
+        assertEquals(Int.MAX_VALUE, preview.cash)
+        assertTrue(RewardedRoundBonus.eligible(prefs,"reward-partial"))
+        val granted = RewardedRoundBonus.claimDouble(prefs,"reward-partial")!!
+        assertEquals(preview, granted)
+        assertEquals(Int.MAX_VALUE, GameEconomy.wallet(prefs))
+        assertEquals(Int.MAX_VALUE, GameEconomy.cash(prefs))
+        assertEquals(null,RewardedRoundBonus.claimDouble(prefs,"reward-partial"))
+        assertTrue(RewardedRoundBonus.wasClaimed(prefs,"reward-partial"))
+    }
+
+    @Test fun rewardedVideoCanOfferNotesOnlyWhenCoinWalletIsFull() {
+        val prefs = LocalTestPrefs()
+        GameSettlement.settle(prefs,"reward-only-notes",false,10,10,20,0,0,false)!!
+        prefs.edit().putInt("wallet_coins", Int.MAX_VALUE)
+            .putInt("wallet_cash", Int.MAX_VALUE - 2).commit()
+        val preview = RewardedRoundBonus.preview(prefs,"reward-only-notes")!!
+        assertEquals(0, preview.coins)
+        assertEquals(2, preview.notes)
+        val granted = RewardedRoundBonus.claimDouble(prefs,"reward-only-notes")!!
+        assertEquals(preview, granted)
+        assertEquals(Int.MAX_VALUE, GameEconomy.wallet(prefs))
+        assertEquals(Int.MAX_VALUE, GameEconomy.cash(prefs))
+    }
+
+    @Test fun rewardedVideoRechecksWalletLimitsAtEarnedCallback() {
+        val prefs = LocalTestPrefs()
+        GameSettlement.settle(prefs,"reward-cap-changed",false,10,10,20,0,0,false)!!
+        val original = RewardedRoundBonus.preview(prefs,"reward-cap-changed")!!
+        assertTrue(original.coins > 0 && original.notes > 0)
+        prefs.edit().putInt("wallet_coins", Int.MAX_VALUE - 1)
+            .putInt("wallet_cash", Int.MAX_VALUE - 1).commit()
+        val granted = RewardedRoundBonus.claimDouble(prefs,"reward-cap-changed")!!
+        assertEquals(1, granted.coins)
+        assertEquals(1, granted.notes)
+        assertEquals(Int.MAX_VALUE, GameEconomy.wallet(prefs))
+        assertEquals(Int.MAX_VALUE, GameEconomy.cash(prefs))
+        assertFalse(RewardedRoundBonus.eligible(prefs,"reward-cap-changed"))
+    }
+
     @Test fun notesTradeNeverConsumesRelicsIfFullRewardCannotFit() {
         val prefs = LocalTestPrefs()
         prefs.edit()

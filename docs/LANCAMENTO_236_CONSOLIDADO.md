@@ -113,3 +113,11 @@ O histórico de integração 2.3.6 deste documento foi mantido como evidência. 
 **Validação atual:** `BUILD SUCCESSFUL`, **111 testes / zero falhas**, **Android Lint 0 erros / 34 avisos**, redução de 3 avisos relacionados a backup e ícones. APK e SHA-256 estão em [QA 2.3.7 — compatibilidade Android](QA_237_ANDROID_COMPAT.md).
 
 A PR integrada permanece em **NO-GO** até testes completos em celular físico, consentimento UMP/AdMob, capturas atuais da ficha, verificação de conta Play e geração de AAB assinado com credenciais comerciais mantidas fora do Git.
+
+## Atualização posterior — candidato QA 2.3.8 (12/11/2026)
+
+A linha histórica de QA 2.3.6 e o relatório de compatibilidade da 2.3.7 continuam válidos como registros anteriores. O **candidato mais recente** da PR integrada #39 é **Boleto Rush 2.3.8-QA, versionCode 45**, com correção do valor prometido em anúncios recompensados opcionais quando a carteira de moedas/notas está perto da capacidade máxima.
+
+**Evidência na branch:** `BUILD SUCCESSFUL`; **115 testes / zero falhas / zero erros**; **Android Lint 0 erros / 34 avisos**. APK, SHA-256 e roteiro completos estão em [QA 2.3.8 — recompensa justa](QA_238_AD_REWARD_FAIRNESS.md).
+
+O estado de publicação **permanece NO-GO**: faltam dispositivo físico Android, testes UMP/AdMob, capturas reais, revisão final das declarações da Play Console, assinatura de upload e AdMob comercial. A `main` não foi alterada.
