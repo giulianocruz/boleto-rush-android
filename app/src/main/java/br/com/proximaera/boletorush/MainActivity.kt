@@ -598,7 +598,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             shopMessage = "TROCA CONFIRMADA • ${deal.label}"
             tone(ToneGenerator.TONE_PROP_ACK)
         } else {
-            shopMessage = "RELÍQUIAS INSUFICIENTES OU PODER JÁ PREPARADO"
+            shopMessage = if (!GameRelics.tradeHasCapacity(prefs, deal))
+                "SALDO NO LIMITE! NENHUMA RELÍQUIA FOI DESCONTADA."
+            else "RELÍQUIAS INSUFICIENTES OU PODER JÁ PREPARADO"
         }
     }
     fun toggleSound() {
