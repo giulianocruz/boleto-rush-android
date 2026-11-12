@@ -137,10 +137,11 @@ internal object GameSettlement {
             coinsBanked + milestoneBanked).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
         val notesBanked = notesCollected.coerceAtLeast(0)
+        // Discovery progress is earned by collecting, even when the fragment
+        // wallet is full. Only the amount deposited is constrained by capacity.
+        val collectedFragments = GameRelics.bankable(relicsCollected)
         val albumUpdate = GameRelicAlbum.planSettlement(prefs,
-            relicBronze, relicSilver, relicGold,
-            minOf(GameRelics.bankable(relicsCollected),
-                GameRelics.MaxWallet - GameRelics.balance(prefs)))
+            relicBronze, relicSilver, relicGold, collectedFragments)
         val monthUpdate = GameMonthChallenge.plan(
             prefs, victory, monthlyBossWaves, monthlyBossContacts, challengeMonth,
             hazardsResolved = monthlyBossResolved)
@@ -149,7 +150,7 @@ internal object GameSettlement {
             .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
         val relicBalance = GameRelics.balance(prefs)
-        val relicsBanked = minOf(GameRelics.bankable(relicsCollected),
+        val relicsBanked = minOf(collectedFragments,
             GameRelics.MaxWallet - relicBalance)
         val nextRelicBalance = relicBalance + relicsBanked
 

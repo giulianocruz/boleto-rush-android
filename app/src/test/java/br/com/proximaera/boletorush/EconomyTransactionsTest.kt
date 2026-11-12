@@ -48,6 +48,79 @@ private class LocalTestPrefs : SharedPreferences {
 }
 
 class EconomyTransactionsTest {
+    @Test fun aFullRelicWalletStillRecordsDiscoveriesAndWeeklyProgress() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt(GameRelics.WalletKey, GameRelics.MaxWallet - 1).commit()
+        val first = GameSettlement.settle(
+            prefs, "relic-cap-bronze", false, 15, 0, 0, 0, 0, false,
+            relicsCollected = 5, relicBronze = 5
+        )!!
+        assertEquals(1, first.relicsBanked)
+        assertEquals(GameRelics.MaxWallet, first.relicWallet)
+        assertEquals(5, GameRelicAlbum.progress(prefs).weeklyFragments)
+        assertEquals(5, GameRelicAlbum.progress(prefs).bronze)
+        assertEquals(0, first.weeklyNotesAward)
+
+        val second = GameSettlement.settle(
+            prefs, "relic-cap-silver", false, 30, 0, 0, 0, 0, false,
+            relicsCollected = 3, relicSilver = 3
+        )!!
+        assertEquals(0, second.relicsBanked)
+        assertEquals(GameRelics.MaxWallet, second.relicWallet)
+        assertEquals(8, GameRelicAlbum.progress(prefs).weeklyFragments)
+        assertEquals(3, GameRelicAlbum.progress(prefs).silver)
+        assertEquals(16, second.weeklyNotesAward)
+        assertEquals(16, GameEconomy.cash(prefs))
+        assertEquals(second, GameSettlement.settle(
+            prefs, "relic-cap-silver", false, 999, 99, 99, 0, 0, true,
+            relicsCollected = 12, relicGold = 12
+        ))
+        assertEquals(16, GameEconomy.cash(prefs))
+
+        val final = GameSettlement.settle(
+            prefs, "relic-cap-gold", false, 35, 0, 0, 0, 0, false,
+            relicsCollected = 1, relicGold = 1
+        )!!
+        assertEquals(0, final.relicsBanked)
+        assertEquals(0, final.weeklyNotesAward)
+        assertTrue(final.albumUnlocked)
+        assertEquals(1, GameRelicAlbum.progress(prefs).gold)
+        assertEquals(GameRelics.MaxWallet, GameRelics.balance(prefs))
+        assertTrue(GameEconomy.ownsCosmetic(prefs, Cosmetic.RELIC_HUNTER))
+    }
+
+    @Test fun failedSaveAtRelicCapacityDoesNotPartiallyCreditCollection() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt(GameRelics.WalletKey, GameRelics.MaxWallet).commit()
+        prefs.allowCommit = false
+        assertEquals(null, GameSettlement.settle(
+            prefs, "relic-full-retry", false, 12, 0, 0, 0, 0, false,
+            relicsCollected = 8, relicBronze = 8
+        ))
+        assertEquals(0, GameRelicAlbum.progress(prefs).bronze)
+        assertEquals(0, GameRelicAlbum.progress(prefs).weeklyFragments)
+        assertEquals(0, GameEconomy.cash(prefs))
+        assertEquals(GameRelics.MaxWallet, GameRelics.balance(prefs))
+
+        prefs.allowCommit = true
+        val settled = GameSettlement.settle(
+            prefs, "relic-full-retry", false, 12, 0, 0, 0, 0, false,
+            relicsCollected = 8, relicBronze = 8
+        )!!
+        assertEquals(0, settled.relicsBanked)
+        assertEquals(16, settled.weeklyNotesAward)
+        assertEquals(8, GameRelicAlbum.progress(prefs).weeklyFragments)
+        assertEquals(8, GameRelicAlbum.progress(prefs).bronze)
+        assertEquals(16, GameEconomy.cash(prefs))
+        assertFalse(GameRelics.rewardedEligible(prefs, "relic-full-retry"))
+        assertEquals(settled, GameSettlement.latestReceipt(prefs))
+        assertEquals(settled, GameSettlement.settle(
+            prefs, "relic-full-retry", false, 100, 100, 100, 0, 0, true,
+            relicsCollected = 12
+        ))
+        assertEquals(16, GameEconomy.cash(prefs))
+    }
+
     @Test fun bossWithUnresolvedLastHazardNeverAwardsStampOrNotes() {
         val prefs=LocalTestPrefs()
         val month=GameMonthChallenge.monthId()
