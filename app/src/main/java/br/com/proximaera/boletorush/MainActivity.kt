@@ -2001,6 +2001,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 if (relicsEarned > 0) Text("💎 +$relicsEarned FRAGMENTOS • COFRE: $relicWallet",
                     color=Gold,fontSize=14.sp,fontWeight=FontWeight.Black,
                     textAlign=TextAlign.Center)
+                if (relicsPending > relicsEarned) Text(
+                    "💎 COFRE CHEIO: ${relicsPending - relicsEarned} FRAGMENTO(S) CONTARAM PARA ÁLBUM E MISSÃO.",
+                    color=Muted,fontSize=12.sp,fontWeight=FontWeight.Bold,
+                    textAlign=TextAlign.Center)
                 if (weeklyNotesEarned > 0) Text(
                     "📅 MISSÃO SEMANAL! +R$ $weeklyNotesEarned EM NOTAS",
                     color=Teal,fontSize=14.sp,fontWeight=FontWeight.Black,
