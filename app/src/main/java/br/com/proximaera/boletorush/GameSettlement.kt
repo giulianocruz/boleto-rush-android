@@ -102,6 +102,7 @@ internal object GameSettlement {
         relicGold: Int = 0,
         monthlyBossWaves: Int = 0,
         monthlyBossContacts: Int = 0,
+        monthlyBossResolved: Int = 0,
         challengeMonth: String = ""
     ): GameReceipt? {
         require(roundId.isNotBlank() && '\n' !in roundId && '\r' !in roundId) {
@@ -141,7 +142,8 @@ internal object GameSettlement {
             minOf(GameRelics.bankable(relicsCollected),
                 GameRelics.MaxWallet - GameRelics.balance(prefs)))
         val monthUpdate = GameMonthChallenge.plan(
-            prefs, victory, monthlyBossWaves, monthlyBossContacts, challengeMonth)
+            prefs, victory, monthlyBossWaves, monthlyBossContacts, challengeMonth,
+            hazardsResolved = monthlyBossResolved)
         val nextNotes = (GameEconomy.cash(prefs).toLong() +
             notesBanked + albumUpdate.weeklyNotesAward + monthUpdate.notesAward)
             .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()

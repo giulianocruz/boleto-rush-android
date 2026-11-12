@@ -7,6 +7,30 @@ import org.junit.Test
 import java.time.LocalDate
 
 class GameMonthChallengeTest {
+    @Test fun stampCannotBeEarnedBeforeAllSixHazardsAreResolved() {
+        assertFalse(GameMonthChallenge.qualified(true,3,0,0))
+        assertFalse(GameMonthChallenge.qualified(true,3,0,5))
+        assertTrue(GameMonthChallenge.qualified(true,3,0,6))
+        assertFalse(GameMonthChallenge.qualified(true,3,0,7))
+        assertFalse(GameMonthChallenge.qualified(false,3,0,6))
+    }
+
+    @Test fun screenClearCountsOnlyHazardsAboveWalletLine() {
+        assertTrue(GameMonthChallenge.hazardResolved(.799f,.801f,false))
+        assertFalse(GameMonthChallenge.hazardResolved(.799f,.7995f,false))
+        assertFalse(GameMonthChallenge.hazardResolved(.8f,.82f,false))
+        assertTrue(GameMonthChallenge.hazardResolved(.12f,.12f,true))
+        assertFalse(GameMonthChallenge.hazardResolved(.86f,.86f,true))
+        assertFalse(GameMonthChallenge.hazardResolved(Float.NaN,.9f,false))
+        assertFalse(GameMonthChallenge.hazardResolved(.1f,Float.POSITIVE_INFINITY,true))
+    }
+
+    @Test fun bossWaveTitleIsPrintableOnAndroid() {
+        assertEquals("FECHAMENTO | ONDA 1/3",GameMonthChallenge.waveTitle(0))
+        assertEquals("FECHAMENTO | ONDA 3/3",GameMonthChallenge.waveTitle(2))
+        assertTrue(GameMonthChallenge.waveTitle(1).all { it.code >= 32 })
+    }
+
     @Test fun preBossWarningGivesFiveSecondsToPrepareForBothModes() {
         assertEquals(0,GameMonthChallenge.warningSeconds(21.9f,45f))
         assertEquals(5,GameMonthChallenge.warningSeconds(22f,45f))
@@ -75,11 +99,11 @@ class GameMonthChallengeTest {
     }
 
     @Test fun monthStampNeedsAllWavesVictoryAndZeroContacts() {
-        assertTrue(GameMonthChallenge.qualified(true,3,0))
-        assertFalse(GameMonthChallenge.qualified(true,2,0))
-        assertFalse(GameMonthChallenge.qualified(false,3,0))
-        assertFalse(GameMonthChallenge.qualified(true,3,1))
-        assertFalse(GameMonthChallenge.qualified(true,4,0))
+        assertTrue(GameMonthChallenge.qualified(true,3,0,6))
+        assertFalse(GameMonthChallenge.qualified(true,2,0,4))
+        assertFalse(GameMonthChallenge.qualified(false,3,0,6))
+        assertFalse(GameMonthChallenge.qualified(true,3,1,6))
+        assertFalse(GameMonthChallenge.qualified(true,4,0,8))
         assertEquals("2026-11", GameMonthChallenge.monthId(LocalDate.of(2026,11,12)))
         assertEquals("2027-01", GameMonthChallenge.monthId(LocalDate.of(2027,1,1)))
     }

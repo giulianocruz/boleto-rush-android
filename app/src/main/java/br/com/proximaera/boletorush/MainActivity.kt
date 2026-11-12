@@ -334,6 +334,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var bossMonth by remember { mutableStateOf(GameMonthChallenge.monthId()) }
     var bossWave by remember { mutableIntStateOf(-1) }
     var bossContacts by remember { mutableIntStateOf(0) }
+    var bossResolved by remember { mutableIntStateOf(0) }
     var bossNoticeSeconds by remember { mutableFloatStateOf(0f) }
     var monthStampAwarded by remember { mutableStateOf(false) }
     var monthNotesEarned by remember { mutableIntStateOf(0) }
@@ -420,6 +421,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         bossMonth = GameMonthChallenge.monthId()
         bossWave = -1
         bossContacts = 0
+        bossResolved = 0
         bossNoticeSeconds = 0f
         monthStampAwarded = false
         monthNotesEarned = 0
@@ -512,7 +514,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 incomeLevel, victory, relicsCollected = relicsPending,
                 relicBronze = relicBronze, relicSilver = relicSilver, relicGold = relicGold,
                 monthlyBossWaves = bossWave + 1, monthlyBossContacts = bossContacts,
-                challengeMonth = bossMonth)
+                monthlyBossResolved = bossResolved, challengeMonth = bossMonth)
         }.getOrNull()
         if (receipt == null) {
             settlementError = "Não foi possível salvar. Tente resgatar novamente."
@@ -718,7 +720,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             for (item in frameDrops) {
                 // Clearing the screen this frame must also cancel pending
                 // collision damage, not just remove the drawn sprites later.
-                if (clearHazards && GamePowerRules.screenClear(item.kind)) continue
+                if (clearHazards && GamePowerRules.screenClear(item.kind)) {
+                    if (item.boss && GameMonthChallenge.hazardResolved(
+                            item.y, item.y, screenCleared = true)) {
+                        bossResolved = (bossResolved + 1)
+                            .coerceAtMost(GameMonthChallenge.RequiredHazardsResolved)
+                    }
+                    continue
+                }
                 val freeFallY = item.y + item.speed * dt * GamePowerRules.fallingSpeedFactor(slowTime)
                 // Pull only coins that have entered the visible gameplay region.
                 val coinIsPulled = item.kind == Kind.COIN && magnetTime > 0f &&
@@ -728,6 +737,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 )
                 val nx = position.x
                 val ny = position.y
+                if (item.boss && GameDrops.harmful(item.kind) &&
+                    GameMonthChallenge.hazardResolved(
+                        item.y, ny, screenCleared = false)) {
+                    // A lane is considered survived only after its hazard passes
+                    // the actual wallet line, regardless of shield/invulnerability.
+                    bossResolved = (bossResolved + 1)
+                        .coerceAtMost(GameMonthChallenge.RequiredHazardsResolved)
+                }
                 val magnetCatch = coinIsPulled && GameMagnet.reachedWallet(nx, ny, playerX)
                 val normalContact = item.y < .80f && ny >= .80f &&
                     abs(nx - playerX) < .118f
@@ -939,7 +956,21 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     updated.add(item.copy(x = nx, y = ny))
                 }
             }
-            drops = if (clearHazards) updated.filterNot { GamePowerRules.screenClear(it.kind) } else updated
+            if (clearHazards) {
+                // A late screen-clear pickup may remove hazards already processed
+                // earlier in this frame. Count only those still ABOVE the wallet
+                // line to avoid double-counting a hazard that already crossed it.
+                val safelyCleared = updated.count {
+                    it.boss && GamePowerRules.screenClear(it.kind) &&
+                        GameMonthChallenge.hazardResolved(
+                            it.y, it.y, screenCleared = true)
+                }
+                bossResolved = (bossResolved + safelyCleared)
+                    .coerceAtMost(GameMonthChallenge.RequiredHazardsResolved)
+                drops = updated.filterNot { GamePowerRules.screenClear(it.kind) }
+            } else {
+                drops = updated
+            }
             if (lives <= 0) {
                 if (!reviveUsed) {
                     reviveError = ""
@@ -1446,7 +1477,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         .padding(horizontal=11.dp,vertical=9.dp),
                     horizontalAlignment=Alignment.CenterHorizontally
                 ) {
-                    Text("🧾 FECHAMENTO • ONDA ${bossWave+1}/3",
+                    Text(GameMonthChallenge.waveTitle(bossWave),
                         color=Gold,fontSize=16.sp,fontWeight=FontWeight.Black,
                         textAlign=TextAlign.Center)
                     Spacer(Modifier.height(7.dp))
@@ -1980,6 +2011,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     textAlign=TextAlign.Center)
                 else if (won && bossWave >= 2) Text(
                     if (bossContacts > 0) "FECHAMENTO SUPERADO, MAS O SELO PEDE DESVIOS PERFEITOS."
+                    else if (bossResolved < GameMonthChallenge.RequiredHazardsResolved)
+                        "FECHAMENTO: FALTARAM PERIGOS PARA CONCLUIR O DESAFIO."
                     else "FECHAMENTO CONCLUÍDO • SELO DO MÊS JÁ CONQUISTADO!",
                     color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
                 if (albumNewlyUnlocked) Text(

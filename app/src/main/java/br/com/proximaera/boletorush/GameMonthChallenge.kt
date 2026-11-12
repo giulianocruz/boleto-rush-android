@@ -32,6 +32,8 @@ internal object GameMonthChallenge {
     private val MonthFormat = DateTimeFormatter.ofPattern("uuuu-MM")
 
     const val WaveCount = 3
+    const val HazardsPerWave = 2
+    const val RequiredHazardsResolved = WaveCount * HazardsPerWave
     const val FinalWindowSeconds = 18f
     const val WarningLeadSeconds = 5f
     const val WaveSpacingSeconds = 6f
@@ -67,6 +69,13 @@ internal object GameMonthChallenge {
             elapsed >= duration - FinalWindowSeconds - WarningLeadSeconds &&
             elapsed < duration
 
+    fun waveTitle(index: Int): String = "FECHAMENTO | ONDA ${index + 1}/$WaveCount"
+
+    /** Hazards count once only when they cross the wallet or get cleared before it. */
+    fun hazardResolved(previousY: Float, nextY: Float, screenCleared: Boolean): Boolean =
+        previousY.isFinite() && nextY.isFinite() &&
+            previousY < .80f && (screenCleared || nextY >= .80f)
+
     fun safeLaneLabel(index: Int): String = when (index) {
         0 -> "ESQUERDA"
         1 -> "CENTRO"
@@ -96,8 +105,16 @@ internal object GameMonthChallenge {
         )
     }
 
-    fun qualified(victory: Boolean, wavesLaunched: Int, bossContacts: Int): Boolean =
-        victory && wavesLaunched == WaveCount && bossContacts == 0
+    /**
+     * A launch alone is not a survived wave: all six hazard lanes must cross
+     * the wallet collision line or be safely removed by a screen-clear power.
+     */
+    fun qualified(
+        victory: Boolean, wavesLaunched: Int, bossContacts: Int,
+        hazardsResolved: Int
+    ): Boolean =
+        victory && wavesLaunched == WaveCount && bossContacts == 0 &&
+            hazardsResolved == RequiredHazardsResolved
 
     fun progress(prefs: SharedPreferences): MonthStampProgress =
         MonthStampProgress(
@@ -112,11 +129,12 @@ internal object GameMonthChallenge {
         wavesLaunched: Int,
         bossContacts: Int,
         challengeMonth: String,
-        today: LocalDate = LocalDate.now()
+        today: LocalDate = LocalDate.now(),
+        hazardsResolved: Int = 0
     ): MonthStampUpdate {
         val old = progress(prefs)
         val current = monthId(today)
-        val eligible = qualified(victory, wavesLaunched, bossContacts) &&
+        val eligible = qualified(victory, wavesLaunched, bossContacts, hazardsResolved) &&
             challengeMonth == current &&
             (old.lastAwardedMonth.isBlank() || current > old.lastAwardedMonth) &&
             old.earnedStamps < MaxStamps
