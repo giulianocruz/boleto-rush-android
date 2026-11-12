@@ -458,9 +458,19 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         nonCoinStreak = 0
         previousWasHazard = false
         nextDropId = 0
-        shield = maxOf(GameEconomy.initialShieldSeconds(shieldLevel),
-            GameRelics.consumeStartShield(prefs))
+        val relicShieldBonus = GameRelics.consumeStartShield(prefs)
+        shield = GameRelics.totalStartShieldSeconds(
+            GameEconomy.initialShieldSeconds(shieldLevel), relicShieldBonus)
         magnetTime = GameRelics.consumeStartMagnet(prefs)
+        if (relicShieldBonus > 0f || magnetTime > 0f) {
+            feedback = when {
+                relicShieldBonus > 0f && magnetTime > 0f ->
+                    "RELÍQUIAS ATIVADAS: +3s DE PROTEÇÃO E 6s DE ÍMÃ!"
+                relicShieldBonus > 0f -> "RELÍQUIA ATIVADA: +3s DE PROTEÇÃO!"
+                else -> "RELÍQUIA ATIVADA: 6s DE ÍMÃ!"
+            }
+            feedbackSeconds = 2.1f
+        }
         pixTime = 0f
         sprintTime = 0f
         slowTime = 0f

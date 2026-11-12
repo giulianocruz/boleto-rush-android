@@ -48,6 +48,50 @@ private class LocalTestPrefs : SharedPreferences {
 }
 
 class EconomyTransactionsTest {
+    @Test fun relicShieldAlwaysAddsThreeSecondsToEveryPermanentUpgradeLevel() {
+        for (level in 0..Upgrade.START_SHIELD.maxLevel) {
+            val prefs = LocalTestPrefs()
+            prefs.edit().putInt(GameRelics.WalletKey, 5).commit()
+            assertTrue(GameRelics.exchange(prefs, RelicDeal.START_SHIELD))
+            assertFalse(GameRelics.exchange(prefs, RelicDeal.START_SHIELD))
+            assertEquals(0, GameRelics.balance(prefs))
+            val base = GameEconomy.initialShieldSeconds(level)
+            val bought = GameRelics.consumeStartShield(prefs)
+            assertEquals(3f, bought)
+            assertEquals(base + 3f,
+                GameRelics.totalStartShieldSeconds(base, bought))
+            assertEquals(0f, GameRelics.consumeStartShield(prefs))
+            assertEquals(base,
+                GameRelics.totalStartShieldSeconds(base, 0f))
+        }
+    }
+
+    @Test fun relicShieldClampsInvalidOrCorruptedInputToFairProtectionLimits() {
+        assertEquals(9f, GameRelics.totalStartShieldSeconds(25f, 20f))
+        assertEquals(0f, GameRelics.totalStartShieldSeconds(-10f, -3f))
+        assertEquals(3f, GameRelics.totalStartShieldSeconds(Float.NaN, 3f))
+        assertEquals(6f, GameRelics.totalStartShieldSeconds(6f, Float.POSITIVE_INFINITY))
+        assertEquals(5f, GameRelics.totalStartShieldSeconds(2f, 3f))
+    }
+
+    @Test fun relicShieldBonusSurvivesFailedConsumeAndCannotBeUsedTwice() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt(GameRelics.WalletKey, 8).commit()
+        assertTrue(GameRelics.exchange(prefs, RelicDeal.START_SHIELD))
+        prefs.allowCommit = false
+        assertEquals(0f, GameRelics.consumeStartShield(prefs))
+        assertTrue(GameRelics.pendingShield(prefs))
+        prefs.allowCommit = true
+        val bonus = GameRelics.consumeStartShield(prefs)
+        assertEquals(3f, bonus)
+        assertEquals(9f,
+            GameRelics.totalStartShieldSeconds(
+                GameEconomy.initialShieldSeconds(3), bonus))
+        assertFalse(GameRelics.pendingShield(prefs))
+        assertEquals(0f, GameRelics.consumeStartShield(prefs))
+        assertEquals(3, GameRelics.balance(prefs))
+    }
+
     @Test fun aFullRelicWalletStillRecordsDiscoveriesAndWeeklyProgress() {
         val prefs = LocalTestPrefs()
         prefs.edit().putInt(GameRelics.WalletKey, GameRelics.MaxWallet - 1).commit()

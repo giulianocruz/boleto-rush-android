@@ -41,6 +41,17 @@ internal object GameRelics {
     fun pendingMagnet(prefs: SharedPreferences): Boolean = prefs.getBoolean(MagnetBoostKey, false)
 
     /**
+     * Purchased relic protection is an ADDITION to permanent protection.
+     * Using maxOf here used to silently waste the paid-in-relics bonus
+     * for players who had already upgraded their starting shield.
+     */
+    fun totalStartShieldSeconds(permanentSeconds: Float, relicBonusSeconds: Float): Float {
+        val permanent = if (permanentSeconds.isFinite()) permanentSeconds.coerceIn(0f, 6f) else 0f
+        val bonus = if (relicBonusSeconds.isFinite()) relicBonusSeconds.coerceIn(0f, 3f) else 0f
+        return permanent + bonus
+    }
+
+    /**
      * Trades are atomic with the relic debit, including debt repayment when
      * buying upgrade tokens. Pending boosts cannot be bought twice.
      */
