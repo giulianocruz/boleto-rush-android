@@ -4,15 +4,17 @@
 
 Boleto Rush! é um jogo arcade casual brasileiro: mova a carteira, colete moedas, evite boletos e tente bater seu recorde. Oferece **Clássico (45 segundos)** e **Maratona (90 segundos)**, tutorial interativo, combos, escudo, vidas extras, placar, vibração e som configuráveis.
 
-## Status de distribuição — 29/10/2026
+## Status de distribuição — 12/11/2026
 
 | Plataforma | Versão | Situação |
 | --- | --- | --- |
-| **Windows** | v1.4 portátil | **Disponível** na release pública v1.5.3-qa; não requer emulador nem Android Studio. Ainda sem assinatura digital de editor |
-| **Android** | 1.5.3-QA, versionCode 11 | **Teste interno**: AAB assinado preparado no PC Insano, upload ao Play Console ainda não confirmado |
-| **Google Play — produção** | — | **Não liberado**: faltam teste físico, IDs reais de AdMob, revisão final de consentimento/declarações e aprovação no Console |
+| **Windows** | v1.4 portátil | **Prévia histórica** na release pública v1.5.3-qa; ainda sem assinatura digital de editor |
+| **Android** | **2.3.6-QA**, versionCode **43**, API alvo **36** | **Candidato integrado em revisão**; APK de depuração validado no Insano, **111 testes unitários** aprovados; sem homologação física |
+| **Google Play — produção** | — | **NÃO PUBLICAR**: falta celular físico, IDs reais de AdMob, assinatura de upload, capturas reais atualizadas, validação de política de privacidade e testes da Play |
 
-Os testes automatizados da 1.5.3 passaram no **Android 8 / API 26** e **Android 15 / API 35** em [execução do GitHub Actions](https://github.com/giulianocruz/boleto-rush-android/actions/runs/40918581451). Os testes cobrem tutorial 3/3, alternância de vibração, partida completa e resultado, mas não substituem uma sessão manual em celular físico.
+A versão Android atual reúne colisões, Raspão, relíquias, Cofre, coleção permanente, missão semanal, Fechamento do Mês e anúncios recompensados opcionais com consentimento UMP. Os IDs de anúncios ainda são de **teste**. O teste automatizado local de 111 casos **não substitui** uma sessão completa em Android físico.
+
+**Branch integrada para revisão:** `release/boleto-rush-play-qa-20261112` (proposta direcionada à `main`; não mesclada). [Checklist de lançamento e bloqueios](docs/LANCAMENTO_236_CONSOLIDADO.md). As PRs anteriores foram mantidas como histórico de QA.
 
 ## Desenvolvimento Android
 
@@ -27,7 +29,7 @@ No Windows, use `gradlew.bat` no lugar de `./gradlew`. O projeto utiliza `BOLETO
 
 ## Desenvolvimento Windows
 
-O código e os scripts da versão nativa Windows estão em [`windows-port/`](windows-port/). O executável público foi validado com smoke test local, mas ainda é uma versão de testes e pode provocar avisos do SmartScreen por não estar assinado digitalmente.
+O código e os scripts da versão nativa Windows estão em [`windows-port/`](windows-port/). Essa versão é uma prévia histórica: não inclui necessariamente todas as melhorias recentes do Android e pode provocar avisos do SmartScreen por não estar assinada digitalmente.
 
 ## Publicação e suporte
 
@@ -37,4 +39,4 @@ O código e os scripts da versão nativa Windows estão em [`windows-port/`](win
 - [Política de Privacidade](PRIVACIDADE.md)
 - [Versões de teste e código-fonte](https://github.com/giulianocruz/boleto-rush-android/releases)
 
-**Próximo passo do Android:** upload da versão 1.5.3 assinada para Teste interno, instalação pela Play em aparelho físico e revisão da monetização antes da abertura ao público.
+**Próximo passo do Android:** instalar a **2.3.6-QA** em um celular conectado ao Insano, verificar partidas completas de 45/90 segundos e todos os recursos, confirmar publicamente a URL de política de privacidade, configurar os IDs reais do AdMob e a assinatura de upload do titular. Somente depois gerar AAB comercial e começar os testes internos/fechados na Play. [Plano de homologação consolidado](docs/LANCAMENTO_236_CONSOLIDADO.md).

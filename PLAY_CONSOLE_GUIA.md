@@ -1,6 +1,6 @@
-# Publicar Boleto Rush! — Guia da Google Play Console (Brasil, outubro/2026)
+# Publicar Boleto Rush! — Guia da Google Play Console (Brasil, novembro/2026)
 
-**Situação em 12/11/2026:** A versão atual é **Boleto Rush 2.3.0-QA**, pacote paralelo `br.com.proximaera.boletorush.qa`, `versionCode=38` e API alvo 36. Foram aprovados **96 testes unitários e a compilação Android**, mas faltam partidas completas em celular físico. O AdMob ainda usa IDs de teste e a assinatura comercial está ausente: o Gradle bloqueia corretamente `bundleRelease` e `assembleRelease` sem passar pela verificação. **Não enviar o APK de QA ou qualquer AAB não assinado à Play.** Para homologar, use o kit de Windows em `docs/QA_231_WINDOWS.md` e o atalho `TESTAR-BOLETO-RUSH-ANDROID.cmd` no Insano. As referências à versão 1.5 abaixo são histórico.
+**Situação em 12/11/2026:** o candidato consolidado atual é **Boleto Rush 2.3.6-QA**, pacote de testes independente `br.com.proximaera.boletorush.qa`, `versionCode=43`, `targetSdk=36`. A compilação Android e **111 testes unitários** passaram (0 falhas), mas **faltam partidas completas no celular físico**, anúncios recompensados/consentimento UMP e capturas reais atualizadas. AdMob ainda contém **IDs de teste** e a **assinatura de upload comercial não está configurada**: o Gradle bloqueia corretamente `bundleRelease` e `assembleRelease` sem passar pela verificação. **Não enviar o APK de QA à Play nem afirmar que o lançamento está homologado.** A documentação consolidada e os bloqueios atuais ficam em `docs/LANCAMENTO_236_CONSOLIDADO.md`. Para executar o APK no Insano, use `TESTAR-BOLETO-RUSH-ANDROID.cmd` com USB/depuração autorizada. A RC1 de 1.5 mencionada abaixo é histórica.
 
 ## 1. Criar aplicativo
 Acesse https://play.google.com/console/ e selecione **Todos os apps > Criar app** (os rótulos podem variar).
@@ -24,7 +24,7 @@ Acesse https://play.google.com/console/ e selecione **Todos os apps > Criar app*
 ## 2. Conteúdo do app — Política e programas > Conteúdo do app
 Conclua todos os cards apresentados pela conta.
 
-- **Política de privacidade:** `https://github.com/giulianocruz/boleto-rush-android/blob/main/PRIVACIDADE.md`. Também existe botão no menu do jogo. Se o Google exigir página HTML dedicada, hospede o conteúdo no domínio oficial antes de enviar para revisão.
+- **Política de privacidade:** a versão do site indicada no README é `https://giulianocruz.github.io/boleto-rush-android/privacy.html`, mas **seu acesso público ainda precisa ser verificado por navegador externo**. O arquivo `PRIVACIDADE.md` dentro de um repositório GitHub privado não substitui uma página pública. O jogo possui opção de privacidade no menu; confirmar que o link funciona tanto no app quanto na Play Console antes do envio.
 - **Anúncios:** **SIM**. O anúncio recompensado é opcional após perder; não há intersticial obrigatório.
 - **Acesso ao app:** sem login/senha. Instruções de acesso: "O jogo abre diretamente no menu; selecione Clássico ou Maratona e toque em Jogar agora. Para encontrar o anúncio opcional, perca as três vidas; o recurso depende de rede e consentimento."
 - **Classificação de conteúdo (IARC):** responder ao questionário com a experiência real; trata-se de arcade casual com caricaturas de documentos, sem apostas e sem pagamentos. **Não inventar classificação indicativa**.
@@ -91,7 +91,7 @@ O pacote para Google Play é um **AAB assinado com a chave de upload do titular*
 - Repositório > Settings > Secrets and variables > Actions > New repository secret.
 - Adicionar `BOLETO_ADMOB_APP_ID` e `BOLETO_REWARDED_UNIT_ID` (valores reais).
 - Adicionar `BOLETO_UPLOAD_KEYSTORE_BASE64` (conteúdo Base64 do arquivo da chave — nunca no código), `BOLETO_UPLOAD_STORE_PASSWORD`, `BOLETO_UPLOAD_KEY_ALIAS` e `BOLETO_UPLOAD_KEY_PASSWORD`.
-- Executar workflow `Boleto Rush — Android RC (APK + AAB)` em Actions. Com tudo configurado, ele valida a configuração e assina o AAB. Sem chave, entrega **AAB não assinado para QA**, que **não pode ser enviado à Play**.
+- Executar o workflow `Boleto Rush — Android RC (APK + AAB)` somente quando houver recursos disponíveis e os segredos corretos. Alternativamente, usar Android Studio/Gradle local autorizado no Insano. **Sem chave de upload e IDs comerciais válidos, o Gradle bloqueia `bundleRelease`/`assembleRelease`**; não há AAB publicável. Não depender de GitHub Actions caso a cota da conta esteja indisponível.
 - Não enviar senhas ou arquivo de chave pelo chat público.
 
 ## 7. Testes e publicação na Play
@@ -102,19 +102,19 @@ O pacote para Google Play é um **AAB assinado com a chave de upload do titular*
 
 Requisitos de teste: https://support.google.com/googleplay/android-developer/answer/14151465 .
 
-## 8. Texto proposto para o primeiro lançamento (após homologação da 2.3)
+## 8. Texto proposto para o primeiro lançamento (após homologação da 2.3.6)
 "Boleto Rush! chegou: desvie dos boletos, colete moedas e relíquias, enfrente desafios, complete o álbum de colecionáveis e libere visuais em partidas de 45 ou 90 segundos. Os anúncios recompensados são opcionais."
 
-**Atenção:** validar no Android real todos os recursos citados. O texto antigo da RC1 não descreve a versão 2.3.
+**Atenção:** validar no Android real todos os recursos citados. O texto antigo da RC1 não descreve a versão 2.3.6.
 
 ## 9. Definição de pronto
-- [ ] Android abre e termina partidas completas de 45s e 90s no **celular físico**, sem crash ou corte de interface na versão 2.3.0. Testes antigos de RC1 não substituem esta homologação.
-- [ ] Ícone com fundo transparente e menu conferidos no Android.
+- [ ] Android abre e termina partidas completas de 45s e 90s no **celular físico**, sem crash, perda de controle ou corte de interface na versão **2.3.6-QA**. Testes antigos de RC1 não substituem esta homologação.
+- [ ] Ícone com fundo transparente, menu, Cofre, álbum, relíquias, missão semanal, Fechamento do Mês, proteção inicial e pausa conferidos em Android real.
 - [ ] Capturas reais atualizadas, ícone e feature banner corretos.
-- [ ] Configuração AdMob real validada, anúncio opcional respeita consentimento.
+- [ ] Vídeos de **teste** do AdMob e UMP validados em aparelho real; depois, configuração de IDs reais validada com consentimento, sem cliques em anúncios comerciais.
 - [ ] Política e formulário Segurança dos dados condizem com SDK e comportamento.
 - [ ] Chave de upload criada, armazenada com backup e AAB assinado.
-- [ ] Teste interno e, quando necessário, fechado satisfatórios.
+- [ ] Teste interno concluído; para contas pessoais novas sujeitas à regra, **12 testadores inscritos continuamente por 14 dias no teste fechado**, seguidos de solicitação de acesso à produção. Conferir exigências específicas na Play Console.
 - [ ] Google Play Console aprovou a publicação.
 
 **Não lançar as edições 13/22 como variantes idênticas.** São projetos futuros, com nomes, mecânicas e conteúdo diferenciados.
