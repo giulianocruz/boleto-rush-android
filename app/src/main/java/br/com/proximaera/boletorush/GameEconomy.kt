@@ -14,7 +14,8 @@ internal enum class Cosmetic(val key: String, val title: String, val cost: Int) 
     CLASSIC("classic", "CARTEIRA CLÁSSICA", 0),
     NEON("neon", "BRILHO DE NEON", 25),
     GOLD("gold", "BANHO DOURADO", 55),
-    BURGUNDY("burgundy", "EXECUTIVO BORDÔ", 90)
+    BURGUNDY("burgundy", "EXECUTIVO BORDÔ", 90),
+    RELIC_HUNTER("relic_hunter", "GUARDIÃO DAS RELÍQUIAS", 0)
 }
 
 internal object GameEconomy {
@@ -97,18 +98,27 @@ internal object GameEconomy {
             .putInt(upgrade.key, current + 1).commit()
     }
 
-    fun selectedCosmetic(prefs: SharedPreferences): Cosmetic =
-        Cosmetic.entries.firstOrNull { it.key == prefs.getString(SkinKey, Cosmetic.CLASSIC.key) }
-            ?: Cosmetic.CLASSIC
+    fun selectedCosmetic(prefs: SharedPreferences): Cosmetic {
+        val chosen = Cosmetic.entries.firstOrNull {
+            it.key == prefs.getString(SkinKey, Cosmetic.CLASSIC.key)
+        } ?: Cosmetic.CLASSIC
+        return if (ownsCosmetic(prefs, chosen)) chosen else Cosmetic.CLASSIC
+    }
 
     fun ownsCosmetic(prefs: SharedPreferences, cosmetic: Cosmetic): Boolean =
-        cosmetic == Cosmetic.CLASSIC || prefs.getBoolean("owned_${cosmetic.key}", false)
+        when (cosmetic) {
+            Cosmetic.CLASSIC -> true
+            Cosmetic.RELIC_HUNTER -> GameRelicAlbum.complete(GameRelicAlbum.progress(prefs))
+            else -> prefs.getBoolean("owned_${cosmetic.key}", false)
+        }
 
     @Synchronized
     fun buyOrEquipCosmetic(prefs: SharedPreferences, cosmetic: Cosmetic): Boolean {
         if (ownsCosmetic(prefs, cosmetic)) {
             return prefs.edit().putString(SkinKey, cosmetic.key).commit()
         }
+        // This special cosmetic must be earned by the album, never purchased for R$0.
+        if (cosmetic == Cosmetic.RELIC_HUNTER) return false
         if (cash(prefs) < cosmetic.cost) return false
         return prefs.edit().putInt(CashKey, cash(prefs) - cosmetic.cost)
             .putBoolean("owned_${cosmetic.key}", true)
