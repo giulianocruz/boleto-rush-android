@@ -131,12 +131,18 @@ internal object GameSettlement {
         val debtAfterRun = previousDebt - paidByRun
         val paidByMilestones = minOf(milestoneCoins, debtAfterRun)
         val nextDebt = debtAfterRun - paidByMilestones
-        val coinsBanked = earned - paidByRun
+        val runCoinsAfterDebt = earned - paidByRun
         val milestoneBanked = milestoneCoins - paidByMilestones
-        val nextCoins = (GameEconomy.wallet(prefs).toLong() +
-            coinsBanked + milestoneBanked).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        val oldCoins = GameEconomy.wallet(prefs)
+        val nextCoins = (oldCoins.toLong() +
+            runCoinsAfterDebt + milestoneBanked).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        // A receipt must report what was actually deposited, not coins discarded
+        // by the wallet's Int.MAX_VALUE limit. Preserve run-vs-milestone split.
+        val coinsBanked = minOf(
+            runCoinsAfterDebt.toLong(), nextCoins.toLong() - oldCoins.toLong()
+        ).toInt()
 
-        val notesBanked = notesCollected.coerceAtLeast(0)
+        val requestedNotes = notesCollected.coerceAtLeast(0)
         // Discovery progress is earned by collecting, even when the fragment
         // wallet is full. Only the amount deposited is constrained by capacity.
         val collectedFragments = GameRelics.bankable(relicsCollected)
@@ -145,9 +151,20 @@ internal object GameSettlement {
         val monthUpdate = GameMonthChallenge.plan(
             prefs, victory, monthlyBossWaves, monthlyBossContacts, challengeMonth,
             hazardsResolved = monthlyBossResolved)
-        val nextNotes = (GameEconomy.cash(prefs).toLong() +
-            notesBanked + albumUpdate.weeklyNotesAward + monthUpdate.notesAward)
-            .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        // Allocate available note capacity in order: collected notes, weekly
+        // reward, monthly reward. Every amount in the receipt must match the
+        // exact change made to the player's persisted wallet.
+        val oldNotes = GameEconomy.cash(prefs)
+        val noteRoom = Int.MAX_VALUE.toLong() - oldNotes.toLong()
+        val notesBanked = minOf(requestedNotes.toLong(), noteRoom).toInt()
+        val weeklyNotesBanked = minOf(
+            albumUpdate.weeklyNotesAward.toLong(), noteRoom - notesBanked
+        ).toInt()
+        val monthNotesBanked = minOf(
+            monthUpdate.notesAward.toLong(), noteRoom - notesBanked - weeklyNotesBanked
+        ).toInt()
+        val nextNotes = (oldNotes.toLong() + notesBanked +
+            weeklyNotesBanked + monthNotesBanked).toInt()
 
         val relicBalance = GameRelics.balance(prefs)
         val relicsBanked = minOf(collectedFragments,
@@ -168,8 +185,8 @@ internal object GameSettlement {
             creditGranted, previousDebt - nextDebt, nextCoins,
             nextNotes, nextCredit, nextDebt, milestones,
             relicsBanked, nextRelicBalance,
-            albumUpdate.weeklyNotesAward, albumUpdate.newlyCompletedCollection,
-            monthUpdate.awarded, monthUpdate.notesAward, monthUpdate.stampCount)
+            weeklyNotesBanked, albumUpdate.newlyCompletedCollection,
+            monthUpdate.awarded, monthNotesBanked, monthUpdate.stampCount)
 
         val editor = prefs.edit()
             .putString(LastIdKey, roundId)

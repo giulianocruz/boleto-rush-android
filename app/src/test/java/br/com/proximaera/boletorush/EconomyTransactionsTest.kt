@@ -48,6 +48,74 @@ private class LocalTestPrefs : SharedPreferences {
 }
 
 class EconomyTransactionsTest {
+    @Test fun settlementReceiptDoesNotPromiseDepositsWhenBothWalletsAreFull() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt("wallet_coins", Int.MAX_VALUE)
+            .putInt("wallet_cash", Int.MAX_VALUE).commit()
+        val receipt = GameSettlement.settle(
+            prefs, "full-wallet-receipt", false, 0, 12, 20, 0, 0, false
+        )!!
+        assertEquals(0, receipt.coinsBanked)
+        assertEquals(0, receipt.notesBanked)
+        assertEquals(Int.MAX_VALUE, receipt.wallet)
+        assertEquals(Int.MAX_VALUE, receipt.notes)
+        assertEquals(null, RewardedRoundBonus.preview(prefs, "full-wallet-receipt"))
+        assertEquals(receipt, GameSettlement.latestReceipt(prefs))
+    }
+
+    @Test fun settlementReceiptUsesActuallyCreditedPartialRunEarnings() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt("wallet_coins", Int.MAX_VALUE - 2)
+            .putInt("wallet_cash", Int.MAX_VALUE - 3).commit()
+        val receipt = GameSettlement.settle(
+            prefs, "partial-wallet-receipt", false, 0, 25, 18, 0, 0, false
+        )!!
+        assertEquals(2, receipt.coinsBanked)
+        assertEquals(3, receipt.notesBanked)
+        assertEquals(Int.MAX_VALUE, GameEconomy.wallet(prefs))
+        assertEquals(Int.MAX_VALUE, GameEconomy.cash(prefs))
+        assertTrue(receipt.unlocked.contains(Milestone.COLLECTOR))
+        assertEquals(receipt, GameSettlement.settle(
+            prefs, "partial-wallet-receipt", false, 0, 999, 999, 0, 0, false
+        ))
+        assertEquals(1, prefs.getInt("games", 0))
+        assertEquals(null, RewardedRoundBonus.preview(prefs, "partial-wallet-receipt"))
+    }
+
+    @Test fun weeklyNotesReceiptReflectsRemainingWalletRoom() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt("wallet_cash", Int.MAX_VALUE - 10).commit()
+        val receipt = GameSettlement.settle(
+            prefs, "weekly-cap-receipt", false, 0, 0, 4, 0, 0, false,
+            relicsCollected = 8, relicBronze = 8
+        )!!
+        assertEquals(4, receipt.notesBanked)
+        assertEquals(6, receipt.weeklyNotesAward)
+        assertEquals(Int.MAX_VALUE, receipt.notes)
+        assertTrue(GameRelicAlbum.progress(prefs).weeklyClaimed)
+        assertEquals(receipt, GameSettlement.latestReceipt(prefs))
+        assertEquals(receipt, GameSettlement.settle(
+            prefs, "weekly-cap-receipt", false, 0, 0, 40, 0, 0, false
+        ))
+    }
+
+    @Test fun monthlyStampSurvivesWhenOnlyPartOfNotesPrizeFits() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt("wallet_cash", Int.MAX_VALUE - 4).commit()
+        val receipt = GameSettlement.settle(
+            prefs, "monthly-cap-receipt", false, 100, 0, 0, 0, 0, true,
+            monthlyBossWaves = 3, monthlyBossContacts = 0,
+            monthlyBossResolved = 6,
+            challengeMonth = GameMonthChallenge.monthId()
+        )!!
+        assertTrue(receipt.monthStampAwarded)
+        assertEquals(1, receipt.monthStampCount)
+        assertEquals(4, receipt.monthNotesAward)
+        assertEquals(0, receipt.notesBanked)
+        assertEquals(Int.MAX_VALUE, GameEconomy.cash(prefs))
+        assertEquals(receipt, GameSettlement.latestReceipt(prefs))
+    }
+
     @Test fun rewardedVideoIsNotOfferedWhenBothWalletsAreCompletelyFull() {
         val prefs = LocalTestPrefs()
         GameSettlement.settle(prefs,"reward-at-cap",false,25,10,20,0,0,false)!!

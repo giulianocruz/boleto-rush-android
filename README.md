@@ -9,7 +9,7 @@ Boleto Rush! é um jogo arcade casual brasileiro: mova a carteira, colete moedas
 | Plataforma | Versão | Situação |
 | --- | --- | --- |
 | **Windows** | v1.4 portátil | **Prévia histórica** na release pública v1.5.3-qa; ainda sem assinatura digital de editor |
-| **Android** | **2.3.9-QA**, versionCode **46**, API alvo **36** | **Candidato integrado em revisão**; APK de depuração validado no Insano, **118 testes unitários** aprovados; sem homologação física |
+| **Android** | **2.3.10-QA**, versionCode **47**, API alvo **36** | **Candidato integrado em revisão**; APK de depuração validado no Insano, **122 testes unitários** aprovados; sem homologação física |
 | **Google Play — produção** | — | **NÃO PUBLICAR**: falta celular físico, IDs reais de AdMob, assinatura de upload, capturas reais atualizadas, revisão das declarações de privacidade e testes da Play |
 
 A versão Android atual reúne colisões, Raspão, relíquias, Cofre, coleção permanente, missão semanal, Fechamento do Mês e anúncios recompensados opcionais com consentimento UMP. Os IDs de anúncios ainda são de **teste**. O teste automatizado local de 111 casos **não substitui** uma sessão completa em Android físico.
@@ -39,7 +39,7 @@ O código e os scripts da versão nativa Windows estão em [`windows-port/`](win
 - [Política de Privacidade](PRIVACIDADE.md)
 - [Versões de teste e código-fonte](https://github.com/giulianocruz/boleto-rush-android/releases)
 
-**Próximo passo do Android:** instalar a **2.3.9-QA** em um celular conectado ao Insano, verificar partidas completas de 45/90 segundos e todos os recursos, testar no app o link da política de privacidade já acessível publicamente, configurar os IDs reais do AdMob e a assinatura de upload do titular. Somente depois gerar AAB comercial e começar os testes internos/fechados na Play. [Plano de homologação consolidado](docs/LANCAMENTO_236_CONSOLIDADO.md).
+**Próximo passo do Android:** instalar a **2.3.10-QA** em um celular conectado ao Insano, verificar partidas completas de 45/90 segundos e todos os recursos, testar no app o link da política de privacidade já acessível publicamente, configurar os IDs reais do AdMob e a assinatura de upload do titular. Somente depois gerar AAB comercial e começar os testes internos/fechados na Play. [Plano de homologação consolidado](docs/LANCAMENTO_236_CONSOLIDADO.md).
 
 **Auditoria de compatibilidade da QA 2.3.7:** as regras de backup/transferência e o ícone monocromático foram atualizados para versões modernas do Android. Leia [QA Android 2.3.7](docs/QA_237_ANDROID_COMPAT.md). O progresso continua local e não é sincronizado automaticamente entre aparelhos.
 
@@ -50,3 +50,5 @@ O código e os scripts da versão nativa Windows estão em [`windows-port/`](win
 **Identidade de release validada:** a variante comercial está preparada com `br.com.proximaera.boletorush / 2.3.9`, e a QA preserva `br.com.proximaera.boletorush.qa / 2.3.9-qa.debug`. O Gradle testa automaticamente essa separação por `:app:verifyPlayIdentity`, sem liberar publicação. [Auditoria da ficha e do manifesto](docs/QA_240_PLAY_IDENTITY.md).
 
 **Kit de homologação ampliado:** além do instalador de QA, o Insano dispõe do atalho `COLETAR-EVIDENCIAS-BOLETO-RUSH.cmd`. Ele salva uma captura da tela e logs de processo **após** as partidas, sem reinstalar ou reiniciar o jogo, e só captura se o pacote QA estiver visível. [Como usar](docs/QA_239_POS_PARTIDA_WINDOWS.md).
+
+**QA 2.3.10 — recibo correto:** o fechamento da partida agora informa apenas moedas e notas realmente creditadas, inclusive nas recompensas semanais/mensais, respeitando o limite de carteira. A identidade comercial e a QA continuam separadas. [Testes e limitações](docs/QA_2310_RECEIPTS.md).

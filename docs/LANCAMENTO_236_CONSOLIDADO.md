@@ -135,3 +135,11 @@ O candidato mais recente da PR integrada #39 é **Boleto Rush 2.3.9-QA (versionC
 O kit de testes Windows ganhou o modo `-CollectOnly` e um novo atalho no Insano, `COLETAR-EVIDENCIAS-BOLETO-RUSH.cmd`, para capturar o estado **após** partidas, acesso ao Cofre, álbum e opções de privacidade. Ele não reinicia nem reinstala a QA e exige o aplicativo em primeiro plano para evitar capturas de telas de outros aplicativos.
 
 **Validação local:** parser PowerShell 5.1 sem erros, pré-verificação da QA 2.3.9 aprovada e coleta sem aparelho conectado bloqueada de modo seguro, sem evidências fictícias. A execução com celular real ainda não ocorreu. Roteiro em `docs/QA_239_POS_PARTIDA_WINDOWS.md`.
+
+## Atualização posterior — candidato QA 2.3.10 (12/11/2026)
+
+O candidato atual da PR integrada **#39** é **Boleto Rush 2.3.10-QA**, versionCode 47. Esta rodada corrigiu recibos que informavam ganhos teóricos de moedas e notas em vez do valor realmente creditado em carteiras próximas de `Int.MAX_VALUE`. As parcelas de missão semanal e selo mensal também são informadas pelo valor efetivamente depositado. Conquistas e histórico de rodadas continuam preservados.
+
+**Validação no Insano:** 122 testes JUnit aprovados, Android Lint 0 erros/34 avisos, build de QA concluída, metadados e assinatura debug conferidos, novo APK e os dois atalhos de QA atualizados. Registro detalhado em [QA 2.3.10 — recibos corretos](QA_2310_RECEIPTS.md).
+
+**Estado de lançamento: NO-GO** — ainda faltam homologação física (nenhum Android autorizado via ADB), anúncios/UMP em aparelho, capturas atuais, declarações da Play e credenciais comerciais de assinatura. Nenhum AAB comercial foi enviado à Google Play e a `main` não foi alterada.
