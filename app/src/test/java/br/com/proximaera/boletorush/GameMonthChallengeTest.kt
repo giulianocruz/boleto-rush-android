@@ -7,6 +7,37 @@ import org.junit.Test
 import java.time.LocalDate
 
 class GameMonthChallengeTest {
+    @Test fun preBossWarningGivesFiveSecondsToPrepareForBothModes() {
+        assertEquals(0,GameMonthChallenge.warningSeconds(21.9f,45f))
+        assertEquals(5,GameMonthChallenge.warningSeconds(22f,45f))
+        assertEquals(4,GameMonthChallenge.warningSeconds(23.5f,45f))
+        assertEquals(1,GameMonthChallenge.warningSeconds(26.9f,45f))
+        assertEquals(0,GameMonthChallenge.warningSeconds(27f,45f))
+        assertEquals(0,GameMonthChallenge.warningSeconds(44f,45f))
+        assertEquals(0,GameMonthChallenge.warningSeconds(66.9f,90f))
+        assertEquals(5,GameMonthChallenge.warningSeconds(67f,90f))
+        assertEquals(1,GameMonthChallenge.warningSeconds(71.7f,90f))
+        assertEquals(0,GameMonthChallenge.warningSeconds(72f,90f))
+        assertEquals(0,GameMonthChallenge.warningSeconds(Float.NaN,45f))
+        assertEquals(0,GameMonthChallenge.warningSeconds(1f,Float.POSITIVE_INFINITY))
+    }
+
+    @Test fun bossPreparationAndWavesAreNeverInterruptedByOptionalAdGates() {
+        for (duration in listOf(45f,90f)) {
+            val first = duration-GameMonthChallenge.FinalWindowSeconds
+            val warning = first-GameMonthChallenge.WarningLeadSeconds
+            assertFalse(GameMonthChallenge.adBreakBlocked(warning-.01f,duration))
+            assertTrue(GameMonthChallenge.adBreakBlocked(warning,duration))
+            assertTrue(GameMonthChallenge.adBreakBlocked(first,duration))
+            assertTrue(GameMonthChallenge.adBreakBlocked(first+9f,duration))
+            assertTrue(GameMonthChallenge.adBreakBlocked(duration-.05f,duration))
+            assertFalse(GameMonthChallenge.adBreakBlocked(duration,duration))
+        }
+        assertFalse(GameMonthChallenge.adBreakBlocked(Float.NaN,45f))
+        assertFalse(GameMonthChallenge.adBreakBlocked(2f,Float.NEGATIVE_INFINITY))
+        assertFalse(GameMonthChallenge.adBreakBlocked(1f,20f))
+    }
+
     @Test fun bossStartsWithExactlyThreeWavesNearEndOfBothRoundLengths() {
         assertEquals(-1,GameMonthChallenge.waveIndex(26.99f,45f))
         assertEquals(0,GameMonthChallenge.waveIndex(27f,45f))

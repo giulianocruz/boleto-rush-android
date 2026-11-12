@@ -6,9 +6,11 @@ package br.com.proximaera.boletorush
  */
 internal object GameChapterBonusOffer {
     fun shouldOffer(
-        chapter: Int, completedMask: Int, offeredMask: Int, adReady: Boolean
+        chapter: Int, completedMask: Int, offeredMask: Int, adReady: Boolean,
+        bossStartingSoon: Boolean = false
     ): Boolean =
         chapter in 0..2 &&
+            !bossStartingSoon &&
             adReady &&
             GameChapterMissions.completed(chapter, completedMask) &&
             offeredMask and (1 shl chapter) == 0

@@ -651,12 +651,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 val finishedChapter = lastStage
                 lastStage = currentStage
                 chapterCoins = 0
-                stageAnnouncementSeconds = 2.2f
+                stageAnnouncementSeconds =
+                    if (GameMonthChallenge.adBreakBlocked(elapsed, mode.duration)) 0f else 2.2f
                 tone(ToneGenerator.TONE_PROP_ACK)
                 val bit = 1 shl finishedChapter
                 if (GameChapterBonusOffer.shouldOffer(
                         finishedChapter, chapterMissionMask,
-                        chapterBonusOfferedMask, ads?.ready == true)) {
+                        chapterBonusOfferedMask, ads?.ready == true,
+                        bossStartingSoon = GameMonthChallenge.adBreakBlocked(elapsed,mode.duration))) {
                     chapterBonusOfferedMask = chapterBonusOfferedMask or bit
                     chapterBonusChapter = finishedChapter
                     bonusAdError = ""
@@ -1421,6 +1423,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         if (slowTime > 0f) "LENTO " + (slowTime.toInt()+1) + "s" else null,
                         if (armorHits > 0 && armorTime > 0f) "ARMADURA " + armorHits else null
                     )
+                val bossCountdown = GameMonthChallenge.warningSeconds(elapsed,mode.duration)
+                if (bossCountdown > 0 && screen == Screen.PLAY) Text(
+                    "🧾 FECHAMENTO EM ${bossCountdown}s • PREPARE A CARTEIRA!",
+                    color=Gold,fontSize=12.sp,fontWeight=FontWeight.Black,
+                    textAlign=TextAlign.Center)
                 if (activePowers.isNotEmpty()) {
                     // Keep simultaneous powers legible on narrow phones.
                     Text(activePowers.chunked(2).joinToString("\n") { it.joinToString("  •  ") },
@@ -1431,14 +1438,38 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 }
             }
             if(screen==Screen.PLAY && bossWave>=0 && bossNoticeSeconds>0f) {
-                Text("🧾 FECHAMENTO • ONDA ${bossWave+1}/3\nFAIXA SEGURA: " +
-                    GameMonthChallenge.safeLaneLabel(
-                        GameMonthChallenge.wave(bossWave,bossMonth).safeLane),
-                    color=Gold,fontSize=17.sp,fontWeight=FontWeight.Black,
-                    modifier=Modifier.align(Alignment.Center).offset(y=(-180).dp)
-                        .background(Navy.copy(alpha=.88f),RoundedCornerShape(12.dp))
-                        .padding(horizontal=15.dp,vertical=9.dp),
-                    textAlign=TextAlign.Center)
+                val safeLane = GameMonthChallenge.wave(bossWave,bossMonth).safeLane
+                Column(
+                    modifier=Modifier.align(Alignment.Center).offset(y=(-168).dp)
+                        .fillMaxWidth(.86f)
+                        .background(Navy.copy(alpha=.92f),RoundedCornerShape(14.dp))
+                        .padding(horizontal=11.dp,vertical=9.dp),
+                    horizontalAlignment=Alignment.CenterHorizontally
+                ) {
+                    Text("🧾 FECHAMENTO • ONDA ${bossWave+1}/3",
+                        color=Gold,fontSize=16.sp,fontWeight=FontWeight.Black,
+                        textAlign=TextAlign.Center)
+                    Spacer(Modifier.height(7.dp))
+                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+                        listOf("ESQ", "CENTRO", "DIR").forEachIndexed { lane, label ->
+                            val safe = lane == safeLane
+                            Box(Modifier.weight(1f).height(35.dp)
+                                .background(if (safe) Color(0xFF136052) else Color(0xFF59263A),
+                                    RoundedCornerShape(8.dp)),
+                                contentAlignment=Alignment.Center) {
+                                Text((if(safe) "✓ " else "✕ ") + label,
+                                    color=if(safe) Color.White else Color(0xFFFFCAD2),
+                                    fontSize=if(safe) 12.sp else 10.sp,
+                                    fontWeight=FontWeight.Black,
+                                    textAlign=TextAlign.Center)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text("SIGA A PISTA VERDE • DESVIE DOS BOLETOS",
+                        color=Color(0xFFE9FFF1),fontSize=10.sp,
+                        fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
+                }
             }
             if(screen==Screen.PLAY && stageAnnouncementSeconds>0f) {
                 Text("NOVO CAPÍTULO: ${GameRunProgression.chapterName(theme,lastStage)}",
