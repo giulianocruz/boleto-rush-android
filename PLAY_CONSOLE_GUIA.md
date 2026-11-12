@@ -1,6 +1,6 @@
 # Publicar Boleto Rush! — Guia da Google Play Console (Brasil, novembro/2026)
 
-**Situação em 12/11/2026:** o candidato consolidado atual é **Boleto Rush 2.3.8-QA**, pacote de testes independente `br.com.proximaera.boletorush.qa`, `versionCode=45`, `targetSdk=36`. A compilação Android e **111 testes unitários** passaram (0 falhas), mas **faltam partidas completas no celular físico**, anúncios recompensados/consentimento UMP e capturas reais atualizadas. AdMob ainda contém **IDs de teste** e a **assinatura de upload comercial não está configurada**: o Gradle bloqueia corretamente `bundleRelease` e `assembleRelease` sem passar pela verificação. **Não enviar o APK de QA à Play nem afirmar que o lançamento está homologado.** A documentação consolidada e os bloqueios atuais ficam em `docs/LANCAMENTO_236_CONSOLIDADO.md`. Para executar o APK no Insano, use `TESTAR-BOLETO-RUSH-ANDROID.cmd` com USB/depuração autorizada. A RC1 de 1.5 mencionada abaixo é histórica.
+**Situação em 12/11/2026:** o candidato consolidado atual é **Boleto Rush 2.3.9-QA**, pacote de testes independente `br.com.proximaera.boletorush.qa`, `versionCode=46`, `targetSdk=36`. A compilação Android e **118 testes unitários** passaram (0 falhas), mas **faltam partidas completas no celular físico**, anúncios recompensados/consentimento UMP e capturas reais atualizadas. AdMob ainda contém **IDs de teste** e a **assinatura de upload comercial não está configurada**: o Gradle bloqueia corretamente `bundleRelease` e `assembleRelease` sem passar pela verificação. **Não enviar o APK de QA à Play nem afirmar que o lançamento está homologado.** A documentação consolidada e os bloqueios atuais ficam em `docs/LANCAMENTO_236_CONSOLIDADO.md`. Para executar o APK no Insano, use `TESTAR-BOLETO-RUSH-ANDROID.cmd` com USB/depuração autorizada. A RC1 de 1.5 mencionada abaixo é histórica.
 
 ## 1. Criar aplicativo
 Acesse https://play.google.com/console/ e selecione **Todos os apps > Criar app** (os rótulos podem variar).
@@ -102,13 +102,13 @@ O pacote para Google Play é um **AAB assinado com a chave de upload do titular*
 
 Requisitos de teste: https://support.google.com/googleplay/android-developer/answer/14151465 .
 
-## 8. Texto proposto para o primeiro lançamento (após homologação da 2.3.8)
+## 8. Texto proposto para o primeiro lançamento (após homologação da 2.3.9)
 "Boleto Rush! chegou: desvie dos boletos, colete moedas e relíquias, enfrente desafios, complete o álbum de colecionáveis e libere visuais em partidas de 45 ou 90 segundos. Os anúncios recompensados são opcionais."
 
-**Atenção:** validar no Android real todos os recursos citados. O texto antigo da RC1 não descreve a versão 2.3.8.
+**Atenção:** validar no Android real todos os recursos citados. O texto antigo da RC1 não descreve a versão 2.3.9.
 
 ## 9. Definição de pronto
-- [ ] Android abre e termina partidas completas de 45s e 90s no **celular físico**, sem crash, perda de controle ou corte de interface na versão **2.3.8-QA**. Testes antigos de RC1 não substituem esta homologação.
+- [ ] Android abre e termina partidas completas de 45s e 90s no **celular físico**, sem crash, perda de controle ou corte de interface na versão **2.3.9-QA**. Testes antigos de RC1 não substituem esta homologação.
 - [ ] Ícone com fundo transparente, menu, Cofre, álbum, relíquias, missão semanal, Fechamento do Mês, proteção inicial e pausa conferidos em Android real.
 - [ ] Capturas reais atualizadas, ícone e feature banner corretos.
 - [ ] Vídeos de **teste** do AdMob e UMP validados em aparelho real; depois, configuração de IDs reais validada com consentimento, sem cliques em anúncios comerciais.
@@ -126,3 +126,7 @@ A versão 2.3.7 declara regras explícitas para não transferir automaticamente 
 ## Ajuste de anúncios recompensados — 2.3.8-QA
 
 A tela de resultados deixa de oferecer vídeos de duplicação com ambas as carteiras lotadas. Quando só parte dos valores cabe, mostra moedas e notas que realmente serão creditadas e ajusta a legenda do botão. O crédito continua único e atômico. Ver documentação: `docs/QA_238_AD_REWARD_FAIRNESS.md`.
+
+## QA 2.3.9 — relógio e retorno ao app
+
+O loop da partida foi protegido contra avanço quando a Activity está em segundo plano. Testar em Android real o retorno de anúncios recompensados e a troca de aplicativos, confirmando que o relógio não avança com a tela oculta. Ver `docs/QA_239_CLOCK_FOREGROUND.md`.

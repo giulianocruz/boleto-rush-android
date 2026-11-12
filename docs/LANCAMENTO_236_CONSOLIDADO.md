@@ -121,3 +121,11 @@ A linha histórica de QA 2.3.6 e o relatório de compatibilidade da 2.3.7 contin
 **Evidência na branch:** `BUILD SUCCESSFUL`; **115 testes / zero falhas / zero erros**; **Android Lint 0 erros / 34 avisos**. APK, SHA-256 e roteiro completos estão em [QA 2.3.8 — recompensa justa](QA_238_AD_REWARD_FAIRNESS.md).
 
 O estado de publicação **permanece NO-GO**: faltam dispositivo físico Android, testes UMP/AdMob, capturas reais, revisão final das declarações da Play Console, assinatura de upload e AdMob comercial. A `main` não foi alterada.
+
+## Atualização posterior — candidato QA 2.3.9 (12/11/2026)
+
+O candidato mais recente da PR integrada #39 é **Boleto Rush 2.3.9-QA (versionCode 46)**. O loop de atualização agora exige **tela de jogo ativa e aplicativo em primeiro plano**, com renovação da referência de tempo quando o Android retorna de segundo plano. Isso evita avanço invisível durante anúncios recompensados ou troca de aplicativo.
+
+**Resultado:** `BUILD SUCCESSFUL`, **118 testes JUnit / 0 falhas / 0 erros**, **Android Lint 0 erros / 34 avisos**. APK, assinatura, SHA-256 e roteiro em [QA 2.3.9 — relógio e anúncios](QA_239_CLOCK_FOREGROUND.md).
+
+**Ainda NO-GO para produção:** nenhuma homologação física Android, IDs comerciais ou chave de upload, capturas atuais ou conclusões sobre desempenho real. O teste da PR #39 continua em rascunho.

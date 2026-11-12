@@ -630,12 +630,15 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         if (!foreground && screen == Screen.PLAY) screen = Screen.PAUSE
     }
 
-    LaunchedEffect(round, screen) {
-        if (screen != Screen.PLAY) return@LaunchedEffect
+    // Reward callbacks can restore PLAY before a full-screen ad disappears.
+    // Foreground in the key forces a fresh frame baseline on returning.
+    LaunchedEffect(round, screen, foreground) {
+        if (!GameRunClock.shouldAdvance(foreground, screen == Screen.PLAY))
+            return@LaunchedEffect
         var lastFrame = withFrameNanos { it }
-        while (isActive && screen == Screen.PLAY) {
+        while (isActive && GameRunClock.shouldAdvance(foreground, screen == Screen.PLAY)) {
             val now = withFrameNanos { it }
-            val dt = ((now - lastFrame) / 1_000_000_000f).coerceIn(0f, 0.05f)
+            val dt = GameRunClock.frameSeconds(lastFrame, now)
             lastFrame = now
             elapsed = (elapsed + dt).coerceAtMost(mode.duration)
             if (elapsed >= mode.duration) {

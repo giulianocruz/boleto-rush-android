@@ -9,7 +9,7 @@ Boleto Rush! é um jogo arcade casual brasileiro: mova a carteira, colete moedas
 | Plataforma | Versão | Situação |
 | --- | --- | --- |
 | **Windows** | v1.4 portátil | **Prévia histórica** na release pública v1.5.3-qa; ainda sem assinatura digital de editor |
-| **Android** | **2.3.8-QA**, versionCode **45**, API alvo **36** | **Candidato integrado em revisão**; APK de depuração validado no Insano, **111 testes unitários** aprovados; sem homologação física |
+| **Android** | **2.3.9-QA**, versionCode **46**, API alvo **36** | **Candidato integrado em revisão**; APK de depuração validado no Insano, **118 testes unitários** aprovados; sem homologação física |
 | **Google Play — produção** | — | **NÃO PUBLICAR**: falta celular físico, IDs reais de AdMob, assinatura de upload, capturas reais atualizadas, revisão das declarações de privacidade e testes da Play |
 
 A versão Android atual reúne colisões, Raspão, relíquias, Cofre, coleção permanente, missão semanal, Fechamento do Mês e anúncios recompensados opcionais com consentimento UMP. Os IDs de anúncios ainda são de **teste**. O teste automatizado local de 111 casos **não substitui** uma sessão completa em Android físico.
@@ -39,8 +39,10 @@ O código e os scripts da versão nativa Windows estão em [`windows-port/`](win
 - [Política de Privacidade](PRIVACIDADE.md)
 - [Versões de teste e código-fonte](https://github.com/giulianocruz/boleto-rush-android/releases)
 
-**Próximo passo do Android:** instalar a **2.3.8-QA** em um celular conectado ao Insano, verificar partidas completas de 45/90 segundos e todos os recursos, testar no app o link da política de privacidade já acessível publicamente, configurar os IDs reais do AdMob e a assinatura de upload do titular. Somente depois gerar AAB comercial e começar os testes internos/fechados na Play. [Plano de homologação consolidado](docs/LANCAMENTO_236_CONSOLIDADO.md).
+**Próximo passo do Android:** instalar a **2.3.9-QA** em um celular conectado ao Insano, verificar partidas completas de 45/90 segundos e todos os recursos, testar no app o link da política de privacidade já acessível publicamente, configurar os IDs reais do AdMob e a assinatura de upload do titular. Somente depois gerar AAB comercial e começar os testes internos/fechados na Play. [Plano de homologação consolidado](docs/LANCAMENTO_236_CONSOLIDADO.md).
 
 **Auditoria de compatibilidade da QA 2.3.7:** as regras de backup/transferência e o ícone monocromático foram atualizados para versões modernas do Android. Leia [QA Android 2.3.7](docs/QA_237_ANDROID_COMPAT.md). O progresso continua local e não é sincronizado automaticamente entre aparelhos.
 
 **Ajuste da QA 2.3.8:** o bônus opcional por vídeo só aparece com recompensa efetivamente disponível, mostrando exatamente os valores de notas e moedas que cabem na carteira. [Roteiro de validação](docs/QA_238_AD_REWARD_FAIRNESS.md).
+
+**Correção da QA 2.3.9:** o relógio de jogo só avança se a Activity estiver visível e a partida ativa. Isso evita que um vídeo recompensado consuma tempo da rodada enquanto a tela ainda está coberta pelo anúncio. [Testes e limitações](docs/QA_239_CLOCK_FOREGROUND.md).
