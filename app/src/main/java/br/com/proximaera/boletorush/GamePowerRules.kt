@@ -7,6 +7,16 @@ internal object GamePowerRules {
     const val ArmorDuration = 12f
     const val ArmorHits = 2
 
+    /**
+     * A beneficial pickup must never shorten a shield already earned with
+     * permanent upgrades or relics (up to nine seconds).
+     */
+    fun refreshShieldSeconds(remaining: Float, pickupSeconds: Float = 7f): Float {
+        val current = if (remaining.isFinite()) remaining.coerceIn(0f, 9f) else 0f
+        val pickup = if (pickupSeconds.isFinite()) pickupSeconds.coerceIn(0f, 9f) else 0f
+        return maxOf(current, pickup)
+    }
+
     fun playerResponse(turboSeconds: Float): Float =
         if (turboSeconds > 0f) 26f else 17f
 
