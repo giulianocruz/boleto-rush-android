@@ -1,6 +1,6 @@
 # Publicar Boleto Rush! — Guia da Google Play Console (Brasil, outubro/2026)
 
-**Situação em 28/10/2026:** release candidate Android v1.5.0-rc1 (versionCode 8, targetSdk 36, minSdk 26). Há APK de testes e um AAB de QA *sem assinatura de upload* enquanto a chave do titular não for configurada. **Não envie o AAB não assinado à Play**. O produto contém Google Mobile Ads/UMP; sem IDs próprios, a unidade é demonstrativa e não monetiza. Ainda falta QA físico da abertura, partida completa e anúncio opcional.
+**Situação em 12/11/2026:** A versão atual é **Boleto Rush 2.3.0-QA**, pacote paralelo `br.com.proximaera.boletorush.qa`, `versionCode=38` e API alvo 36. Foram aprovados **96 testes unitários e a compilação Android**, mas faltam partidas completas em celular físico. O AdMob ainda usa IDs de teste e a assinatura comercial está ausente: o Gradle bloqueia corretamente `bundleRelease` e `assembleRelease` sem passar pela verificação. **Não enviar o APK de QA ou qualquer AAB não assinado à Play.** Para homologar, use o kit de Windows em `docs/QA_231_WINDOWS.md` e o atalho `TESTAR-BOLETO-RUSH-ANDROID.cmd` no Insano. As referências à versão 1.5 abaixo são histórico.
 
 ## 1. Criar aplicativo
 Acesse https://play.google.com/console/ e selecione **Todos os apps > Criar app** (os rótulos podem variar).
@@ -47,10 +47,12 @@ No Boleto Rush!, uma carteira corajosa enfrenta uma chuva de boletos em uma cida
 
 - CLÁSSICO: sobreviva por 45 segundos.
 - MARATONA: sobreviva por 90 segundos.
-- Colete moedas, faça combos e supere seus recordes.
+- Colete moedas, faça combos, pratique o Raspão e supere seus recordes.
+- Encontre relíquias de bronze, prata e ouro, troque fragmentos no Cofre e complete o álbum de coleção.
+- Supere missões semanais e o desafio Fechamento do Mês para liberar visuais e recompensas virtuais.
 - Use escudos, conquiste vidas extras e aprenda com o tutorial.
 - Controle rápido com um dedo, pausa e som opcional.
-- Se perder, você pode ESCOLHER assistir a um anúncio recompensado para reviver uma vez. Não há anúncio obrigatório.
+- Anúncios recompensados são opcionais: quando disponíveis, podem oferecer uma segunda chance ou bônus virtuais. Não há anúncios obrigatórios durante as partidas.
 
 Divirta-se com uma corrida casual original, feita no Brasil pela Próxima Era Games.
 
@@ -61,7 +63,7 @@ O jogo funciona offline. As funções de publicidade e consentimento exigem cone
 ## 4. Imagens da loja — arquivos corretos
 - **Ícone:** `store/play-icon-512.png` — o ícone transparente novo, PNG RGBA de 512×512, máximo 1 MB. Não usar a antiga imagem JPG quadrada.
 - **Imagem de destaque:** `store/feature-graphic-1024x500.jpg` — JPG 1024×500, sem transparência.
-- **Capturas:** a RC1 passou no smoke test do emulador e foram geradas **duas capturas reais em 1080×1920**, de menu e gameplay, no artefato `BoletoRush-1.5.0-rc1-SCREENSHOTS-REAIS` do GitHub Actions (run 40698310814). Foram também exportadas como RGB PNG de 24 bits para o kit de publicação. São obrigatórias **no mínimo 2** capturas reais do app para a página. Para boa descoberta de jogos, aconselha-se **3 ou mais em 1080×1920, retrato 9:16**, feitas a partir do APK atual, contendo gameplay, seleção de modo, tutorial/resultado. As capturas antigas do diretório `store/` são de beta 1.2; não usar como imagem da RC sem comparação visual. Mockups gerados por IA não substituem capturas autênticas.
+- **Capturas antigas (somente para referência):** a RC1 passou no smoke test do emulador e foram geradas **duas capturas reais em 1080×1920**, de menu e gameplay, no artefato `BoletoRush-1.5.0-rc1-SCREENSHOTS-REAIS` do GitHub Actions (run 40698310814). Foram também exportadas como RGB PNG de 24 bits para o kit de publicação. São obrigatórias **no mínimo 2** capturas reais do app para a página. Para boa descoberta de jogos, aconselha-se **3 ou mais em 1080×1920, retrato 9:16**, feitas a partir do APK atual, contendo gameplay, seleção de modo, tutorial/resultado. As capturas antigas do diretório `store/` são de beta 1.2; não usar como imagem da RC sem comparação visual. Mockups gerados por IA não substituem capturas autênticas.
 - Sugestão de ordem: (1) gameplay com carteira/moedas/boletos; (2) clássico/maratona e mascote no menu; (3) escudo, vidas e resultado. Não inventar pontuação, botão ou anúncio que não existem.
 
 Requisitos gráficos oficiais: https://support.google.com/googleplay/android-developer/answer/9866151 .
@@ -100,11 +102,13 @@ O pacote para Google Play é um **AAB assinado com a chave de upload do titular*
 
 Requisitos de teste: https://support.google.com/googleplay/android-developer/answer/14151465 .
 
-## 8. Texto da atualização — 1.5.0 RC1
-"Primeira versão de testes para Google Play: corrida de moedas e boletos com os modos Clássico e Maratona, mascote ilustrado, recordes, proteção com escudo, vida extra e opção voluntária de anúncio recompensado para reviver. Melhorias de estabilidade e configuração de privacidade."
+## 8. Texto proposto para o primeiro lançamento (após homologação da 2.3)
+"Boleto Rush! chegou: desvie dos boletos, colete moedas e relíquias, enfrente desafios, complete o álbum de colecionáveis e libere visuais em partidas de 45 ou 90 segundos. Os anúncios recompensados são opcionais."
+
+**Atenção:** validar no Android real todos os recursos citados. O texto antigo da RC1 não descreve a versão 2.3.
 
 ## 9. Definição de pronto
-- [ ] Android abre e termina partidas no **celular físico**; não há crash de inicialização. A abertura e início da partida já passaram no emulador Android API 35 (ver `TESTES_V15.md`).
+- [ ] Android abre e termina partidas completas de 45s e 90s no **celular físico**, sem crash ou corte de interface na versão 2.3.0. Testes antigos de RC1 não substituem esta homologação.
 - [ ] Ícone com fundo transparente e menu conferidos no Android.
 - [ ] Capturas reais atualizadas, ícone e feature banner corretos.
 - [ ] Configuração AdMob real validada, anúncio opcional respeita consentimento.
