@@ -18,7 +18,10 @@ internal data class GameReceipt(
     val relicsBanked: Int = 0,
     val relicWallet: Int = 0,
     val weeklyNotesAward: Int = 0,
-    val albumUnlocked: Boolean = false
+    val albumUnlocked: Boolean = false,
+    val monthStampAwarded: Boolean = false,
+    val monthNotesAward: Int = 0,
+    val monthStampCount: Int = 0
 )
 
 /**
@@ -37,12 +40,14 @@ internal object GameSettlement {
     private const val CreditKey = "store_credit"
 
     private fun encode(receipt: GameReceipt): String = listOf(
-        "3", receipt.gamesPlayed, receipt.best, receipt.coinsBanked,
+        "4", receipt.gamesPlayed, receipt.best, receipt.coinsBanked,
         receipt.notesBanked, receipt.creditGranted, receipt.debtRepaid,
         receipt.wallet, receipt.notes, receipt.credit, receipt.debt,
         receipt.unlocked.joinToString(",") { it.name }.ifEmpty { "-" },
         receipt.relicsBanked, receipt.relicWallet,
-        receipt.weeklyNotesAward, if (receipt.albumUnlocked) 1 else 0
+        receipt.weeklyNotesAward, if (receipt.albumUnlocked) 1 else 0,
+        if (receipt.monthStampAwarded) 1 else 0,
+        receipt.monthNotesAward, receipt.monthStampCount
     ).joinToString("|")
 
     private fun decode(value: String?): GameReceipt? {
@@ -51,21 +56,28 @@ internal object GameSettlement {
         val legacy = parts.size == 12 && parts[0] == "1"
         val modern = parts.size == 14 && parts[0] == "2"
         val album = parts.size == 16 && parts[0] == "3"
-        if (!legacy && !modern && !album) return null
+        val monthBoss = parts.size == 19 && parts[0] == "4"
+        if (!legacy && !modern && !album && !monthBoss) return null
         val numbers = parts.subList(1, 11).map { it.toIntOrNull() ?: return null }
         val names = if (parts[11] == "-") emptyList() else parts[11].split(',')
         val unlocked = Milestone.entries.filter { it.name in names }
         if (unlocked.size != names.size) return null
-        val banked = if (modern || album) parts[12].toIntOrNull() ?: return null else 0
-        val balance = if (modern || album) parts[13].toIntOrNull() ?: return null else 0
-        val weeklyNotes = if (album) parts[14].toIntOrNull() ?: return null else 0
-        val unlockFlag = if (album) parts[15].toIntOrNull() ?: return null else 0
+        val banked = if (modern || album || monthBoss) parts[12].toIntOrNull() ?: return null else 0
+        val balance = if (modern || album || monthBoss) parts[13].toIntOrNull() ?: return null else 0
+        val weeklyNotes = if (album || monthBoss) parts[14].toIntOrNull() ?: return null else 0
+        val unlockFlag = if (album || monthBoss) parts[15].toIntOrNull() ?: return null else 0
+        val stampFlag = if (monthBoss) parts[16].toIntOrNull() ?: return null else 0
+        val bossNotes = if (monthBoss) parts[17].toIntOrNull() ?: return null else 0
+        val stampCount = if (monthBoss) parts[18].toIntOrNull() ?: return null else 0
         if (banked !in 0..GameRelics.MaxPerRound || balance !in 0..GameRelics.MaxWallet ||
-            weeklyNotes !in 0..GameRelicAlbum.WeeklyNotesReward || unlockFlag !in 0..1) return null
+            weeklyNotes !in 0..GameRelicAlbum.WeeklyNotesReward || unlockFlag !in 0..1 ||
+            stampFlag !in 0..1 || bossNotes !in 0..GameMonthChallenge.NotesAward ||
+            stampCount !in 0..GameMonthChallenge.MaxStamps) return null
         return GameReceipt(
             numbers[0], numbers[1], numbers[2], numbers[3], numbers[4],
             numbers[5], numbers[6], numbers[7], numbers[8], numbers[9],
-            unlocked, banked, balance, weeklyNotes, unlockFlag == 1
+            unlocked, banked, balance, weeklyNotes, unlockFlag == 1,
+            stampFlag == 1, bossNotes, stampCount
         )
     }
 
@@ -87,7 +99,10 @@ internal object GameSettlement {
         relicsCollected: Int = 0,
         relicBronze: Int = 0,
         relicSilver: Int = 0,
-        relicGold: Int = 0
+        relicGold: Int = 0,
+        monthlyBossWaves: Int = 0,
+        monthlyBossContacts: Int = 0,
+        challengeMonth: String = ""
     ): GameReceipt? {
         require(roundId.isNotBlank() && '\n' !in roundId && '\r' !in roundId) {
             "The round must have a valid unique identifier"
@@ -125,8 +140,10 @@ internal object GameSettlement {
             relicBronze, relicSilver, relicGold,
             minOf(GameRelics.bankable(relicsCollected),
                 GameRelics.MaxWallet - GameRelics.balance(prefs)))
+        val monthUpdate = GameMonthChallenge.plan(
+            prefs, victory, monthlyBossWaves, monthlyBossContacts, challengeMonth)
         val nextNotes = (GameEconomy.cash(prefs).toLong() +
-            notesBanked + albumUpdate.weeklyNotesAward)
+            notesBanked + albumUpdate.weeklyNotesAward + monthUpdate.notesAward)
             .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
         val relicBalance = GameRelics.balance(prefs)
@@ -148,7 +165,8 @@ internal object GameSettlement {
             creditGranted, previousDebt - nextDebt, nextCoins,
             nextNotes, nextCredit, nextDebt, milestones,
             relicsBanked, nextRelicBalance,
-            albumUpdate.weeklyNotesAward, albumUpdate.newlyCompletedCollection)
+            albumUpdate.weeklyNotesAward, albumUpdate.newlyCompletedCollection,
+            monthUpdate.awarded, monthUpdate.notesAward, monthUpdate.stampCount)
 
         val editor = prefs.edit()
             .putString(LastIdKey, roundId)
@@ -162,6 +180,7 @@ internal object GameSettlement {
             .putInt("games", nextGames)
             .putInt(bestKey, nextBest)
         GameRelicAlbum.write(editor, albumUpdate)
+        GameMonthChallenge.write(editor, monthUpdate)
         milestones.forEach { editor.putBoolean(it.key, true) }
         if (!editor.commit()) return null
         return receipt
