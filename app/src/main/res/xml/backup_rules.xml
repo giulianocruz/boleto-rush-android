@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Legacy (Android 8-11) backup exclusion. Newer devices use data_extraction_rules.xml. -->
+<full-backup-content>
+    <exclude domain="root" path="." />
+</full-backup-content>

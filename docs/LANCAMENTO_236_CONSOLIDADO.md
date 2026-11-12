@@ -105,3 +105,11 @@ Na PR de integração foi encontrado e corrigido um conflito: o antigo GitHub Ac
 - Validação local: **YAML interpretado com sucesso**, ordem de artifact e validações confirmada; **111 testes unitários / 0 falhas** e compilação Android com sucesso.
 - `bundleRelease --dry-run` confirmou a presença de `verifyPlayConfiguration`. Execução direta da verificação **falhou corretamente** com `Upload key not configured`, e **não** publicou ou gerou nenhum AAB.
 - Ainda não foi executado o workflow atualizado no GitHub Actions (cota da conta pode estar indisponível); esta é uma **validação local de código, não homologação de CI real**.
+
+## Atualização posterior — candidato QA 2.3.7 (12/11/2026)
+
+O histórico de integração 2.3.6 deste documento foi mantido como evidência. O **candidato atual** na PR #39 passou a ser **Boleto Rush 2.3.7-QA, versionCode 44**, com regras explícitas de backup e transferência local para Android 8+ e ícone monocromático adaptativo. A configuração de anúncios de teste e a proteção contra AAB comercial não assinado foram preservadas.
+
+**Validação atual:** `BUILD SUCCESSFUL`, **111 testes / zero falhas**, **Android Lint 0 erros / 34 avisos**, redução de 3 avisos relacionados a backup e ícones. APK e SHA-256 estão em [QA 2.3.7 — compatibilidade Android](QA_237_ANDROID_COMPAT.md).
+
+A PR integrada permanece em **NO-GO** até testes completos em celular físico, consentimento UMP/AdMob, capturas atuais da ficha, verificação de conta Play e geração de AAB assinado com credenciais comerciais mantidas fora do Git.

@@ -1,6 +1,6 @@
 # Publicar Boleto Rush! — Guia da Google Play Console (Brasil, novembro/2026)
 
-**Situação em 12/11/2026:** o candidato consolidado atual é **Boleto Rush 2.3.6-QA**, pacote de testes independente `br.com.proximaera.boletorush.qa`, `versionCode=43`, `targetSdk=36`. A compilação Android e **111 testes unitários** passaram (0 falhas), mas **faltam partidas completas no celular físico**, anúncios recompensados/consentimento UMP e capturas reais atualizadas. AdMob ainda contém **IDs de teste** e a **assinatura de upload comercial não está configurada**: o Gradle bloqueia corretamente `bundleRelease` e `assembleRelease` sem passar pela verificação. **Não enviar o APK de QA à Play nem afirmar que o lançamento está homologado.** A documentação consolidada e os bloqueios atuais ficam em `docs/LANCAMENTO_236_CONSOLIDADO.md`. Para executar o APK no Insano, use `TESTAR-BOLETO-RUSH-ANDROID.cmd` com USB/depuração autorizada. A RC1 de 1.5 mencionada abaixo é histórica.
+**Situação em 12/11/2026:** o candidato consolidado atual é **Boleto Rush 2.3.7-QA**, pacote de testes independente `br.com.proximaera.boletorush.qa`, `versionCode=44`, `targetSdk=36`. A compilação Android e **111 testes unitários** passaram (0 falhas), mas **faltam partidas completas no celular físico**, anúncios recompensados/consentimento UMP e capturas reais atualizadas. AdMob ainda contém **IDs de teste** e a **assinatura de upload comercial não está configurada**: o Gradle bloqueia corretamente `bundleRelease` e `assembleRelease` sem passar pela verificação. **Não enviar o APK de QA à Play nem afirmar que o lançamento está homologado.** A documentação consolidada e os bloqueios atuais ficam em `docs/LANCAMENTO_236_CONSOLIDADO.md`. Para executar o APK no Insano, use `TESTAR-BOLETO-RUSH-ANDROID.cmd` com USB/depuração autorizada. A RC1 de 1.5 mencionada abaixo é histórica.
 
 ## 1. Criar aplicativo
 Acesse https://play.google.com/console/ e selecione **Todos os apps > Criar app** (os rótulos podem variar).
@@ -102,13 +102,13 @@ O pacote para Google Play é um **AAB assinado com a chave de upload do titular*
 
 Requisitos de teste: https://support.google.com/googleplay/android-developer/answer/14151465 .
 
-## 8. Texto proposto para o primeiro lançamento (após homologação da 2.3.6)
+## 8. Texto proposto para o primeiro lançamento (após homologação da 2.3.7)
 "Boleto Rush! chegou: desvie dos boletos, colete moedas e relíquias, enfrente desafios, complete o álbum de colecionáveis e libere visuais em partidas de 45 ou 90 segundos. Os anúncios recompensados são opcionais."
 
-**Atenção:** validar no Android real todos os recursos citados. O texto antigo da RC1 não descreve a versão 2.3.6.
+**Atenção:** validar no Android real todos os recursos citados. O texto antigo da RC1 não descreve a versão 2.3.7.
 
 ## 9. Definição de pronto
-- [ ] Android abre e termina partidas completas de 45s e 90s no **celular físico**, sem crash, perda de controle ou corte de interface na versão **2.3.6-QA**. Testes antigos de RC1 não substituem esta homologação.
+- [ ] Android abre e termina partidas completas de 45s e 90s no **celular físico**, sem crash, perda de controle ou corte de interface na versão **2.3.7-QA**. Testes antigos de RC1 não substituem esta homologação.
 - [ ] Ícone com fundo transparente, menu, Cofre, álbum, relíquias, missão semanal, Fechamento do Mês, proteção inicial e pausa conferidos em Android real.
 - [ ] Capturas reais atualizadas, ícone e feature banner corretos.
 - [ ] Vídeos de **teste** do AdMob e UMP validados em aparelho real; depois, configuração de IDs reais validada com consentimento, sem cliques em anúncios comerciais.
@@ -118,3 +118,7 @@ Requisitos de teste: https://support.google.com/googleplay/android-developer/ans
 - [ ] Google Play Console aprovou a publicação.
 
 **Não lançar as edições 13/22 como variantes idênticas.** São projetos futuros, com nomes, mecânicas e conteúdo diferenciados.
+
+## Atualização da QA 2.3.7 — backup e ícone
+
+A versão 2.3.7 declara regras explícitas para não transferir automaticamente progresso e preferências locais via mecanismos de backup do Android 8+. A ficha/FAQ devem informar claramente que não há sincronização ou restauração de progresso entre aparelhos. O ícone adaptativo recebeu variante monocromática, que ainda precisa de inspeção no celular. Consulte `docs/QA_237_ANDROID_COMPAT.md`.

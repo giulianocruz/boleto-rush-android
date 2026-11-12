@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A tintable, single-color bill silhouette for Android themed launcher icons. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M29,16 L69,16 L82,29 L82,91 L29,91 Z
+                          M69,16 L69,29 L82,29 Z
+                          M39,46 L74,46 L74,53 L39,53 Z
+                          M39,60 L72,60 L72,67 L39,67 Z
+                          M39,74 L61,74 L61,81 L39,81 Z"/>
+</vector>
