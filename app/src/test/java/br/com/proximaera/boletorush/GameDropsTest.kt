@@ -16,6 +16,18 @@ class GameDropsTest {
         assertFalse(GameDrops.harmful(choose(.26f, 0f, 0f)))
     }
 
+    @Test fun threeRelicTiersAreRareAndNeverSpawnInOpening() {
+        assertEquals(Kind.RELIC_BRONZE,choose(.47f,.99f,35f))
+        assertEquals(Kind.RELIC_SILVER,choose(.477f,.99f,35f))
+        assertEquals(Kind.RELIC_GOLD,choose(.482f,.99f,35f))
+        assertFalse(GameRelics.isRelic(choose(.47f,.99f,0f)))
+        assertEquals(Kind.COIN,choose(.47f,.99f,35f,false,2))
+        assertEquals(1,GameRelics.value(Kind.RELIC_BRONZE))
+        assertEquals(2,GameRelics.value(Kind.RELIC_SILVER))
+        assertEquals(3,GameRelics.value(Kind.RELIC_GOLD))
+        assertEquals(0,GameRelics.value(Kind.HEART))
+    }
+
     @Test fun neverSpawnsBackToBackHazards() {
         assertEquals(Kind.BILL, choose(.90f,0f,35f))
         assertFalse(GameDrops.harmful(choose(.90f,0f,35f,true)))

@@ -328,9 +328,15 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var chapterMissionMask by remember { mutableIntStateOf(0) }
     var chapterMissionNotes by remember { mutableIntStateOf(0) }
     var cashCollected by remember { mutableIntStateOf(0) }
+    var relicsPending by remember { mutableIntStateOf(0) }
+    var relicsEarned by remember { mutableIntStateOf(0) }
+    var relicWallet by remember { mutableIntStateOf(GameRelics.balance(prefs)) }
     var cashEarned by remember { mutableIntStateOf(0) }
     var billsHit by remember { mutableIntStateOf(0) }
     var nearMisses by remember { mutableIntStateOf(0) }
+    var nearMissFlashSeconds by remember { mutableFloatStateOf(0f) }
+    var nearMissFxStreak by remember { mutableIntStateOf(0) }
+    var nearMissFxPoints by remember { mutableIntStateOf(0) }
     var dodgeStreak by remember { mutableIntStateOf(0) }
     // Recent intentional movement is required to earn the risk bonus.
     var dodgeMovementAge by remember { mutableFloatStateOf(5f) }
@@ -396,6 +402,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         chapterMissionMask = 0
         chapterMissionNotes = 0
         cashCollected = 0
+        relicsPending = 0
+        relicsEarned = 0
         cashEarned = 0
         settlementError = ""
         pendingCardCredit = 0
@@ -403,6 +411,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         roundDebtRepaid = 0
         billsHit = 0
         nearMisses = 0
+        nearMissFlashSeconds = 0f
+        nearMissFxStreak = 0
+        nearMissFxPoints = 0
         dodgeStreak = 0
         dodgeMovementAge = 5f
         roundEarnings = 0
@@ -421,8 +432,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         nonCoinStreak = 0
         previousWasHazard = false
         nextDropId = 0
-        shield = GameEconomy.initialShieldSeconds(shieldLevel)
-        magnetTime = 0f
+        shield = maxOf(GameEconomy.initialShieldSeconds(shieldLevel),
+            GameRelics.consumeStartShield(prefs))
+        magnetTime = GameRelics.consumeStartMagnet(prefs)
         pixTime = 0f
         sprintTime = 0f
         slowTime = 0f
@@ -473,7 +485,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         val receipt = runCatching {
             GameSettlement.settle(prefs, roundId, mode == Mode.MARATHON,
                 score, coinsCollected, cashCollected, pendingCardCredit,
-                incomeLevel, victory)
+                incomeLevel, victory, relicsCollected = relicsPending)
         }.getOrNull()
         if (receipt == null) {
             settlementError = "Não foi possível salvar. Tente resgatar novamente."
@@ -491,6 +503,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         gamesPlayed = receipt.gamesPlayed
         roundEarnings = receipt.coinsBanked
         cashEarned = receipt.notesBanked
+        relicsEarned = receipt.relicsBanked
+        relicWallet = receipt.relicWallet
         roundCreditGranted = receipt.creditGranted
         roundDebtRepaid = receipt.debtRepaid
         pendingCardCredit = 0
@@ -528,6 +542,18 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             tone(ToneGenerator.TONE_PROP_ACK)
         } else {
             shopMessage = "FALTAM NOTAS PARA COMPRAR ESSE VISUAL!"
+        }
+    }
+    fun tradeRelic(deal: RelicDeal) {
+        if (GameRelics.exchange(prefs, deal)) {
+            relicWallet = GameRelics.balance(prefs)
+            wallet = GameEconomy.wallet(prefs)
+            cashWallet = GameEconomy.cash(prefs)
+            creditDebt = GameEconomy.debt(prefs)
+            shopMessage = "TROCA CONFIRMADA • ${deal.label}"
+            tone(ToneGenerator.TONE_PROP_ACK)
+        } else {
+            shopMessage = "RELÍQUIAS INSUFICIENTES OU PODER JÁ PREPARADO"
         }
     }
     fun toggleSound() {
@@ -583,6 +609,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             invulnerable = (invulnerable - dt).coerceAtLeast(0f)
             feedbackSeconds = (feedbackSeconds - dt).coerceAtLeast(0f)
             coinFlashSeconds = (coinFlashSeconds - dt).coerceAtLeast(0f)
+            nearMissFlashSeconds = (nearMissFlashSeconds - dt).coerceAtLeast(0f)
             stageAnnouncementSeconds = (stageAnnouncementSeconds - dt).coerceAtLeast(0f)
             val currentStage = GamePacing.chapter(elapsed, mode.duration)
             if (currentStage != lastStage) {
@@ -808,6 +835,17 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             feedbackSeconds = 1.2f
                             tone(ToneGenerator.TONE_PROP_ACK)
                         }
+                        Kind.RELIC_BRONZE, Kind.RELIC_SILVER, Kind.RELIC_GOLD -> {
+                            val bankable = (GameRelics.MaxPerRound - relicsPending).coerceAtLeast(0)
+                            val units = minOf(GameRelics.value(item.kind), bankable)
+                            relicsPending += units
+                            feedback = if (units > 0)
+                                "RELÍQUIA ${GameRelics.rarityLabel(item.kind)}! +$units FRAGMENTO(S)"
+                                else "BOLSA DE RELÍQUIAS CHEIA!"
+                            feedbackSeconds = 1.4f
+                            pulse(HapticFeedbackType.TextHandleMove)
+                            tone(ToneGenerator.TONE_PROP_ACK)
+                        }
                         Kind.SCREEN_CLEAR -> {
                             clearHazards = true
                             feedback = "LIMPA-TELA! ADEUS, TAXAS!"
@@ -822,6 +860,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         nearMisses++
                         dodgeStreak = (dodgeStreak + 1).coerceAtMost(5)
                         val bonus = GameNearMiss.points(dodgeStreak)
+                        nearMissFlashSeconds = GameNearMiss.FlashDuration
+                        nearMissFxStreak = dodgeStreak
+                        nearMissFxPoints = bonus
                         score = (score.toLong() + bonus).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                         if (feedbackSeconds <= .20f) {
                             feedback = "RASPÃO! +$bonus PONTOS"
@@ -1013,6 +1054,25 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                                 Size(r*1.56f,r*.68f),CornerRadius(r*.17f))
                             drawTextAt("+" + item.value,x,y+r*.75f,r*.72f,0xFFFFFFFF.toInt())
                         }
+                        Kind.RELIC_BRONZE, Kind.RELIC_SILVER, Kind.RELIC_GOLD -> {
+                            // In-game treasure, with its own distinct halo and facets.
+                            val gem = when (item.kind) {
+                                Kind.RELIC_BRONZE -> Color(0xFFEBAA67)
+                                Kind.RELIC_SILVER -> Color(0xFF9BE8FF)
+                                else -> Color(0xFFFFDB69)
+                            }
+                            val pulse = .88f + .12f * kotlin.math.abs(kotlin.math.sin(elapsed * 4f))
+                            drawCircle(gem.copy(alpha=.16f),r*1.58f*pulse,Offset(x,y))
+                            drawCircle(gem.copy(alpha=.65f),r*1.19f*pulse,Offset(x,y),
+                                style=androidx.compose.ui.graphics.drawscope.Stroke(width=r*.10f))
+                            drawRoundRect(gem,Offset(x-r*.86f,y-r*.91f),
+                                Size(r*1.72f,r*1.82f),CornerRadius(r*.36f))
+                            drawLine(Color.White.copy(alpha=.72f),
+                                Offset(x-r*.47f,y-r*.45f),Offset(x+r*.36f,y+r*.44f),
+                                strokeWidth=r*.14f)
+                            drawTextAt("+" + GameRelics.value(item.kind),x,y+r*.31f,
+                                r*.91f,0xFF09233A.toInt())
+                        }
                         Kind.BANKNOTE -> {
                             drawRoundRect(Gold, Offset(x-r*1.15f,y-r*.72f),
                                 Size(r*2.3f,r*1.44f), CornerRadius(r*.23f))
@@ -1166,27 +1226,6 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         drawTextAt("ARM " + armorHits,x,y-r*1.82f,r*.48f,
                             0xFFB0EDFF.toInt())
                     }
-                    if (sprintTime > 0f) {
-                        // Visible movement streaks without new bitmap allocations.
-                        for (i in 0..2) {
-                            drawLine(Gold.copy(alpha=.35f - i*.08f),
-                                Offset(x-r*(1.95f+i*.20f),y+r*(.18f+i*.35f)),
-                                Offset(x-r*(1.18f+i*.16f),y+r*(.18f+i*.35f)),
-                                strokeWidth=r*.065f)
-                        }
-                    }
-                    if (slowTime > 0f) {
-                        drawCircle(Color(0xFF88B7FF).copy(alpha=.23f),
-                            r*2.15f,Offset(x,y),
-                            style=androidx.compose.ui.graphics.drawscope.Stroke(width=4f))
-                    }
-                    if (armorHits > 0 && armorTime > 0f) {
-                        drawCircle(Color(0xFFB0EDFF).copy(alpha=.72f),
-                            r*1.68f,Offset(x,y),
-                            style=androidx.compose.ui.graphics.drawscope.Stroke(width=6f))
-                        drawTextAt("ARM " + armorHits,x,y-r*1.82f,r*.48f,
-                            0xFFB0EDFF.toInt())
-                    }
                     if (shield > 0f) {
                         drawPremiumSprite(shieldIdle,x,y,r*1.95f,opacity=.45f)
                         drawCircle(Teal.copy(alpha=.30f),r*1.48f,Offset(x,y),
@@ -1198,6 +1237,15 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         shield>0f && shield>6.3f -> heroJump
                         moving -> heroRun
                         else -> heroIdle
+                    }
+                    if (nearMissFlashSeconds > 0f) {
+                        // A short radial pulse makes skill rewards visible even when
+                        // another pickup has occupied the text feedback slot.
+                        val a = GameNearMiss.flashAlpha(nearMissFlashSeconds)
+                        val radius = r * GameNearMiss.flashRadius(nearMissFlashSeconds, nearMissFxStreak)
+                        drawCircle(Gold.copy(alpha=.72f*a),radius,Offset(x,y),
+                            style=androidx.compose.ui.graphics.drawscope.Stroke(width=r*.13f))
+                        drawCircle(Teal.copy(alpha=.17f*a),radius*.83f,Offset(x,y))
                     }
                     drawPremiumSprite(avatar,x,y,r*1.65f)
                     if (coinFlashSeconds > 0f) {
@@ -1301,8 +1349,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     color=if(theme==GameTheme.BRASIL_EM_APUROS) Gold else Teal,
                     fontSize=10.sp,fontWeight=FontWeight.Bold)
                 if (nearMisses > 0) Text(
-                    "RASPÕES $nearMisses • SEQUÊNCIA x$dodgeStreak • PONTOS EXTRAS",
+                    "RASPÕES $nearMisses • SEQ x$dodgeStreak",
                     color=Gold,fontSize=10.sp,fontWeight=FontWeight.Bold)
+                if (relicsPending > 0) Text("💎 RELÍQUIAS NA PARTIDA: $relicsPending",
+                    color=Gold,fontSize=11.sp,fontWeight=FontWeight.Bold)
                 val activePowers = GamePowerStatus.labels(pixTime, magnetTime, shield) +
                     listOfNotNull(
                         if (sprintTime > 0f) "TURBO " + (sprintTime.toInt()+1) + "s" else null,
@@ -1326,7 +1376,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         .padding(10.dp),
                     textAlign=TextAlign.Center)
             }
-            if(screen==Screen.PLAY && feedbackSeconds>0f) Text(feedback,
+            if(screen==Screen.PLAY && nearMissFlashSeconds>0f) Text(
+                GameNearMiss.flashLabel(nearMissFxStreak, nearMissFxPoints),
+                color=Gold,fontSize=20.sp,fontWeight=FontWeight.Black,
+                modifier=Modifier.align(Alignment.Center).offset(y=(-115).dp)
+                    .background(Navy.copy(alpha=.76f),RoundedCornerShape(12.dp))
+                    .padding(horizontal=12.dp,vertical=6.dp),
+                textAlign=TextAlign.Center)
+            if(screen==Screen.PLAY && feedbackSeconds>0f && nearMissFlashSeconds<=0f) Text(feedback,
                 color=if(feedback.startsWith("AI")) Coral else Gold,
                 fontSize=20.sp, fontWeight=FontWeight.Black,
                 modifier=Modifier.align(Alignment.Center).offset(y=(-115).dp),
@@ -1369,7 +1426,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(9.dp))
                 GameButton("JOGAR AGORA"){startOrTutorial()}
                 Spacer(Modifier.height(9.dp))
-                GameButton("🪙 LOJA • $wallet MOEDAS / R$ $cashWallet",secondary=true){screen=Screen.STORE}
+                GameButton("💎 COFRE • $relicWallet RELÍQUIAS",secondary=true){screen=Screen.STORE}
                 Spacer(Modifier.height(12.dp))
                 GameButton(if(soundOn) "SOM: LIGADO" else "SOM: DESLIGADO",
                     secondary=true){toggleSound()}
@@ -1426,6 +1483,25 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     fontSize=13.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
                 Text("O cartão cobre a diferença das melhorias. O que usar será descontado dos próximos ganhos de moedas.",
                     color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(20.dp))
+                Text("💎 RELÍQUIAS • $relicWallet FRAGMENTOS",color=Gold,
+                    fontSize=19.sp,fontWeight=FontWeight.Black)
+                Text("Encontre tesouros raros nas partidas e troque por notas, melhorias ou poderes iniciais. Tudo virtual.",
+                    color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(8.dp))
+                RelicDeal.entries.forEach { deal ->
+                    val prepared = when (deal) {
+                        RelicDeal.START_SHIELD -> GameRelics.pendingShield(prefs)
+                        RelicDeal.START_MAGNET -> GameRelics.pendingMagnet(prefs)
+                        else -> false
+                    }
+                    GameButton(if (prepared) "${deal.label} • PRONTO"
+                        else "${deal.label} • ${deal.cost} RELÍQUIAS",
+                        secondary=true) { tradeRelic(deal) }
+                    Spacer(Modifier.height(7.dp))
+                }
+                if (shopMessage.isNotEmpty()) Text(shopMessage,color=Gold,
+                    fontSize=12.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(23.dp))
 
                 Text("🧲 ÍMÃ MAGNÉTICO • NÍVEL $magnetLevel/3",color=Color(0xFFECA8FF),
@@ -1704,6 +1780,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(8.dp))
                 Text("+ $roundEarnings MOEDAS RARAS • +R$ $cashEarned NOTAS • SALDO 🪙 $wallet / R$ $cashWallet",color=Gold,
                     fontSize=14.sp,fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
+                if (relicsEarned > 0) Text("💎 +$relicsEarned FRAGMENTOS • COFRE: $relicWallet",
+                    color=Gold,fontSize=14.sp,fontWeight=FontWeight.Black,
+                    textAlign=TextAlign.Center)
                 if (roundDebtRepaid > 0) Text("DÍVIDA REDUZIDA EM $roundDebtRepaid MOEDAS",
                     color=Teal,fontSize=12.sp,fontWeight=FontWeight.Bold,
                     textAlign=TextAlign.Center)
@@ -1759,6 +1838,29 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         Spacer(Modifier.height(9.dp))
                     } else {
                         Text("Anúncio recompensado indisponível agora.",
+                            color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                    }
+                }
+                if (GameRelics.rewardedEligible(prefs, roundId)) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("BÔNUS EXTRA OPCIONAL: +1 RELÍQUIA POR VÍDEO CONCLUÍDO.",
+                        color=Gold,fontSize=12.sp,textAlign=TextAlign.Center)
+                    if (ads?.ready == true) {
+                        GameButton("ASSISTIR VÍDEO • +1 RELÍQUIA",secondary=true) {
+                            bonusAdError = ""
+                            ads.offerReward(onEarned = {
+                                if (screen == Screen.END &&
+                                    GameRelics.claimAdBonus(prefs, roundId)) {
+                                    relicWallet = GameRelics.balance(prefs)
+                                } else {
+                                    bonusAdError = "Bônus não registrado nesta partida."
+                                }
+                            }, onUnavailable = {
+                                bonusAdError = "Vídeo não concluído. Suas relíquias continuam salvas."
+                            })
+                        }
+                    } else {
+                        Text("Vídeo de relíquia indisponível agora.",
                             color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
                     }
                 }
