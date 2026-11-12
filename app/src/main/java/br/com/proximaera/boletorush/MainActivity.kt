@@ -889,8 +889,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             }
                         }
                         Kind.SHIELD -> {
-                            shield = 7f
-                            feedback = "SALDO EXTRA ATIVADO!"
+                            val remainingBeforePickup = shield
+                            shield = GamePowerRules.refreshShieldSeconds(shield)
+                            feedback = if (shield > remainingBeforePickup)
+                                "SALDO EXTRA ATIVADO!"
+                                else "SALDO EXTRA MANTIDO! PROTEÇÃO NÃO DIMINUI."
                             feedbackSeconds = 0.85f
                             tone(ToneGenerator.TONE_PROP_ACK)
                         }

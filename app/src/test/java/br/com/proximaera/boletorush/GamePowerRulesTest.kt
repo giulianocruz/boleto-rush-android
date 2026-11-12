@@ -6,6 +6,28 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GamePowerRulesTest {
+    @Test fun collectingShieldNeverShortensPaidRelicProtection() {
+        val activeWithRelic = GameRelics.totalStartShieldSeconds(
+            GameEconomy.initialShieldSeconds(3), 3f
+        )
+        assertEquals(9f, activeWithRelic)
+        assertEquals(9f, GamePowerRules.refreshShieldSeconds(activeWithRelic))
+        assertEquals(8.5f, GamePowerRules.refreshShieldSeconds(8.5f))
+        assertEquals(7f, GamePowerRules.refreshShieldSeconds(6.5f))
+        assertEquals(7f, GamePowerRules.refreshShieldSeconds(0f))
+        assertEquals(7f, GamePowerRules.refreshShieldSeconds(-4f))
+    }
+
+    @Test fun refreshingShieldSanitizesInvalidTimerValues() {
+        assertEquals(7f, GamePowerRules.refreshShieldSeconds(Float.NaN))
+        assertEquals(7f, GamePowerRules.refreshShieldSeconds(Float.POSITIVE_INFINITY))
+        assertEquals(7f, GamePowerRules.refreshShieldSeconds(Float.NEGATIVE_INFINITY))
+        assertEquals(0f, GamePowerRules.refreshShieldSeconds(-2f, Float.NaN))
+        assertEquals(9f, GamePowerRules.refreshShieldSeconds(20f, 7f))
+        assertEquals(9f, GamePowerRules.refreshShieldSeconds(9f, 100f))
+        assertEquals(4f, GamePowerRules.refreshShieldSeconds(4f, -5f))
+    }
+
     private fun choose(roll: Float, elapsed: Float = 35f) =
         GameDrops.choose(roll, .99f, elapsed, 45f, 0, false, 0)
 
