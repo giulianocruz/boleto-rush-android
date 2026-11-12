@@ -48,12 +48,30 @@ private class LocalTestPrefs : SharedPreferences {
 }
 
 class EconomyTransactionsTest {
+    @Test fun bossWithUnresolvedLastHazardNeverAwardsStampOrNotes() {
+        val prefs=LocalTestPrefs()
+        val month=GameMonthChallenge.monthId()
+        val missed=GameSettlement.settle(prefs,"boss-not-resolved",false,
+            300,0,0,0,0,true,monthlyBossWaves=3,
+            monthlyBossContacts=0,monthlyBossResolved=5,challengeMonth=month)!!
+        assertFalse(missed.monthStampAwarded)
+        assertEquals(0,missed.monthNotesAward)
+        assertEquals(0,GameMonthChallenge.progress(prefs).earnedStamps)
+        val completed=GameSettlement.settle(prefs,"boss-resolved",false,
+            300,0,0,0,0,true,monthlyBossWaves=3,
+            monthlyBossContacts=0,monthlyBossResolved=6,challengeMonth=month)!!
+        assertTrue(completed.monthStampAwarded)
+        assertEquals(25,completed.monthNotesAward)
+        assertEquals(25,GameEconomy.cash(prefs))
+        assertEquals(1,GameMonthChallenge.progress(prefs).earnedStamps)
+    }
+
     @Test fun monthlyBossRewardIsAtomicAndCanOnlyBeClaimedOncePerMonth() {
         val prefs = LocalTestPrefs()
         val month = GameMonthChallenge.monthId()
         val first = GameSettlement.settle(prefs,"boss-month-first",false,
             100,0,0,0,0,true,
-            monthlyBossWaves=3,monthlyBossContacts=0,challengeMonth=month)!!
+            monthlyBossWaves=3,monthlyBossContacts=0,monthlyBossResolved=6,challengeMonth=month)!!
         assertTrue(first.monthStampAwarded)
         assertEquals(25,first.monthNotesAward)
         assertEquals(1,first.monthStampCount)
@@ -61,11 +79,11 @@ class EconomyTransactionsTest {
         assertEquals(first,GameSettlement.latestReceipt(prefs))
         assertEquals(first,GameSettlement.settle(prefs,"boss-month-first",false,
             999,999,999,0,0,true,
-            monthlyBossWaves=3,monthlyBossContacts=0,challengeMonth=month))
+            monthlyBossWaves=3,monthlyBossContacts=0,monthlyBossResolved=6,challengeMonth=month))
         assertEquals(25,GameEconomy.cash(prefs))
         val replay = GameSettlement.settle(prefs,"boss-month-second",false,
             20,0,0,0,0,true,
-            monthlyBossWaves=3,monthlyBossContacts=0,challengeMonth=month)!!
+            monthlyBossWaves=3,monthlyBossContacts=0,monthlyBossResolved=6,challengeMonth=month)!!
         assertFalse(replay.monthStampAwarded)
         assertEquals(0,replay.monthNotesAward)
         assertEquals(1,replay.monthStampCount)
@@ -77,13 +95,13 @@ class EconomyTransactionsTest {
         val prefs=LocalTestPrefs()
         val impact=GameSettlement.settle(prefs,"boss-impact",false,
             0,0,0,0,0,true,
-            monthlyBossWaves=3,monthlyBossContacts=1,challengeMonth=month)!!
+            monthlyBossWaves=3,monthlyBossContacts=1,monthlyBossResolved=6,challengeMonth=month)!!
         val early=GameSettlement.settle(prefs,"boss-incomplete",false,
             0,0,0,0,0,true,
-            monthlyBossWaves=2,monthlyBossContacts=0,challengeMonth=month)!!
+            monthlyBossWaves=2,monthlyBossContacts=0,monthlyBossResolved=4,challengeMonth=month)!!
         val defeat=GameSettlement.settle(prefs,"boss-defeat",false,
             0,0,0,0,0,false,
-            monthlyBossWaves=3,monthlyBossContacts=0,challengeMonth=month)!!
+            monthlyBossWaves=3,monthlyBossContacts=0,monthlyBossResolved=6,challengeMonth=month)!!
         for(receipt in listOf(impact,early,defeat)) {
             assertFalse(receipt.monthStampAwarded)
             assertEquals(0,receipt.monthNotesAward)
@@ -97,13 +115,13 @@ class EconomyTransactionsTest {
         prefs.allowCommit=false
         assertEquals(null,GameSettlement.settle(prefs,"boss-fail",false,
             0,0,0,0,0,true,
-            monthlyBossWaves=3,monthlyBossContacts=0,challengeMonth=month))
+            monthlyBossWaves=3,monthlyBossContacts=0,monthlyBossResolved=6,challengeMonth=month))
         assertEquals(0,GameMonthChallenge.progress(prefs).earnedStamps)
         assertEquals(0,GameEconomy.cash(prefs))
         prefs.allowCommit=true
         val retry=GameSettlement.settle(prefs,"boss-fail",false,
             0,0,0,0,0,true,
-            monthlyBossWaves=3,monthlyBossContacts=0,challengeMonth=month)!!
+            monthlyBossWaves=3,monthlyBossContacts=0,monthlyBossResolved=6,challengeMonth=month)!!
         assertTrue(retry.monthStampAwarded)
         assertEquals(1,GameMonthChallenge.progress(prefs).earnedStamps)
         assertEquals(25,GameEconomy.cash(prefs))
@@ -112,23 +130,23 @@ class EconomyTransactionsTest {
     @Test fun monthlyProgressRejectsOldClocksAndAllowsNewCalendarMonths() {
         val prefs=LocalTestPrefs()
         val nov=GameMonthChallenge.plan(prefs,true,3,0,"2026-11",
-            java.time.LocalDate.of(2026,11,12))
+            java.time.LocalDate.of(2026,11,12),hazardsResolved=6)
         assertTrue(nov.awarded)
         assertTrue(GameMonthChallenge.write(prefs.edit(),nov).commit())
         assertEquals(1,GameMonthChallenge.progress(prefs).earnedStamps)
         val same=GameMonthChallenge.plan(prefs,true,3,0,"2026-11",
-            java.time.LocalDate.of(2026,11,30))
+            java.time.LocalDate.of(2026,11,30),hazardsResolved=6)
         assertFalse(same.awarded)
         val dec=GameMonthChallenge.plan(prefs,true,3,0,"2026-12",
-            java.time.LocalDate.of(2026,12,1))
+            java.time.LocalDate.of(2026,12,1),hazardsResolved=6)
         assertTrue(dec.awarded)
         assertTrue(GameMonthChallenge.write(prefs.edit(),dec).commit())
         val rollback=GameMonthChallenge.plan(prefs,true,3,0,"2026-11",
-            java.time.LocalDate.of(2026,11,12))
+            java.time.LocalDate.of(2026,11,12),hazardsResolved=6)
         assertFalse(rollback.awarded)
         assertEquals(2,rollback.stampCount)
         val mismatch=GameMonthChallenge.plan(prefs,true,3,0,"2027-01",
-            java.time.LocalDate.of(2027,2,1))
+            java.time.LocalDate.of(2027,2,1),hazardsResolved=6)
         assertFalse(mismatch.awarded)
     }
 
