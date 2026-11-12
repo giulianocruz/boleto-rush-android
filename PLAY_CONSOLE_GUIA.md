@@ -130,3 +130,7 @@ A tela de resultados deixa de oferecer vídeos de duplicação com ambas as cart
 ## QA 2.3.9 — relógio e retorno ao app
 
 O loop da partida foi protegido contra avanço quando a Activity está em segundo plano. Testar em Android real o retorno de anúncios recompensados e a troca de aplicativos, confirmando que o relógio não avança com a tela oculta. Ver `docs/QA_239_CLOCK_FOREGROUND.md`.
+
+## Verificação adicional — identidade de Play 2.3.9
+
+O Gradle agora possui `:app:verifyPlayIdentity`, também executado pela QA do CI. O manifesto de release processado em 12/11/2026 confirmou o pacote `br.com.proximaera.boletorush` e `versionName=2.3.9` **sem sufixo QA**; o APK debug segue `br.com.proximaera.boletorush.qa / 2.3.9-qa.debug`. O AAB assinado **ainda não foi gerado**. Confira os tamanhos dos recursos e as capturas antigas em `docs/QA_240_PLAY_IDENTITY.md`.

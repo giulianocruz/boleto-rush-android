@@ -64,7 +64,7 @@ jobs:
           fi
 
       - name: Build and test independent QA APK
-        run: bash ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --max-workers=2 --console=plain
+        run: bash ./gradlew :app:verifyPlayIdentity :app:testDebugUnitTest :app:assembleDebug --no-daemon --max-workers=2 --console=plain
 
       - name: Validate QA APK
         shell: bash

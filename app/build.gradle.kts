@@ -29,7 +29,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 46
-        versionName = "2.3.9-qa"
+        versionName = "2.3.9"
         resValue("string", "admob_app_id", admobAppId)
         resValue("string", "admob_rewarded_unit_id", rewardedUnitId)
     }
@@ -49,7 +49,7 @@ android {
             // Never use a real AdMob account in debug, even when release secrets
             // happen to be supplied to the same Gradle invocation.
             applicationIdSuffix = ".qa"
-            versionNameSuffix = ".debug"
+            versionNameSuffix = "-qa.debug"
             resValue("string", "admob_app_id", "ca-app-pub-3940256099942544~3347511713")
             resValue("string", "admob_rewarded_unit_id", "ca-app-pub-3940256099942544/5224354917")
         }
@@ -66,9 +66,39 @@ android {
     }
 }
 
+/**
+ * Safe to run in local QA and CI even before the publisher has a keystore.
+ * This guards against accidentally shipping the QA package or '-qa' version.
+ */
+tasks.register("verifyPlayIdentity") {
+    group = "verification"
+    description = "Verify production package identity and keep QA suffix isolated to debug."
+    doLast {
+        val releaseId = android.defaultConfig.applicationId.orEmpty() +
+            android.buildTypes.getByName("release").applicationIdSuffix.orEmpty()
+        val baseName = android.defaultConfig.versionName.orEmpty()
+        val releaseName = baseName +
+            android.buildTypes.getByName("release").versionNameSuffix.orEmpty()
+        val qaName = baseName +
+            android.buildTypes.getByName("debug").versionNameSuffix.orEmpty()
+        if (releaseId != "br.com.proximaera.boletorush" ||
+            releaseName.isBlank() ||
+            releaseName.contains("-qa", ignoreCase = true) ||
+            releaseName.contains("debug", ignoreCase = true) ||
+            !qaName.endsWith("-qa.debug")) {
+            throw GradleException(
+                "Incorrect Play identity. Release must use the production package " +
+                "and a clean versionName; debug must retain the -qa.debug suffix."
+            )
+        }
+        println("Play identity verified: $releaseId / $releaseName; QA version: $qaName")
+    }
+}
+
 tasks.register("verifyPlayConfiguration") {
     group = "verification"
     description = "Prevent Play submission with test AdMob IDs or without secure upload signing."
+    dependsOn("verifyPlayIdentity")
     doLast {
         if (!signingConfigured) {
             throw GradleException("Upload key not configured. An unsigned AAB is QA-only.")

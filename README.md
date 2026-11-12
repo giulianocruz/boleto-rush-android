@@ -46,3 +46,5 @@ O código e os scripts da versão nativa Windows estão em [`windows-port/`](win
 **Ajuste da QA 2.3.8:** o bônus opcional por vídeo só aparece com recompensa efetivamente disponível, mostrando exatamente os valores de notas e moedas que cabem na carteira. [Roteiro de validação](docs/QA_238_AD_REWARD_FAIRNESS.md).
 
 **Correção da QA 2.3.9:** o relógio de jogo só avança se a Activity estiver visível e a partida ativa. Isso evita que um vídeo recompensado consuma tempo da rodada enquanto a tela ainda está coberta pelo anúncio. [Testes e limitações](docs/QA_239_CLOCK_FOREGROUND.md).
+
+**Identidade de release validada:** a variante comercial está preparada com `br.com.proximaera.boletorush / 2.3.9`, e a QA preserva `br.com.proximaera.boletorush.qa / 2.3.9-qa.debug`. O Gradle testa automaticamente essa separação por `:app:verifyPlayIdentity`, sem liberar publicação. [Auditoria da ficha e do manifesto](docs/QA_240_PLAY_IDENTITY.md).
