@@ -27,7 +27,7 @@ O branch integrado contém o progresso da linha 1.8 → 2.3.6, incluindo colisõ
 | Coleção, Cofre, missão e chefe mensal no Android | **BLOQUEADO** | Verificar ciclo de partida, prêmio único, dados após fechar/reabrir |
 | Consentimento UMP e AdMob recompensado | **BLOQUEADO** | Só IDs de teste; conferir consentimento, vídeo concluído/interrompido e prêmio único no aparelho |
 | Capturas atuais da versão 2.3.6 | **BLOQUEADO** | Capturar telas **reais** da versão candidata, sem mockups fictícios |
-| Política de privacidade pública | **A VALIDAR** | Verificar URL publicamente acessível; **repositório GitHub privado não serve** como única página pública |
+| Política de privacidade pública | **ACESSÍVEL** | URL `https://giulianocruz.github.io/boleto-rush-android/privacy.html` respondeu HTTP 200 e retornou HTML de Boleto Rush (GET externo, 12/11). Falta conferir conteúdo/declarações no Android e na Play Console |
 | Segurança dos dados / classificação etária / anúncios | **A VALIDAR** | Responder na Play Console conforme SDK, público real e comportamento |
 | Chave de upload comercial | **BLOQUEADO** | Titular deve configurar keystore segura fora do Git/Chat; `verifyPlayConfiguration` exige isso |
 | IDs AdMob comerciais | **BLOQUEADO** | Substituir IDs demonstrativos apenas na build assinada de publicação |
@@ -67,7 +67,7 @@ Esse kit só deve instalar o pacote `.qa`, não remove dados, não reinicia o ap
 ## Passos para o primeiro teste fechado
 
 1. Concluir QA local do APK paralelo e corrigir defeitos confirmados.
-2. Definir público-alvo, classificação e ficha, hospedando política de privacidade em página **pública**.
+2. Definir público-alvo, classificação e ficha. A página de privacidade já responde HTTP 200; revisar a correspondência das declarações de dados com o SDK e testar o link no celular.
 3. Configurar App ID e Rewarded Unit ID reais no AdMob, UMP e assinatura de upload **em ambiente seguro**, nunca diretamente no Git.
 4. Executar `verifyPlayConfiguration` e gerar AAB comercial `release` **assinado**, somente após aprovação das verificações.
 5. Distribuir inicialmente em teste interno. Em contas pessoais sujeitas à regra, configurar teste fechado com 12 testadores inscritos por 14 dias contínuos e recolher feedback.
@@ -89,5 +89,19 @@ Esse kit só deve instalar o pacote `.qa`, não remove dados, não reinicia o ap
 - Hash SHA-256 da nova build integrada: `37F6F469C83B437DB0FDCB79A3614330430B89E77B162C35EA5F5695C0DD9610`. **Idêntico** ao APK 2.3.6 já disponível na Área de Trabalho do Insano; cópia existente não foi sobrescrita.
 - `gradlew.bat --offline :app:bundleRelease --dry-run --console=plain`: **`verifyPlayConfiguration` presente no grafo de dependências** de `bundleRelease` (`RELEASE_GUARD_DRY_RUN=PASS`). Nenhum AAB comercial foi gerado.
 - Branch `release/boleto-rush-play-qa-20261112` mantém histórico completo: 46 commits a mais que `origin/main` antes do commit de documentação; nenhuma PR anterior foi mesclada ou descartada.
-- `README.md` e `PLAY_CONSOLE_GUIA.md` atualizados para refletir **2.3.6-QA** e evitar orientação de publicação com APK 1.5.3. A URL pública de privacidade permanece **a validar** no navegador externo; não assumir acesso público apenas por existir no README.
-- **Status final ainda NO-GO:** falta aparelho real, UMP/AdMob em dispositivo, política de privacidade publicamente acessível, capturas reais atuais, chave de upload e aprovação do processo de testes Play.
+- `README.md` e `PLAY_CONSOLE_GUIA.md` atualizados para refletir **2.3.6-QA** e evitar orientação de publicação com APK 1.5.3. A URL pública de privacidade foi **confirmada acessível** por GET HTTP 200 no Insano em 12/11; ainda falta validar a abertura no app e o texto declarativo da Play Console.
+- **Status final ainda NO-GO:** falta aparelho real, UMP/AdMob em dispositivo, revisão das declarações de privacidade e dados, capturas reais atuais, chave de upload e aprovação do processo de testes Play.
+
+## Revisão do pipeline em 12/11/2026 — QA e release separados
+
+Na PR de integração foi encontrado e corrigido um conflito: o antigo GitHub Actions tentava executar `assembleDebug :app:bundleRelease` juntos, enquanto `bundleRelease` depende da verificação de **credenciais comerciais**. Sem chave, o processo falharia antes de distribuir o próprio APK QA.
+
+- O workflow `.github/workflows/android-release-candidate.yml` agora executa **`testDebugUnitTest :app:assembleDebug` em todos os casos**.
+- A variante **debug** força os dois IDs oficiais de teste do Google AdMob, mesmo quando `BOLETO_ADMOB_APP_ID` e `BOLETO_REWARDED_UNIT_ID` estão disponíveis no ambiente. Teste com identificadores comerciais fictícios confirmou que o XML gerado ainda contém somente os IDs demonstrativos.
+- O APK QA é **verificado e enviado como artifact antes** de tentar gerar um AAB comercial.
+- A geração do AAB roda **somente** se o workflow recebeu chave de upload e senhas. O Gradle exige ainda IDs AdMob de publicação válidos, preservando `verifyPlayConfiguration`. Não é produzido AAB não assinado.
+- O caminho de `aapt` no workflow usa `$ANDROID_HOME/build-tools/36.0.0/aapt`, evitando depender de sua presença no `PATH` da máquina GitHub Actions.
+- Nome dos artifacts atualizado para 2.3.6-QA; referências antigas à 1.5.0 removidas do workflow.
+- Validação local: **YAML interpretado com sucesso**, ordem de artifact e validações confirmada; **111 testes unitários / 0 falhas** e compilação Android com sucesso.
+- `bundleRelease --dry-run` confirmou a presença de `verifyPlayConfiguration`. Execução direta da verificação **falhou corretamente** com `Upload key not configured`, e **não** publicou ou gerou nenhum AAB.
+- Ainda não foi executado o workflow atualizado no GitHub Actions (cota da conta pode estar indisponível); esta é uma **validação local de código, não homologação de CI real**.

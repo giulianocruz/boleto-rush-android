@@ -24,7 +24,7 @@ Acesse https://play.google.com/console/ e selecione **Todos os apps > Criar app*
 ## 2. Conteúdo do app — Política e programas > Conteúdo do app
 Conclua todos os cards apresentados pela conta.
 
-- **Política de privacidade:** a versão do site indicada no README é `https://giulianocruz.github.io/boleto-rush-android/privacy.html`, mas **seu acesso público ainda precisa ser verificado por navegador externo**. O arquivo `PRIVACIDADE.md` dentro de um repositório GitHub privado não substitui uma página pública. O jogo possui opção de privacidade no menu; confirmar que o link funciona tanto no app quanto na Play Console antes do envio.
+- **Política de privacidade:** a versão do site indicada no README é `https://giulianocruz.github.io/boleto-rush-android/privacy.html`, e seu acesso externo foi **verificado em 12/11/2026**: HTTP 200, HTML e conteúdo específico do Boleto Rush. É necessário continuar revisando a exatidão das declarações de privacidade e de Segurança dos dados. O arquivo `PRIVACIDADE.md` dentro de um repositório GitHub privado não substitui uma página pública. O jogo possui opção de privacidade no menu; ainda é necessário confirmar a abertura do link dentro do aplicativo no Android real e sua aceitação na Play Console.
 - **Anúncios:** **SIM**. O anúncio recompensado é opcional após perder; não há intersticial obrigatório.
 - **Acesso ao app:** sem login/senha. Instruções de acesso: "O jogo abre diretamente no menu; selecione Clássico ou Maratona e toque em Jogar agora. Para encontrar o anúncio opcional, perca as três vidas; o recurso depende de rede e consentimento."
 - **Classificação de conteúdo (IARC):** responder ao questionário com a experiência real; trata-se de arcade casual com caricaturas de documentos, sem apostas e sem pagamentos. **Não inventar classificação indicativa**.
@@ -91,7 +91,7 @@ O pacote para Google Play é um **AAB assinado com a chave de upload do titular*
 - Repositório > Settings > Secrets and variables > Actions > New repository secret.
 - Adicionar `BOLETO_ADMOB_APP_ID` e `BOLETO_REWARDED_UNIT_ID` (valores reais).
 - Adicionar `BOLETO_UPLOAD_KEYSTORE_BASE64` (conteúdo Base64 do arquivo da chave — nunca no código), `BOLETO_UPLOAD_STORE_PASSWORD`, `BOLETO_UPLOAD_KEY_ALIAS` e `BOLETO_UPLOAD_KEY_PASSWORD`.
-- Executar o workflow `Boleto Rush — Android RC (APK + AAB)` somente quando houver recursos disponíveis e os segredos corretos. Alternativamente, usar Android Studio/Gradle local autorizado no Insano. **Sem chave de upload e IDs comerciais válidos, o Gradle bloqueia `bundleRelease`/`assembleRelease`**; não há AAB publicável. Não depender de GitHub Actions caso a cota da conta esteja indisponível.
+- Executar o workflow `Boleto Rush — QA APK + Signed Play AAB` somente quando houver cota disponível. **Sem segredos de publicação, ele roda os testes e gera exclusivamente o APK QA com anúncios de demonstração**; com a chave de upload e IDs comerciais válidos, gera também o AAB assinado. Alternativamente, usar Android Studio/Gradle autorizado no Insano. A tentativa de executar `bundleRelease` ou `assembleRelease` sem os pré-requisitos é **bloqueada intencionalmente**. Não depender da cota do GitHub Actions para compilar o APK QA localmente.
 - Não enviar senhas ou arquivo de chave pelo chat público.
 
 ## 7. Testes e publicação na Play

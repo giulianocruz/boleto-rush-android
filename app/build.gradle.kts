@@ -46,8 +46,12 @@ android {
     buildTypes {
         getByName("debug") {
             // Install QA alongside the Play-signed app without replacing player data.
+            // Never use a real AdMob account in debug, even when release secrets
+            // happen to be supplied to the same Gradle invocation.
             applicationIdSuffix = ".qa"
             versionNameSuffix = ".debug"
+            resValue("string", "admob_app_id", "ca-app-pub-3940256099942544~3347511713")
+            resValue("string", "admob_rewarded_unit_id", "ca-app-pub-3940256099942544/5224354917")
         }
         getByName("release") {
             if (signingConfigured) {

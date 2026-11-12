@@ -1,4 +1,4 @@
-name: Boleto Rush — Android RC (APK + AAB)
+name: Boleto Rush — QA APK + Signed Play AAB
 
 on:
   push:
@@ -60,51 +60,50 @@ jobs:
             echo "BOLETO_SIGNED=true" >> "$GITHUB_ENV"
           else
             echo "BOLETO_SIGNED=false" >> "$GITHUB_ENV"
-            echo "No publisher key supplied: AAB will be QA-only and UNSIGNED."
+            echo "No publisher key supplied: QA APK only. Release bundle is deliberately skipped."
           fi
 
-      - name: Build QA APK and Play bundle
-        run: bash ./gradlew :app:assembleDebug :app:bundleRelease --no-daemon --max-workers=2 --console=plain
+      - name: Build and test independent QA APK
+        run: bash ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --max-workers=2 --console=plain
 
-      - name: Verify signed Play configuration
-        if: env.BOLETO_SIGNED == 'true'
+      - name: Validate QA APK
         shell: bash
         run: |
           set -euo pipefail
-          bash ./gradlew :app:verifyPlayConfiguration --no-daemon --console=plain
-          jarsigner -verify -strict app/build/outputs/bundle/release/app-release.aab > /dev/null
-          echo "Signed upload AAB and non-demo AdMob IDs verified."
-
-      - name: Inspect APK and AAB
-        shell: bash
-        run: |
-          set -euo pipefail
-          ls -lah app/build/outputs/apk/debug/app-debug.apk app/build/outputs/bundle/release/app-release.aab
-          unzip -t app/build/outputs/apk/debug/app-debug.apk | tail -1
-          unzip -t app/build/outputs/bundle/release/app-release.aab | tail -1
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -f "$apk"
+          unzip -t "$apk" | tail -1
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | grep -F "package: name='br.com.proximaera.boletorush.qa'"
+          echo "QA APK verified; debug always uses Google sample ad IDs."
 
       - name: APK for installation (debug signing, QA ONLY)
         uses: actions/upload-artifact@v4
         with:
-          name: BoletoRush-1.5.0-rc1-APK-TESTE
+          name: BoletoRush-2.3.6-QA-APK-TESTE
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
           if-no-files-found: error
+
+      - name: Build signed Play AAB (publisher secrets required)
+        if: env.BOLETO_SIGNED == 'true'
+        run: bash ./gradlew :app:verifyPlayConfiguration :app:bundleRelease --no-daemon --max-workers=2 --console=plain
+
+      - name: Verify signed Play AAB
+        if: env.BOLETO_SIGNED == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          aab=app/build/outputs/bundle/release/app-release.aab
+          test -f "$aab"
+          unzip -t "$aab" | tail -1
+          jarsigner -verify -strict "$aab" > /dev/null
+          echo "Signed upload AAB and non-demo AdMob IDs verified."
 
       - name: AAB signed for Play Console
         if: env.BOLETO_SIGNED == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: BoletoRush-1.5.0-rc1-AAB-ASSINADO
-          path: app/build/outputs/bundle/release/app-release.aab
-          retention-days: 14
-          if-no-files-found: error
-
-      - name: AAB unsigned - DO NOT upload to Play
-        if: env.BOLETO_SIGNED != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: BoletoRush-1.5.0-rc1-AAB-NAO-ASSINADO
+          name: BoletoRush-2.3.6-AAB-PLAY-ASSINADO
           path: app/build/outputs/bundle/release/app-release.aab
           retention-days: 14
           if-no-files-found: error
@@ -112,7 +111,7 @@ jobs:
       - name: Store graphics and listing package
         uses: actions/upload-artifact@v4
         with:
-          name: BoletoRush-1.5.0-rc1-KIT-LOJA
+          name: BoletoRush-2.3.6-KIT-LOJA
           path: |
             store/play-icon-512.png
             store/feature-graphic-1024x500.jpg

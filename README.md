@@ -10,7 +10,7 @@ Boleto Rush! é um jogo arcade casual brasileiro: mova a carteira, colete moedas
 | --- | --- | --- |
 | **Windows** | v1.4 portátil | **Prévia histórica** na release pública v1.5.3-qa; ainda sem assinatura digital de editor |
 | **Android** | **2.3.6-QA**, versionCode **43**, API alvo **36** | **Candidato integrado em revisão**; APK de depuração validado no Insano, **111 testes unitários** aprovados; sem homologação física |
-| **Google Play — produção** | — | **NÃO PUBLICAR**: falta celular físico, IDs reais de AdMob, assinatura de upload, capturas reais atualizadas, validação de política de privacidade e testes da Play |
+| **Google Play — produção** | — | **NÃO PUBLICAR**: falta celular físico, IDs reais de AdMob, assinatura de upload, capturas reais atualizadas, revisão das declarações de privacidade e testes da Play |
 
 A versão Android atual reúne colisões, Raspão, relíquias, Cofre, coleção permanente, missão semanal, Fechamento do Mês e anúncios recompensados opcionais com consentimento UMP. Os IDs de anúncios ainda são de **teste**. O teste automatizado local de 111 casos **não substitui** uma sessão completa em Android físico.
 
@@ -25,7 +25,7 @@ Requisitos: JDK 21, SDK Android 36 e Gradle wrapper do projeto.
 ./gradlew :app:bundleRelease
 ```
 
-No Windows, use `gradlew.bat` no lugar de `./gradlew`. O projeto utiliza `BOLETO_ADMOB_APP_ID` e `BOLETO_REWARDED_UNIT_ID` para publicidade; sem IDs próprios, os builds QA usam identificadores de teste, que não devem ser publicados comercialmente. Para distribuição pela Play, é necessário gerar o **AAB com a chave de upload original**, mantida fora do repositório. Nunca comite chaves, senhas ou segredos.
+No Windows, use `gradlew.bat` no lugar de `./gradlew`. **A variante debug/QA usa sempre os IDs oficiais de demonstração do AdMob**, inclusive quando variáveis de ambiente comerciais estiverem presentes. A variante `release` exige `BOLETO_ADMOB_APP_ID`, `BOLETO_REWARDED_UNIT_ID` e a **chave de upload do titular** configurados fora do repositório. Sem isso, `bundleRelease` é bloqueado intencionalmente. O workflow GitHub Actions compila somente o APK QA caso não existam segredos comerciais completos; não gera AAB não assinado. Nunca comite chaves, senhas ou segredos.
 
 ## Desenvolvimento Windows
 
@@ -39,4 +39,4 @@ O código e os scripts da versão nativa Windows estão em [`windows-port/`](win
 - [Política de Privacidade](PRIVACIDADE.md)
 - [Versões de teste e código-fonte](https://github.com/giulianocruz/boleto-rush-android/releases)
 
-**Próximo passo do Android:** instalar a **2.3.6-QA** em um celular conectado ao Insano, verificar partidas completas de 45/90 segundos e todos os recursos, confirmar publicamente a URL de política de privacidade, configurar os IDs reais do AdMob e a assinatura de upload do titular. Somente depois gerar AAB comercial e começar os testes internos/fechados na Play. [Plano de homologação consolidado](docs/LANCAMENTO_236_CONSOLIDADO.md).
+**Próximo passo do Android:** instalar a **2.3.6-QA** em um celular conectado ao Insano, verificar partidas completas de 45/90 segundos e todos os recursos, testar no app o link da política de privacidade já acessível publicamente, configurar os IDs reais do AdMob e a assinatura de upload do titular. Somente depois gerar AAB comercial e começar os testes internos/fechados na Play. [Plano de homologação consolidado](docs/LANCAMENTO_236_CONSOLIDADO.md).
