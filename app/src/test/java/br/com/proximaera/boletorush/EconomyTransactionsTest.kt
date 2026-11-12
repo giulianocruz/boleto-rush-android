@@ -48,6 +48,81 @@ private class LocalTestPrefs : SharedPreferences {
 }
 
 class EconomyTransactionsTest {
+    @Test fun notesTradeNeverConsumesRelicsIfFullRewardCannotFit() {
+        val prefs = LocalTestPrefs()
+        prefs.edit()
+            .putInt(GameRelics.WalletKey, 20)
+            .putInt("wallet_cash", Int.MAX_VALUE - 17)
+            .commit()
+        assertFalse(GameRelics.tradeHasCapacity(prefs, RelicDeal.NOTES))
+        assertFalse(GameRelics.exchange(prefs, RelicDeal.NOTES))
+        assertEquals(20, GameRelics.balance(prefs))
+        assertEquals(Int.MAX_VALUE - 17, GameEconomy.cash(prefs))
+        prefs.edit().putInt("wallet_cash", Int.MAX_VALUE - 18).commit()
+        assertTrue(GameRelics.tradeHasCapacity(prefs, RelicDeal.NOTES))
+        assertTrue(GameRelics.exchange(prefs, RelicDeal.NOTES))
+        assertEquals(18, GameRelics.balance(prefs))
+        assertEquals(Int.MAX_VALUE, GameEconomy.cash(prefs))
+        assertFalse(GameRelics.exchange(prefs, RelicDeal.NOTES))
+        assertEquals(18, GameRelics.balance(prefs))
+    }
+
+    @Test fun coinsTradeNeverConsumesRelicsIfFullFiveCoinRewardCannotFit() {
+        val prefs = LocalTestPrefs()
+        prefs.edit()
+            .putInt(GameRelics.WalletKey, 20)
+            .putInt("wallet_coins", Int.MAX_VALUE - 3)
+            .commit()
+        assertFalse(GameRelics.tradeHasCapacity(prefs, RelicDeal.COINS))
+        assertFalse(GameRelics.exchange(prefs, RelicDeal.COINS))
+        assertEquals(20, GameRelics.balance(prefs))
+        assertEquals(Int.MAX_VALUE - 3, GameEconomy.wallet(prefs))
+
+        prefs.edit().putInt("wallet_coins", Int.MAX_VALUE - 5).commit()
+        assertTrue(GameRelics.exchange(prefs, RelicDeal.COINS))
+        assertEquals(17, GameRelics.balance(prefs))
+        assertEquals(Int.MAX_VALUE, GameEconomy.wallet(prefs))
+    }
+
+    @Test fun coinTradeCanRepayDebtWithoutWalletRoomButNeverLosesPartialReward() {
+        val prefs = LocalTestPrefs()
+        prefs.edit()
+            .putInt(GameRelics.WalletKey, 20)
+            .putInt("wallet_coins", Int.MAX_VALUE)
+            .putInt(GameEconomy.DebtKey, 5)
+            .commit()
+        assertTrue(GameRelics.tradeHasCapacity(prefs, RelicDeal.COINS))
+        assertTrue(GameRelics.exchange(prefs, RelicDeal.COINS))
+        assertEquals(17, GameRelics.balance(prefs))
+        assertEquals(0, GameEconomy.debt(prefs))
+        assertEquals(Int.MAX_VALUE, GameEconomy.wallet(prefs))
+
+        prefs.edit().putInt(GameEconomy.DebtKey, 3).commit()
+        assertFalse(GameRelics.tradeHasCapacity(prefs, RelicDeal.COINS))
+        assertFalse(GameRelics.exchange(prefs, RelicDeal.COINS))
+        assertEquals(17, GameRelics.balance(prefs))
+        assertEquals(3, GameEconomy.debt(prefs))
+
+        prefs.edit().putInt("wallet_coins", Int.MAX_VALUE - 2).commit()
+        assertTrue(GameRelics.exchange(prefs, RelicDeal.COINS))
+        assertEquals(14, GameRelics.balance(prefs))
+        assertEquals(0, GameEconomy.debt(prefs))
+        assertEquals(Int.MAX_VALUE, GameEconomy.wallet(prefs))
+    }
+
+    @Test fun failedTradeCommitDoesNotDebitRelicsOrMintPartialWalletReward() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt(GameRelics.WalletKey, 12).commit()
+        prefs.allowCommit = false
+        assertFalse(GameRelics.exchange(prefs, RelicDeal.NOTES))
+        assertEquals(12, GameRelics.balance(prefs))
+        assertEquals(0, GameEconomy.cash(prefs))
+        prefs.allowCommit = true
+        assertTrue(GameRelics.exchange(prefs, RelicDeal.NOTES))
+        assertEquals(10, GameRelics.balance(prefs))
+        assertEquals(18, GameEconomy.cash(prefs))
+    }
+
     @Test fun relicShieldAlwaysAddsThreeSecondsToEveryPermanentUpgradeLevel() {
         for (level in 0..Upgrade.START_SHIELD.maxLevel) {
             val prefs = LocalTestPrefs()

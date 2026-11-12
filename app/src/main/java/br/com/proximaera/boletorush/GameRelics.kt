@@ -55,10 +55,26 @@ internal object GameRelics {
      * Trades are atomic with the relic debit, including debt repayment when
      * buying upgrade tokens. Pending boosts cannot be bought twice.
      */
+    /**
+     * Never charge shards for a reward that cannot be fully delivered.
+     * A coin trade also has value when all five coins pay down card debt.
+     */
+    fun tradeHasCapacity(prefs: SharedPreferences, deal: RelicDeal): Boolean =
+        when (deal) {
+            RelicDeal.NOTES ->
+                GameEconomy.cash(prefs).toLong() + 18L <= Int.MAX_VALUE.toLong()
+            RelicDeal.COINS -> {
+                val repayment = minOf(5, GameEconomy.debt(prefs))
+                val grantedCoins = 5 - repayment
+                GameEconomy.wallet(prefs).toLong() + grantedCoins <= Int.MAX_VALUE.toLong()
+            }
+            RelicDeal.START_SHIELD, RelicDeal.START_MAGNET -> true
+        }
+
     @Synchronized
     fun exchange(prefs: SharedPreferences, deal: RelicDeal): Boolean {
         val current = balance(prefs)
-        if (current < deal.cost) return false
+        if (current < deal.cost || !tradeHasCapacity(prefs, deal)) return false
         val edit = prefs.edit().putInt(WalletKey, current - deal.cost)
         when (deal) {
             RelicDeal.NOTES -> {
