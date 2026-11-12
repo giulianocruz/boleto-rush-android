@@ -7,7 +7,8 @@
   -Install explicitly installs/replaces the QA package without clearing data.
   -Capture saves a local screenshot, logs and metadata; nothing is uploaded.
 .EXAMPLE
-  .\qa_android_windows.ps1 -ApkPath ".\BoletoRush-2.3.0-ADMOB-SEGURO-QA.apk" -Install -Run -Capture
+  .\qa_android_windows.ps1 -ApkPath ".\BoletoRush-2.3.9-RELOGIO-SEGURO-QA.apk" -Install -Run -Capture
+  .\qa_android_windows.ps1 -ApkPath ".\BoletoRush-2.3.9-RELOGIO-SEGURO-QA.apk" -CollectOnly
 #>
 [CmdletBinding()]
 param(
@@ -15,6 +16,7 @@ param(
     [switch]$Install,
     [switch]$Run,
     [switch]$Capture,
+    [switch]$CollectOnly,
     [string]$DeviceSerial = "",
     [string]$EvidenceDirectory = ""
 )
@@ -136,7 +138,7 @@ foreach ($line in $rawDevices) {
 if ($unauthorized.Count -gt 0) {
     Write-Warning "Unauthorized/offline phone detected. Unlock it and accept USB debugging."
 }
-if (-not $Install -and -not $Run -and -not $Capture) {
+if (-not $Install -and -not $Run -and -not $Capture -and -not $CollectOnly) {
     # Read-only preflight, including when no phone is attached.
     Write-Host ("[PRÉ-VERIFICAÇÃO] READY_DEVICES=" + $ready.Count)
     if ($ready.Count -eq 0) { Write-Host '[INFO] Connect an Android phone, enable USB debugging and authorize this PC.' }
@@ -144,7 +146,10 @@ if (-not $Install -and -not $Run -and -not $Capture) {
     return
 }
 if ($Install -and -not $Run) { Stop-QA "Use -Install together with -Run to confirm active test intent." }
-if ($Capture -and -not $Run) { Stop-QA "Use -Capture together with -Run." }
+if ($Capture -and -not $Run -and -not $CollectOnly) { Stop-QA "Use -Capture together with -Run or -CollectOnly." }
+if ($CollectOnly -and ($Install -or $Run)) {
+    Stop-QA "-CollectOnly is read-only and cannot be combined with -Install or -Run."
+}
 if ($DeviceSerial -and $DeviceSerial -notmatch '^[a-zA-Z0-9_.:-]+$') {
     Stop-QA "Invalid device serial characters"
 }
@@ -160,6 +165,57 @@ if ($DeviceSerial) {
 }
 Write-Host "[OK] Authorized device selected." -ForegroundColor Green
 $startedAt = [DateTimeOffset]::Now.ToString('o')
+
+if ($CollectOnly) {
+    # Do not launch or install anything; this is a post-gameplay evidence collection.
+    $pidResult = @(Invoke-Adb -Arguments @('shell','pidof',$qaPackage) -AcceptNonzero)
+    $pidText = (($pidResult | Out-String).Trim())
+    if ($pidText -notmatch '^\d+(\s+\d+)*$') {
+        Stop-QA "QA game is not running. Open the .qa game on the phone and try again."
+    }
+
+    # Never capture a screenshot of a different foreground app or personal screen.
+    $activityDump = @(Invoke-Adb -Arguments @('shell','dumpsys','activity','activities'))
+    $activityLines = @($activityDump | Where-Object {
+        $_ -match '(?i)topResumedActivity|mResumedActivity'
+    })
+    if (-not ($activityLines | Where-Object {
+        $_ -match [regex]::Escape($qaPackage)
+    })) {
+        Stop-QA "QA game is not the resumed foreground app. Open Boleto Rush QA before collecting."
+    }
+
+    if (-not $EvidenceDirectory) {
+        $EvidenceDirectory = Join-Path (Split-Path -Parent $ApkPath) (
+            'QA-Evidencias\' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-pos-partida')
+    }
+    New-Item -Path $EvidenceDirectory -ItemType Directory -Force | Out-Null
+    $EvidenceDirectory = (Resolve-Path -LiteralPath $EvidenceDirectory).Path
+
+    $screenshot = Join-Path $EvidenceDirectory '01-tela-atual.png'
+    Capture-Png $screenshot
+    $logFile = Join-Path $EvidenceDirectory '02-logcat-app.txt'
+    $log = @(Invoke-Adb -Arguments @('logcat','-d','-t','1200',
+        ("--pid=" + $pidText.Split(' ')[0]),'*:W') -AcceptNonzero)
+    $log | Out-File -LiteralPath $logFile -Encoding UTF8
+
+    $report = [ordered]@{
+        status = 'POST_GAMEPLAY_EVIDENCE_COLLECTED_MANUAL_REVIEW_REQUIRED'
+        package = $actualPackage
+        versionName = $name
+        versionCode = $code
+        apkSha256 = $hash
+        collectedAt = $startedAt
+        foregroundValidated = $true
+        screenCaptured = (Test-Path -LiteralPath $screenshot)
+        logcatFile = (Split-Path $logFile -Leaf)
+        note = 'Read-only, no app restart or installation. Gameplay and ad behavior must be reviewed manually.'
+    }
+    $report | ConvertTo-Json -Depth 5 | Out-File -LiteralPath (
+        Join-Path $EvidenceDirectory '03-resultado.json') -Encoding UTF8
+    Write-Host ("[OK] Post-gameplay evidence saved locally: " + $EvidenceDirectory) -ForegroundColor Green
+    return
+}
 
 if ($Install) {
     Write-Host '[AÇÃO] Installing/updating ONLY .qa package, preserving user app data ...'

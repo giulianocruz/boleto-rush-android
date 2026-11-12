@@ -129,3 +129,9 @@ O candidato mais recente da PR integrada #39 é **Boleto Rush 2.3.9-QA (versionC
 **Resultado:** `BUILD SUCCESSFUL`, **118 testes JUnit / 0 falhas / 0 erros**, **Android Lint 0 erros / 34 avisos**. APK, assinatura, SHA-256 e roteiro em [QA 2.3.9 — relógio e anúncios](QA_239_CLOCK_FOREGROUND.md).
 
 **Ainda NO-GO para produção:** nenhuma homologação física Android, IDs comerciais ou chave de upload, capturas atuais ou conclusões sobre desempenho real. O teste da PR #39 continua em rascunho.
+
+## Complemento de QA — coleta pós-partida (12/11/2026)
+
+O kit de testes Windows ganhou o modo `-CollectOnly` e um novo atalho no Insano, `COLETAR-EVIDENCIAS-BOLETO-RUSH.cmd`, para capturar o estado **após** partidas, acesso ao Cofre, álbum e opções de privacidade. Ele não reinicia nem reinstala a QA e exige o aplicativo em primeiro plano para evitar capturas de telas de outros aplicativos.
+
+**Validação local:** parser PowerShell 5.1 sem erros, pré-verificação da QA 2.3.9 aprovada e coleta sem aparelho conectado bloqueada de modo seguro, sem evidências fictícias. A execução com celular real ainda não ocorreu. Roteiro em `docs/QA_239_POS_PARTIDA_WINDOWS.md`.
