@@ -28,8 +28,8 @@ android {
         applicationId = "br.com.proximaera.boletorush"
         minSdk = 26
         targetSdk = 36
-        versionCode = 37
-        versionName = "2.2.0-qa"
+        versionCode = 38
+        versionName = "2.3.0-qa"
         resValue("string", "admob_app_id", admobAppId)
         resValue("string", "admob_rewarded_unit_id", rewardedUnitId)
     }
@@ -91,4 +91,9 @@ dependencies {
     implementation("androidx.compose.foundation:foundation:1.7.2")
     implementation("androidx.compose.material3:material3:1.3.0")
     testImplementation("junit:junit:4.13.2")
+}
+
+// A release bundle must NEVER bypass the upload-key and real AdMob ID checks.
+tasks.matching { it.name == "bundleRelease" || it.name == "assembleRelease" }.configureEach {
+    dependsOn("verifyPlayConfiguration")
 }
