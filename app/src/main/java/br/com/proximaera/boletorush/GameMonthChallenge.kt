@@ -33,6 +33,7 @@ internal object GameMonthChallenge {
 
     const val WaveCount = 3
     const val FinalWindowSeconds = 18f
+    const val WarningLeadSeconds = 5f
     const val WaveSpacingSeconds = 6f
     const val NotesAward = 25
     const val MaxStamps = 999
@@ -47,6 +48,24 @@ internal object GameMonthChallenge {
         if (fromStart < 0f) return -1
         return (fromStart / WaveSpacingSeconds).toInt().coerceIn(0, WaveCount - 1)
     }
+
+    /**
+     * Warn before the boss begins, so a player has time to position.
+     * The warning and challenge window must never spawn an optional ad gate.
+     */
+    fun warningSeconds(elapsed: Float, duration: Float): Int {
+        if (!elapsed.isFinite() || !duration.isFinite() ||
+            duration <= FinalWindowSeconds + WarningLeadSeconds) return 0
+        val timeLeft = duration - FinalWindowSeconds - elapsed
+        if (timeLeft <= 0f || timeLeft > WarningLeadSeconds) return 0
+        return kotlin.math.ceil(timeLeft.toDouble()).toInt().coerceIn(1, 5)
+    }
+
+    fun adBreakBlocked(elapsed: Float, duration: Float): Boolean =
+        elapsed.isFinite() && duration.isFinite() &&
+            duration > FinalWindowSeconds + WarningLeadSeconds &&
+            elapsed >= duration - FinalWindowSeconds - WarningLeadSeconds &&
+            elapsed < duration
 
     fun safeLaneLabel(index: Int): String = when (index) {
         0 -> "ESQUERDA"
