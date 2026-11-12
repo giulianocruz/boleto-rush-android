@@ -40,6 +40,9 @@ class RewardedReviveAds(
     private var consentInfoAvailable = false
     private var consentFormRequested = false
     private var pendingConsentForm: ConsentForm? = null
+    // A consent change invalidates creatives loaded with the earlier decision.
+    private var consentEpoch = 0
+    private var privacyOptionsOpen = false
 
     // Consent info can update in the background, but any required form must
     // wait for the menu instead of appearing over a live round.
@@ -123,11 +126,21 @@ class RewardedReviveAds(
     }
 
     fun showPrivacyOptions() {
-        if (privacyOptionsRequired)
-            UserMessagingPlatform.showPrivacyOptionsForm(activity) { error ->
-                if (error != null) Log.w("BoletoRushAds", "Privacy options: ${error.message}")
-                initializeIfAllowed()
-            }
+        if (!privacyOptionsRequired || privacyOptionsOpen || !consentUiAllowed()) return
+        privacyOptionsOpen = true
+        consentEpoch++
+        // Never reuse an ad fetched under the previous privacy selection.
+        rewardedAd = null
+        ready = false
+        UserMessagingPlatform.showPrivacyOptionsForm(activity) { error ->
+            privacyOptionsOpen = false
+            privacyOptionsRequired =
+                consentInformation.privacyOptionsRequirementStatus ==
+                    ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
+            if (error != null) Log.w("BoletoRushAds", "Privacy options: ${error.message}")
+            initializeIfAllowed()
+            if (sdkStarted) load()
+        }
     }
 
     private fun initializeIfAllowed() {
@@ -138,13 +151,28 @@ class RewardedReviveAds(
     }
 
     private fun load() {
-        if (loading || rewardedAd != null || !consentInformation.canRequestAds()) return
+        if (loading || rewardedAd != null || !GameAdConsentGate.mayLoad(
+                adRequested, consentComplete, sdkStarted,
+                consentInformation.canRequestAds(), privacyOptionsOpen
+            )) return
         loading = true
+        val requestedEpoch = consentEpoch
         RewardedAd.load(activity, activity.getString(R.string.admob_rewarded_unit_id),
             AdRequest.Builder().build(),
             object : RewardedAdLoadCallback() {
                 override fun onAdLoaded(ad: RewardedAd) {
                     loading = false
+                    if (!GameAdConsentGate.mayKeepLoadedAd(
+                            consentComplete, consentInformation.canRequestAds(),
+                            privacyOptionsOpen, requestedEpoch == consentEpoch
+                        )) {
+                        // Consent changed while this request was in-flight.
+                        // Discard the stale ad and retry only if still authorized.
+                        rewardedAd = null
+                        ready = false
+                        if (requestedEpoch != consentEpoch && !privacyOptionsOpen) load()
+                        return
+                    }
                     rewardedAd = ad
                     ready = true
                 }
@@ -153,6 +181,7 @@ class RewardedReviveAds(
                     ready = false
                     rewardedAd = null
                     Log.w("BoletoRushAds", "Rewarded ad unavailable: ${error.message}")
+                    if (requestedEpoch != consentEpoch && !privacyOptionsOpen) load()
                 }
             }
         )
@@ -162,8 +191,24 @@ class RewardedReviveAds(
         offerReward(onEarned, onUnavailable)
 
     fun offerReward(onEarned: () -> Unit, onUnavailable: () -> Unit) {
-        val ad = rewardedAd
-        if (ad == null) {
+        val ad = rewardedAd ?: run {
+            onUnavailable()
+            return
+        }
+        val allowed = consentInformation.canRequestAds()
+        if (!GameAdConsentGate.mayShowReward(
+                adPresent = true,
+                ready = ready,
+                consentResolved = consentComplete,
+                canRequestAds = allowed,
+                privacyOptionsOpen = privacyOptionsOpen,
+                activityAvailable = !activity.isFinishing && !activity.isDestroyed
+            )) {
+            // Loaded is not permission to display: UMP status can change later.
+            if (!allowed || privacyOptionsOpen) {
+                rewardedAd = null
+                ready = false
+            }
             onUnavailable()
             return
         }
