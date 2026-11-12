@@ -330,6 +330,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var cashCollected by remember { mutableIntStateOf(0) }
     var cashEarned by remember { mutableIntStateOf(0) }
     var billsHit by remember { mutableIntStateOf(0) }
+    var nearMisses by remember { mutableIntStateOf(0) }
+    var dodgeStreak by remember { mutableIntStateOf(0) }
+    // Recent intentional movement is required to earn the risk bonus.
+    var dodgeMovementAge by remember { mutableFloatStateOf(5f) }
     var feedback by remember { mutableStateOf("") }
     var feedbackSeconds by remember { mutableFloatStateOf(0f) }
     var coinFlashSeconds by remember { mutableFloatStateOf(0f) }
@@ -398,6 +402,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         roundCreditGranted = 0
         roundDebtRepaid = 0
         billsHit = 0
+        nearMisses = 0
+        dodgeStreak = 0
+        dodgeMovementAge = 5f
         roundEarnings = 0
         milestoneBonus = 0
         newMilestones = emptyList()
@@ -562,6 +569,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 tone(ToneGenerator.TONE_PROP_ACK)
                 break
             }
+            dodgeMovementAge = if (abs(targetX - playerX) > .028f) 0f
+                else (dodgeMovementAge + dt).coerceAtMost(5f)
             playerX = (playerX + (targetX - playerX) * (dt * GamePowerRules.playerResponse(sprintTime)).coerceAtMost(1f))
                 .coerceIn(0.09f, 0.91f)
             shield = (shield - dt).coerceAtLeast(0f)
@@ -713,6 +722,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             tone(ToneGenerator.TONE_PROP_ACK)
                         }
                         Kind.OVERDRAFT -> {
+                            dodgeStreak = 0
                             if (armorHits > 0 && armorTime > 0f) {
                                 armorHits--
                                 feedback = "ARMADURA BLOQUEOU O CHEQUE!"
@@ -744,6 +754,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             tone(ToneGenerator.TONE_PROP_ACK)
                         }
                         Kind.BILL -> {
+                            dodgeStreak = 0
                             if (armorHits > 0 && armorTime > 0f) {
                                 armorHits--
                                 feedback = "ARMADURA BLOQUEOU O BOLETO!"
@@ -806,6 +817,21 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         }
                     }
                 } else if (ny < 1.02f) {
+                    if (GameNearMiss.qualified(item.kind, item.y, ny, nx, playerX,
+                            dodgeMovementAge, shield > 0f || armorHits > 0 || invulnerable > 0f)) {
+                        nearMisses++
+                        dodgeStreak = (dodgeStreak + 1).coerceAtMost(5)
+                        val bonus = GameNearMiss.points(dodgeStreak)
+                        score = (score.toLong() + bonus).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                        if (feedbackSeconds <= .20f) {
+                            feedback = "RASPÃO! +$bonus PONTOS"
+                            feedbackSeconds = .85f
+                            tone(ToneGenerator.TONE_PROP_BEEP2)
+                        }
+                    } else if (GameDrops.harmful(item.kind) &&
+                        item.y < GameNearMiss.WalletY && ny >= GameNearMiss.WalletY) {
+                        dodgeStreak = 0
+                    }
                     updated.add(item.copy(x = nx, y = ny))
                 }
             }
@@ -1274,6 +1300,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     (GameRunProgression.nextLevelXp(runXp)?.let { " / " + it } ?: " • MÁX"),
                     color=if(theme==GameTheme.BRASIL_EM_APUROS) Gold else Teal,
                     fontSize=10.sp,fontWeight=FontWeight.Bold)
+                if (nearMisses > 0) Text(
+                    "RASPÕES $nearMisses • SEQUÊNCIA x$dodgeStreak • PONTOS EXTRAS",
+                    color=Gold,fontSize=10.sp,fontWeight=FontWeight.Bold)
                 val activePowers = GamePowerStatus.labels(pixTime, magnetTime, shield) +
                     listOfNotNull(
                         if (sprintTime > 0f) "TURBO " + (sprintTime.toInt()+1) + "s" else null,
@@ -1327,6 +1356,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Text("✦ Saldo extra   🧲 Ímã   💳 Cartão   PIX x2   R$ Salário",
                     color=Muted,textAlign=TextAlign.Center,fontSize=13.sp)
                 Spacer(Modifier.height(8.dp))
+                Text("RASPÃO: DESVIE POR POUCO E GANHE PONTOS",
+                    color=Gold,textAlign=TextAlign.Center,fontSize=11.sp,fontWeight=FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
                 Text("${mode.duration.toInt()} SEGUNDOS  •  3 VIDAS  •  ANÚNCIO OPCIONAL",
                     color=Muted,textAlign=TextAlign.Center,fontSize=10.sp,letterSpacing=1.sp)
                 Spacer(Modifier.height(16.dp))
@@ -1667,7 +1699,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Text("RECORDE: $best",color=Teal,fontSize=17.sp,
                     fontWeight=FontWeight.Bold)
                 Spacer(Modifier.height(10.dp))
-                Text("MOEDAS $coinsCollected  •  NOTAS R$ $cashCollected  •  BOLETOS $billsHit  •  COMBO MÁX. $maxCombo",
+                Text("MOEDAS $coinsCollected  •  NOTAS R$ $cashCollected  •  BOLETOS $billsHit  •  COMBO MÁX. $maxCombo  •  RASPÕES $nearMisses",
                     color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
                 Text("+ $roundEarnings MOEDAS RARAS • +R$ $cashEarned NOTAS • SALDO 🪙 $wallet / R$ $cashWallet",color=Gold,
