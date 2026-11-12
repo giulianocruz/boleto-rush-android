@@ -33,6 +33,19 @@ internal object GameNearMiss {
         return gap >= MinimumGap && gap <= MaximumGap
     }
 
+    const val FlashDuration = .72f
+
+    /** Stable visual animation curves; invalid times must never leak NaN into Canvas. */
+    fun flashAlpha(remaining: Float): Float =
+        if (!remaining.isFinite()) 0f else (remaining / FlashDuration).coerceIn(0f, 1f)
+
+    fun flashRadius(remaining: Float, streak: Int): Float =
+        1.7f + .8f * (1f - flashAlpha(remaining)) + if (streak >= 3) .22f else 0f
+
+    fun flashLabel(streak: Int, points: Int): String =
+        (if (streak >= 3) "SEQUÊNCIA x${streak.coerceIn(3, 5)}" else "RASPÃO!") +
+            " +${points.coerceIn(0, 15)}"
+
     /** A bounded streak raises score slowly, never the permanent wallet. */
     fun points(streak: Int): Int = 5 + 2 * streak.coerceIn(1, 5)
 }

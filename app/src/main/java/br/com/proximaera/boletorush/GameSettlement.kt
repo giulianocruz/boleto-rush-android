@@ -14,7 +14,9 @@ internal data class GameReceipt(
     val notes: Int,
     val credit: Int,
     val debt: Int,
-    val unlocked: List<Milestone>
+    val unlocked: List<Milestone>,
+    val relicsBanked: Int = 0,
+    val relicWallet: Int = 0
 )
 
 /**
@@ -33,23 +35,30 @@ internal object GameSettlement {
     private const val CreditKey = "store_credit"
 
     private fun encode(receipt: GameReceipt): String = listOf(
-        "1", receipt.gamesPlayed, receipt.best, receipt.coinsBanked,
+        "2", receipt.gamesPlayed, receipt.best, receipt.coinsBanked,
         receipt.notesBanked, receipt.creditGranted, receipt.debtRepaid,
         receipt.wallet, receipt.notes, receipt.credit, receipt.debt,
-        receipt.unlocked.joinToString(",") { it.name }.ifEmpty { "-" }
+        receipt.unlocked.joinToString(",") { it.name }.ifEmpty { "-" },
+        receipt.relicsBanked, receipt.relicWallet
     ).joinToString("|")
 
     private fun decode(value: String?): GameReceipt? {
         if (value == null) return null
         val parts = value.split('|')
-        if (parts.size != 12 || parts[0] != "1") return null
+        val legacy = parts.size == 12 && parts[0] == "1"
+        val modern = parts.size == 14 && parts[0] == "2"
+        if (!legacy && !modern) return null
         val numbers = parts.subList(1, 11).map { it.toIntOrNull() ?: return null }
         val names = if (parts[11] == "-") emptyList() else parts[11].split(',')
         val unlocked = Milestone.entries.filter { it.name in names }
         if (unlocked.size != names.size) return null
+        val banked = if (modern) parts[12].toIntOrNull() ?: return null else 0
+        val balance = if (modern) parts[13].toIntOrNull() ?: return null else 0
+        if (banked !in 0..GameRelics.MaxPerRound || balance !in 0..GameRelics.MaxWallet) return null
         return GameReceipt(
             numbers[0], numbers[1], numbers[2], numbers[3], numbers[4],
-            numbers[5], numbers[6], numbers[7], numbers[8], numbers[9], unlocked
+            numbers[5], numbers[6], numbers[7], numbers[8], numbers[9],
+            unlocked, banked, balance
         )
     }
 
@@ -67,7 +76,8 @@ internal object GameSettlement {
         notesCollected: Int,
         pendingCardCredit: Int,
         incomeLevel: Int,
-        victory: Boolean
+        victory: Boolean,
+        relicsCollected: Int = 0
     ): GameReceipt? {
         require(roundId.isNotBlank() && '\n' !in roundId && '\r' !in roundId) {
             "The round must have a valid unique identifier"
@@ -104,6 +114,11 @@ internal object GameSettlement {
         val nextNotes = (GameEconomy.cash(prefs).toLong() + notesBanked)
             .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
+        val relicBalance = GameRelics.balance(prefs)
+        val relicsBanked = minOf(GameRelics.bankable(relicsCollected),
+            GameRelics.MaxWallet - relicBalance)
+        val nextRelicBalance = relicBalance + relicsBanked
+
         val availableCredit = GameEconomy.credit(prefs)
         val room = (25L - nextDebt - availableCredit).coerceIn(0L, 25L).toInt()
         val creditGranted = pendingCardCredit.coerceIn(0, room)
@@ -116,7 +131,8 @@ internal object GameSettlement {
 
         val receipt = GameReceipt(nextGames, nextBest, coinsBanked, notesBanked,
             creditGranted, previousDebt - nextDebt, nextCoins,
-            nextNotes, nextCredit, nextDebt, milestones)
+            nextNotes, nextCredit, nextDebt, milestones,
+            relicsBanked, nextRelicBalance)
 
         val editor = prefs.edit()
             .putString(LastIdKey, roundId)
@@ -124,6 +140,7 @@ internal object GameSettlement {
             .putString(HistoryKey, (priorIds + roundId).joinToString("\n"))
             .putInt(CoinWalletKey, nextCoins)
             .putInt(NoteWalletKey, nextNotes)
+            .putInt(GameRelics.WalletKey, nextRelicBalance)
             .putInt(CreditKey, nextCredit)
             .putInt(GameEconomy.DebtKey, nextDebt)
             .putInt("games", nextGames)

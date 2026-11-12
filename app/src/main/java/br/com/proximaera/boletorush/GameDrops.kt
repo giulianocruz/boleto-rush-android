@@ -1,7 +1,7 @@
 package br.com.proximaera.boletorush
 
 /** Pure drop rules, separated from Compose for automated regression tests. */
-internal enum class Kind { COIN, BANKNOTE, CARD, OVERDRAFT, BILL, SHIELD, HEART, MAGNET, PIX, PAYDAY, CASHBACK, SPRINT, SLOW, ARMOR, SCREEN_CLEAR }
+internal enum class Kind { COIN, BANKNOTE, CARD, OVERDRAFT, BILL, SHIELD, HEART, MAGNET, PIX, PAYDAY, CASHBACK, SPRINT, SLOW, ARMOR, SCREEN_CLEAR, RELIC_BRONZE, RELIC_SILVER, RELIC_GOLD }
 
 internal object GameDrops {
     fun harmful(kind: Kind): Boolean = kind == Kind.BILL || kind == Kind.OVERDRAFT
@@ -30,6 +30,10 @@ internal object GameDrops {
             itemRoll < .418f && elapsed >= 8f -> Kind.SLOW
             itemRoll < .440f && elapsed >= 10f -> Kind.ARMOR
             itemRoll < .455f && stage >= 1 -> Kind.SCREEN_CLEAR
+            // Rare treasures after the first chapter; always collectable without an ad.
+            itemRoll < .473f && stage >= 1 -> Kind.RELIC_BRONZE
+            itemRoll < .480f && stage >= 1 -> Kind.RELIC_SILVER
+            itemRoll < .483f && stage >= 2 -> Kind.RELIC_GOLD
             !previousWasHazard && elapsed >= 5f &&
                 hazardRoll < GamePacing.billOdds(elapsed, duration, gamesPlayed) -> Kind.BILL
             else -> Kind.COIN

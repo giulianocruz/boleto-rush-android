@@ -284,4 +284,106 @@ class EconomyTransactionsTest {
         assertFalse(RewardedRoundBonus.eligible(prefs,"round-second"))
         assertEquals(null,RewardedRoundBonus.claimDouble(prefs,"round-first"))
     }
+    @Test fun relicsBankOnlyOnAtomicSettlementAndNeverTwice() {
+        val prefs = LocalTestPrefs()
+        val first = GameSettlement.settle(prefs,"relic-round",false,
+            95,8,6,0,0,false,relicsCollected=5)!!
+        assertEquals(5,first.relicsBanked)
+        assertEquals(5,first.relicWallet)
+        assertEquals(5,GameRelics.balance(prefs))
+        assertEquals(first,GameSettlement.settle(prefs,"relic-round",false,
+            999,999,999,0,0,true,relicsCollected=12))
+        assertEquals(5,GameRelics.balance(prefs))
+        assertEquals(first,GameSettlement.latestReceipt(prefs))
+        val second = GameSettlement.settle(prefs,"next-round",false,
+            0,0,0,0,0,false,relicsCollected=99)!!
+        assertEquals(12,second.relicsBanked)
+        assertEquals(17,GameRelics.balance(prefs))
+        assertEquals(null,GameSettlement.settle(prefs,"relic-round",false,
+            1000,1000,1000,0,0,true,relicsCollected=12))
+    }
+
+    @Test fun failedSettlementDoesNotBankRelicsOrOtherRewards() {
+        val prefs = LocalTestPrefs()
+        prefs.allowCommit = false
+        assertEquals(null,GameSettlement.settle(prefs,"relic-fail",false,
+            60,8,8,0,0,false,relicsCollected=4))
+        assertEquals(0,GameRelics.balance(prefs))
+        assertEquals(0,GameEconomy.wallet(prefs))
+        prefs.allowCommit = true
+        val receipt = GameSettlement.settle(prefs,"relic-fail",false,
+            60,8,8,0,0,false,relicsCollected=4)!!
+        assertEquals(4,receipt.relicsBanked)
+        assertEquals(4,GameRelics.balance(prefs))
+    }
+
+    @Test fun relicShopExchangesUseOneCommitAndRepayCreditDebt() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt(GameRelics.WalletKey,8)
+            .putInt(GameEconomy.DebtKey,3).commit()
+        // Three credits are repaid before adding the remaining two to the wallet.
+        assertTrue(GameRelics.exchange(prefs,RelicDeal.COINS))
+        assertEquals(5,GameRelics.balance(prefs))
+        assertEquals(0,GameEconomy.debt(prefs))
+        assertEquals(2,GameEconomy.wallet(prefs))
+        assertTrue(GameRelics.exchange(prefs,RelicDeal.NOTES))
+        assertEquals(3,GameRelics.balance(prefs))
+        assertEquals(18,GameEconomy.cash(prefs))
+        prefs.allowCommit = false
+        assertFalse(GameRelics.exchange(prefs,RelicDeal.NOTES))
+        assertEquals(3,GameRelics.balance(prefs))
+        assertEquals(18,GameEconomy.cash(prefs))
+    }
+
+    @Test fun relicBoostsAreBoughtOnceAndConsumedAtNextRunStart() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt(GameRelics.WalletKey,20).commit()
+        assertTrue(GameRelics.exchange(prefs,RelicDeal.START_SHIELD))
+        assertFalse(GameRelics.exchange(prefs,RelicDeal.START_SHIELD))
+        assertTrue(GameRelics.pendingShield(prefs))
+        assertTrue(GameRelics.exchange(prefs,RelicDeal.START_MAGNET))
+        assertTrue(GameRelics.pendingMagnet(prefs))
+        assertEquals(8,GameRelics.balance(prefs))
+        prefs.allowCommit = false
+        assertEquals(0f,GameRelics.consumeStartShield(prefs))
+        assertTrue(GameRelics.pendingShield(prefs))
+        prefs.allowCommit = true
+        assertEquals(3f,GameRelics.consumeStartShield(prefs))
+        assertEquals(0f,GameRelics.consumeStartShield(prefs))
+        assertEquals(6f,GameRelics.consumeStartMagnet(prefs))
+        assertEquals(0f,GameRelics.consumeStartMagnet(prefs))
+        assertFalse(GameRelics.pendingMagnet(prefs))
+    }
+
+    @Test fun rewardAdRelicRequiresRealSettledDropAndClaimsOnce() {
+        val prefs = LocalTestPrefs()
+        assertFalse(GameRelics.rewardedEligible(prefs,"missing"))
+        GameSettlement.settle(prefs,"relic-ad-round",false,
+            0,0,0,0,0,false,relicsCollected=2)!!
+        assertTrue(GameRelics.rewardedEligible(prefs,"relic-ad-round"))
+        prefs.allowCommit = false
+        assertFalse(GameRelics.claimAdBonus(prefs,"relic-ad-round"))
+        assertEquals(2,GameRelics.balance(prefs))
+        prefs.allowCommit = true
+        assertTrue(GameRelics.claimAdBonus(prefs,"relic-ad-round"))
+        assertFalse(GameRelics.claimAdBonus(prefs,"relic-ad-round"))
+        assertEquals(3,GameRelics.balance(prefs))
+        GameSettlement.settle(prefs,"empty-ad-round",false,
+            0,0,0,0,0,false,relicsCollected=0)!!
+        assertFalse(GameRelics.rewardedEligible(prefs,"relic-ad-round"))
+        assertFalse(GameRelics.rewardedEligible(prefs,"empty-ad-round"))
+    }
+
+    @Test fun previousReceiptFormatRemainsReadable() {
+        val prefs = LocalTestPrefs()
+        prefs.edit()
+            .putString("last_settlement_id","legacy-relic-receipt")
+            .putString("last_settlement_receipt_v2","1|1|10|2|3|0|0|2|3|0|0|-")
+            .commit()
+        val receipt = GameSettlement.latestReceipt(prefs)!!
+        assertEquals(2,receipt.coinsBanked)
+        assertEquals(0,receipt.relicsBanked)
+        assertEquals(0,receipt.relicWallet)
+    }
+
 }
