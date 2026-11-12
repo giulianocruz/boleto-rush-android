@@ -66,7 +66,7 @@ private val Teal = Color(0xFF25E2D1)
 private val Gold = Color(0xFFFFD166)
 private val Coral = Color(0xFFFF657C)
 private val Muted = Color(0xFFA7BBCF)
-private enum class Screen { MENU, STORE, HOW, TUTORIAL, PLAY, PAUSE, CHAPTER_BONUS, REVIVE, END }
+private enum class Screen { MENU, STORE, ALBUM, HOW, TUTORIAL, PLAY, PAUSE, CHAPTER_BONUS, REVIVE, END }
 private enum class Mode(val title: String, val duration: Float) {
     CLASSIC("CLÁSSICO",45f), MARATHON("MARATONA",90f)
 }
@@ -331,6 +331,12 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var relicsPending by remember { mutableIntStateOf(0) }
     var relicsEarned by remember { mutableIntStateOf(0) }
     var relicWallet by remember { mutableIntStateOf(GameRelics.balance(prefs)) }
+    var album by remember { mutableStateOf(GameRelicAlbum.progress(prefs)) }
+    var relicBronze by remember { mutableIntStateOf(0) }
+    var relicSilver by remember { mutableIntStateOf(0) }
+    var relicGold by remember { mutableIntStateOf(0) }
+    var weeklyNotesEarned by remember { mutableIntStateOf(0) }
+    var albumNewlyUnlocked by remember { mutableStateOf(false) }
     var cashEarned by remember { mutableIntStateOf(0) }
     var billsHit by remember { mutableIntStateOf(0) }
     var nearMisses by remember { mutableIntStateOf(0) }
@@ -404,6 +410,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         cashCollected = 0
         relicsPending = 0
         relicsEarned = 0
+        relicBronze = 0
+        relicSilver = 0
+        relicGold = 0
+        weeklyNotesEarned = 0
+        albumNewlyUnlocked = false
         cashEarned = 0
         settlementError = ""
         pendingCardCredit = 0
@@ -485,7 +496,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         val receipt = runCatching {
             GameSettlement.settle(prefs, roundId, mode == Mode.MARATHON,
                 score, coinsCollected, cashCollected, pendingCardCredit,
-                incomeLevel, victory, relicsCollected = relicsPending)
+                incomeLevel, victory, relicsCollected = relicsPending,
+                relicBronze = relicBronze, relicSilver = relicSilver, relicGold = relicGold)
         }.getOrNull()
         if (receipt == null) {
             settlementError = "Não foi possível salvar. Tente resgatar novamente."
@@ -505,6 +517,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         cashEarned = receipt.notesBanked
         relicsEarned = receipt.relicsBanked
         relicWallet = receipt.relicWallet
+        weeklyNotesEarned = receipt.weeklyNotesAward
+        albumNewlyUnlocked = receipt.albumUnlocked
+        album = GameRelicAlbum.progress(prefs)
         roundCreditGranted = receipt.creditGranted
         roundDebtRepaid = receipt.debtRepaid
         pendingCardCredit = 0
@@ -572,6 +587,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             Screen.CHAPTER_BONUS -> Screen.PLAY
             Screen.HOW -> Screen.MENU
             Screen.STORE -> Screen.MENU
+            Screen.ALBUM -> Screen.MENU
             Screen.TUTORIAL -> Screen.MENU
             Screen.REVIVE -> Screen.REVIVE
             Screen.END -> Screen.MENU
@@ -839,6 +855,12 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             val bankable = (GameRelics.MaxPerRound - relicsPending).coerceAtLeast(0)
                             val units = minOf(GameRelics.value(item.kind), bankable)
                             relicsPending += units
+                            if (units > 0) when (item.kind) {
+                                Kind.RELIC_BRONZE -> relicBronze++
+                                Kind.RELIC_SILVER -> relicSilver++
+                                Kind.RELIC_GOLD -> relicGold++
+                                else -> Unit
+                            }
                             feedback = if (units > 0)
                                 "RELÍQUIA ${GameRelics.rarityLabel(item.kind)}! +$units FRAGMENTO(S)"
                                 else "BOLSA DE RELÍQUIAS CHEIA!"
@@ -1190,6 +1212,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                         Cosmetic.NEON -> Color(0xFFEA79FF)
                         Cosmetic.GOLD -> Gold
                         Cosmetic.BURGUNDY -> Color(0xFFE96E93)
+                        Cosmetic.RELIC_HUNTER -> Color(0xFF8CE7FF)
                         else -> Teal
                     }
                     drawCircle(skinGlow.copy(alpha=.12f), r*1.38f, Offset(x,y+r*.28f))
@@ -1427,6 +1450,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 GameButton("JOGAR AGORA"){startOrTutorial()}
                 Spacer(Modifier.height(9.dp))
                 GameButton("💎 COFRE • $relicWallet RELÍQUIAS",secondary=true){screen=Screen.STORE}
+                Spacer(Modifier.height(8.dp))
+                GameButton("📖 ÁLBUM DE RELÍQUIAS",secondary=true){
+                    album = GameRelicAlbum.progress(prefs)
+                    screen=Screen.ALBUM
+                }
                 Spacer(Modifier.height(12.dp))
                 GameButton(if(soundOn) "SOM: LIGADO" else "SOM: DESLIGADO",
                     secondary=true){toggleSound()}
@@ -1502,6 +1530,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 }
                 if (shopMessage.isNotEmpty()) Text(shopMessage,color=Gold,
                     fontSize=12.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(10.dp))
+                GameButton("📖 VER ÁLBUM E MISSÃO SEMANAL",secondary=true){
+                    album = GameRelicAlbum.progress(prefs)
+                    screen=Screen.ALBUM
+                }
                 Spacer(Modifier.height(23.dp))
 
                 Text("🧲 ÍMÃ MAGNÉTICO • NÍVEL $magnetLevel/3",color=Color(0xFFECA8FF),
@@ -1544,6 +1577,8 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     val owned = GameEconomy.ownsCosmetic(prefs,cosmetic)
                     val label = when {
                         cosmetic == selectedCosmetic -> "${cosmetic.title} • EQUIPADO"
+                        cosmetic == Cosmetic.RELIC_HUNTER && !owned ->
+                            "${cosmetic.title} • COMPLETE O ÁLBUM"
                         owned -> "${cosmetic.title} • EQUIPAR"
                         else -> "${cosmetic.title} • R$ ${cosmetic.cost}"
                     }
@@ -1568,6 +1603,71 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 GameButton("VOLTAR AO MENU"){shopMessage="";screen=Screen.MENU}
                 Spacer(Modifier.height(10.dp))
                 Text("MOEDAS E NOTAS VIRTUAIS • SEM COMPRAS REAIS • PROGRESSO LOCAL",
+                    color=Muted,fontSize=10.sp,textAlign=TextAlign.Center)
+            }
+        }
+        if (screen == Screen.ALBUM) {
+            Box(Modifier.fillMaxSize().background(Navy.copy(alpha=.98f)))
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(horizontal=25.dp,vertical=32.dp),
+                horizontalAlignment=Alignment.CenterHorizontally) {
+                Text("📖 ÁLBUM DE RELÍQUIAS",color=Gold,fontSize=25.sp,
+                    fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(9.dp))
+                Text("As descobertas ficam no álbum para sempre, mesmo depois de gastar fragmentos no Cofre.",
+                    color=Muted,fontSize=13.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(20.dp))
+                val collection = listOf(
+                    Triple("🥉 BRONZE",album.bronze,GameRelicAlbum.BronzeGoal),
+                    Triple("🥈 PRATA",album.silver,GameRelicAlbum.SilverGoal),
+                    Triple("🥇 OURO",album.gold,GameRelicAlbum.GoldGoal)
+                )
+                collection.forEach { (name,found,needed) ->
+                    Text(name + " • " + found + " ENCONTRADA(S)",
+                        color=if(found>=needed) Teal else Color.White,
+                        fontSize=16.sp,fontWeight=FontWeight.Black)
+                    Text("META DA COLEÇÃO: " + minOf(found,needed) + "/" + needed +
+                        if(found>=needed) " • COMPLETA ✓" else "",
+                        color=Gold,fontSize=12.sp,textAlign=TextAlign.Center)
+                    Spacer(Modifier.height(17.dp))
+                }
+                val completed = GameRelicAlbum.complete(album)
+                Text(if (completed) "🏆 COLEÇÃO COMPLETA!"
+                     else "🏆 ENCONTRE AS TRÊS RARIDADES PARA LIBERAR UM VISUAL",
+                    color=if(completed) Teal else Gold,
+                    fontSize=15.sp,fontWeight=FontWeight.Black,
+                    textAlign=TextAlign.Center)
+                Text("Prêmio: GUARDIÃO DAS RELÍQUIAS, visual exclusivo e permanente.",
+                    color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(11.dp))
+                if (completed) {
+                    GameButton("EQUIPAR GUARDIÃO DAS RELÍQUIAS") {
+                        equipOrBuy(Cosmetic.RELIC_HUNTER)
+                        screen=Screen.STORE
+                    }
+                }
+                Spacer(Modifier.height(23.dp))
+                Text("📅 MISSÃO DA SEMANA • " + album.week,color=Teal,
+                    fontSize=16.sp,fontWeight=FontWeight.Black,
+                    textAlign=TextAlign.Center)
+                Text("Colete " + GameRelicAlbum.WeeklyGoal + " fragmentos nesta semana. " +
+                    "Prêmio: R$ " + GameRelicAlbum.WeeklyNotesReward +
+                    " em notas virtuais para os visuais.",
+                    color=Color.White,fontSize=13.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(11.dp))
+                Text(album.weeklyFragments.toString() + "/" +
+                    GameRelicAlbum.WeeklyGoal + " FRAGMENTOS" +
+                    if (album.weeklyClaimed) " • RECOMPENSA RECEBIDA ✓" else "",
+                    color=if(album.weeklyClaimed) Teal else Gold,
+                    fontSize=15.sp,fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
+                Text("A missão reinicia toda semana. Os ganhos só contam depois de salvar a partida.",
+                    color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
+                Spacer(Modifier.height(23.dp))
+                GameButton("IR AO COFRE",secondary=true){screen=Screen.STORE}
+                Spacer(Modifier.height(9.dp))
+                GameButton("VOLTAR AO MENU"){screen=Screen.MENU}
+                Spacer(Modifier.height(9.dp))
+                Text("COLEÇÃO E RECOMPENSAS VIRTUAIS • SEM DINHEIRO REAL",
                     color=Muted,fontSize=10.sp,textAlign=TextAlign.Center)
             }
         }
@@ -1783,6 +1883,14 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 if (relicsEarned > 0) Text("💎 +$relicsEarned FRAGMENTOS • COFRE: $relicWallet",
                     color=Gold,fontSize=14.sp,fontWeight=FontWeight.Black,
                     textAlign=TextAlign.Center)
+                if (weeklyNotesEarned > 0) Text(
+                    "📅 MISSÃO SEMANAL! +R$ $weeklyNotesEarned EM NOTAS",
+                    color=Teal,fontSize=14.sp,fontWeight=FontWeight.Black,
+                    textAlign=TextAlign.Center)
+                if (albumNewlyUnlocked) Text(
+                    "🏆 ÁLBUM COMPLETO! NOVO VISUAL EXCLUSIVO DISPONÍVEL!",
+                    color=Gold,fontSize=13.sp,fontWeight=FontWeight.Black,
+                    textAlign=TextAlign.Center)
                 if (roundDebtRepaid > 0) Text("DÍVIDA REDUZIDA EM $roundDebtRepaid MOEDAS",
                     color=Teal,fontSize=12.sp,fontWeight=FontWeight.Bold,
                     textAlign=TextAlign.Center)
@@ -1880,6 +1988,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 }
                 Spacer(Modifier.height(10.dp))
                 GameButton("🪙 LOJA DE MELHORIAS",secondary=true){screen=Screen.STORE}
+                Spacer(Modifier.height(8.dp))
+                GameButton("📖 ÁLBUM DE RELÍQUIAS",secondary=true){
+                    album = GameRelicAlbum.progress(prefs)
+                    screen=Screen.ALBUM
+                }
                 Spacer(Modifier.height(10.dp))
                 GameButton("MENU",secondary=true){screen=Screen.MENU}
             }

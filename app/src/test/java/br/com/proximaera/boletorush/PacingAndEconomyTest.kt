@@ -37,9 +37,12 @@ class PacingAndEconomyTest {
         assertTrue(GameEconomy.earnings(15,0) < 15)
     }
 
-    @Test fun allCosmeticsCostOnlyCashExceptDefault() {
+    @Test fun premiumCosmeticsCostCashWhileAlbumSkinMustBeEarned() {
         assertEquals(0,Cosmetic.CLASSIC.cost)
-        assertTrue(Cosmetic.entries.drop(1).all { it.cost > 0 })
+        assertEquals(0,Cosmetic.RELIC_HUNTER.cost)
+        assertTrue(Cosmetic.entries.filterNot {
+            it == Cosmetic.CLASSIC || it == Cosmetic.RELIC_HUNTER
+        }.all { it.cost > 0 })
         assertTrue(Cosmetic.entries.map { it.key }.distinct().size == Cosmetic.entries.size)
     }
 }

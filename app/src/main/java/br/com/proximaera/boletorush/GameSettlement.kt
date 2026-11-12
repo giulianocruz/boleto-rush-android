@@ -16,7 +16,9 @@ internal data class GameReceipt(
     val debt: Int,
     val unlocked: List<Milestone>,
     val relicsBanked: Int = 0,
-    val relicWallet: Int = 0
+    val relicWallet: Int = 0,
+    val weeklyNotesAward: Int = 0,
+    val albumUnlocked: Boolean = false
 )
 
 /**
@@ -35,11 +37,12 @@ internal object GameSettlement {
     private const val CreditKey = "store_credit"
 
     private fun encode(receipt: GameReceipt): String = listOf(
-        "2", receipt.gamesPlayed, receipt.best, receipt.coinsBanked,
+        "3", receipt.gamesPlayed, receipt.best, receipt.coinsBanked,
         receipt.notesBanked, receipt.creditGranted, receipt.debtRepaid,
         receipt.wallet, receipt.notes, receipt.credit, receipt.debt,
         receipt.unlocked.joinToString(",") { it.name }.ifEmpty { "-" },
-        receipt.relicsBanked, receipt.relicWallet
+        receipt.relicsBanked, receipt.relicWallet,
+        receipt.weeklyNotesAward, if (receipt.albumUnlocked) 1 else 0
     ).joinToString("|")
 
     private fun decode(value: String?): GameReceipt? {
@@ -47,18 +50,22 @@ internal object GameSettlement {
         val parts = value.split('|')
         val legacy = parts.size == 12 && parts[0] == "1"
         val modern = parts.size == 14 && parts[0] == "2"
-        if (!legacy && !modern) return null
+        val album = parts.size == 16 && parts[0] == "3"
+        if (!legacy && !modern && !album) return null
         val numbers = parts.subList(1, 11).map { it.toIntOrNull() ?: return null }
         val names = if (parts[11] == "-") emptyList() else parts[11].split(',')
         val unlocked = Milestone.entries.filter { it.name in names }
         if (unlocked.size != names.size) return null
-        val banked = if (modern) parts[12].toIntOrNull() ?: return null else 0
-        val balance = if (modern) parts[13].toIntOrNull() ?: return null else 0
-        if (banked !in 0..GameRelics.MaxPerRound || balance !in 0..GameRelics.MaxWallet) return null
+        val banked = if (modern || album) parts[12].toIntOrNull() ?: return null else 0
+        val balance = if (modern || album) parts[13].toIntOrNull() ?: return null else 0
+        val weeklyNotes = if (album) parts[14].toIntOrNull() ?: return null else 0
+        val unlockFlag = if (album) parts[15].toIntOrNull() ?: return null else 0
+        if (banked !in 0..GameRelics.MaxPerRound || balance !in 0..GameRelics.MaxWallet ||
+            weeklyNotes !in 0..GameRelicAlbum.WeeklyNotesReward || unlockFlag !in 0..1) return null
         return GameReceipt(
             numbers[0], numbers[1], numbers[2], numbers[3], numbers[4],
             numbers[5], numbers[6], numbers[7], numbers[8], numbers[9],
-            unlocked, banked, balance
+            unlocked, banked, balance, weeklyNotes, unlockFlag == 1
         )
     }
 
@@ -77,7 +84,10 @@ internal object GameSettlement {
         pendingCardCredit: Int,
         incomeLevel: Int,
         victory: Boolean,
-        relicsCollected: Int = 0
+        relicsCollected: Int = 0,
+        relicBronze: Int = 0,
+        relicSilver: Int = 0,
+        relicGold: Int = 0
     ): GameReceipt? {
         require(roundId.isNotBlank() && '\n' !in roundId && '\r' !in roundId) {
             "The round must have a valid unique identifier"
@@ -111,7 +121,12 @@ internal object GameSettlement {
             coinsBanked + milestoneBanked).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
         val notesBanked = notesCollected.coerceAtLeast(0)
-        val nextNotes = (GameEconomy.cash(prefs).toLong() + notesBanked)
+        val albumUpdate = GameRelicAlbum.planSettlement(prefs,
+            relicBronze, relicSilver, relicGold,
+            minOf(GameRelics.bankable(relicsCollected),
+                GameRelics.MaxWallet - GameRelics.balance(prefs)))
+        val nextNotes = (GameEconomy.cash(prefs).toLong() +
+            notesBanked + albumUpdate.weeklyNotesAward)
             .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
         val relicBalance = GameRelics.balance(prefs)
@@ -132,7 +147,8 @@ internal object GameSettlement {
         val receipt = GameReceipt(nextGames, nextBest, coinsBanked, notesBanked,
             creditGranted, previousDebt - nextDebt, nextCoins,
             nextNotes, nextCredit, nextDebt, milestones,
-            relicsBanked, nextRelicBalance)
+            relicsBanked, nextRelicBalance,
+            albumUpdate.weeklyNotesAward, albumUpdate.newlyCompletedCollection)
 
         val editor = prefs.edit()
             .putString(LastIdKey, roundId)
@@ -145,6 +161,7 @@ internal object GameSettlement {
             .putInt(GameEconomy.DebtKey, nextDebt)
             .putInt("games", nextGames)
             .putInt(bestKey, nextBest)
+        GameRelicAlbum.write(editor, albumUpdate)
         milestones.forEach { editor.putBoolean(it.key, true) }
         if (!editor.commit()) return null
         return receipt

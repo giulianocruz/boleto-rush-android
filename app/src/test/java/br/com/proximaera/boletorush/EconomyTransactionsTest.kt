@@ -48,6 +48,114 @@ private class LocalTestPrefs : SharedPreferences {
 }
 
 class EconomyTransactionsTest {
+    @Test fun albumTracksLifetimeRaritiesAndUnlocksExclusiveSkin() {
+        val prefs = LocalTestPrefs()
+        assertFalse(GameEconomy.ownsCosmetic(prefs, Cosmetic.RELIC_HUNTER))
+        assertFalse(GameEconomy.buyOrEquipCosmetic(prefs, Cosmetic.RELIC_HUNTER))
+        assertEquals(0, GameEconomy.cash(prefs))
+        val bronze = GameSettlement.settle(prefs, "album-bronze", false,
+            12, 0, 0, 0, 0, false, relicsCollected = 5, relicBronze = 5)!!
+        assertEquals(5, bronze.relicsBanked)
+        assertFalse(bronze.albumUnlocked)
+        assertFalse(GameRelicAlbum.complete(GameRelicAlbum.progress(prefs)))
+        val final = GameSettlement.settle(prefs, "album-complete", false,
+            20, 0, 0, 0, 0, false, relicsCollected = 9, relicSilver = 3, relicGold = 1)!!
+        assertEquals(9, final.relicsBanked)
+        assertTrue(final.albumUnlocked)
+        assertEquals(16, final.weeklyNotesAward)
+        assertEquals(16, GameEconomy.cash(prefs))
+        val album = GameRelicAlbum.progress(prefs)
+        assertEquals(5, album.bronze)
+        assertEquals(3, album.silver)
+        assertEquals(1, album.gold)
+        assertTrue(GameRelicAlbum.complete(album))
+        assertTrue(GameEconomy.ownsCosmetic(prefs, Cosmetic.RELIC_HUNTER))
+        assertTrue(GameEconomy.buyOrEquipCosmetic(prefs, Cosmetic.RELIC_HUNTER))
+        assertEquals(Cosmetic.RELIC_HUNTER, GameEconomy.selectedCosmetic(prefs))
+        assertEquals(16, GameEconomy.cash(prefs)) // Cosmetic is free only after earning it.
+        assertEquals(final, GameSettlement.settle(prefs,"album-complete",false,
+            999, 999, 999, 0, 0, true, relicsCollected=12))
+        assertEquals(16, GameEconomy.cash(prefs))
+    }
+
+    @Test fun weeklyMissionOnlyPaysOnceAndDoesNotGetDuplicatedByAdReward() {
+        val prefs = LocalTestPrefs()
+        val first = GameSettlement.settle(prefs,"weekly-1",false,
+            0,0,0,0,0,false,relicsCollected=8,relicBronze=8)!!
+        assertEquals(16,first.weeklyNotesAward)
+        assertEquals(0,first.notesBanked)
+        assertEquals(16,GameEconomy.cash(prefs))
+        assertTrue(GameRelicAlbum.progress(prefs).weeklyClaimed)
+        val second = GameSettlement.settle(prefs,"weekly-2",false,
+            0,0,0,0,0,false,relicsCollected=8,relicBronze=8)!!
+        assertEquals(0,second.weeklyNotesAward)
+        assertEquals(16,GameEconomy.cash(prefs))
+        assertEquals(8,GameRelicAlbum.progress(prefs).weeklyFragments)
+        assertFalse(RewardedRoundBonus.eligible(prefs, "weekly-2"))
+    }
+
+    @Test fun albumAndWeeklyProgressRollbackTogetherOnFailedCommit() {
+        val prefs = LocalTestPrefs()
+        prefs.allowCommit = false
+        assertEquals(null,GameSettlement.settle(prefs,"album-storage-fail",false,
+            0,0,0,0,0,false,relicsCollected=8,relicBronze=8))
+        assertEquals(0,GameRelicAlbum.progress(prefs).bronze)
+        assertEquals(0,GameRelicAlbum.progress(prefs).weeklyFragments)
+        assertEquals(0,GameEconomy.cash(prefs))
+        prefs.allowCommit = true
+        val receipt = GameSettlement.settle(prefs,"album-storage-fail",false,
+            0,0,0,0,0,false,relicsCollected=8,relicBronze=8)!!
+        assertEquals(16,receipt.weeklyNotesAward)
+        assertEquals(8,GameRelicAlbum.progress(prefs).bronze)
+    }
+
+    @Test fun isoWeeksHandleYearCrossingAndBlockClockRollbackFarming() {
+        assertEquals("2020-W53", GameRelicAlbum.weekId(java.time.LocalDate.of(2021,1,1)))
+        assertEquals("2021-W01", GameRelicAlbum.weekId(java.time.LocalDate.of(2021,1,4)))
+        val prefs = LocalTestPrefs()
+        val old = GameRelicAlbum.planSettlement(prefs,1,0,0,8,
+            java.time.LocalDate.of(2020,12,31))
+        assertEquals(16,old.weeklyNotesAward)
+        assertTrue(GameRelicAlbum.write(prefs.edit(),old).commit())
+        val sameWeek = GameRelicAlbum.planSettlement(prefs,0,0,0,8,
+            java.time.LocalDate.of(2021,1,1))
+        assertEquals(0,sameWeek.weeklyNotesAward)
+        val future = GameRelicAlbum.planSettlement(prefs,0,0,0,8,
+            java.time.LocalDate.of(2021,1,4))
+        assertEquals(16,future.weeklyNotesAward)
+        assertTrue(GameRelicAlbum.write(prefs.edit(),future).commit())
+        val rollback = GameRelicAlbum.planSettlement(prefs,0,0,0,8,
+            java.time.LocalDate.of(2020,12,31))
+        assertEquals("2021-W01",rollback.progress.week)
+        assertEquals(0,rollback.weeklyNotesAward)
+    }
+
+    @Test fun albumCountersAreBoundedWithoutCorruptingWallets() {
+        val prefs = LocalTestPrefs()
+        val before = GameRelicAlbum.planSettlement(prefs,0,0,0,0)
+        assertEquals(0,before.weeklyNotesAward)
+        assertTrue(GameRelicAlbum.write(prefs.edit(),before).commit())
+        assertEquals(0,GameRelics.balance(prefs))
+        val updated = GameRelicAlbum.planSettlement(prefs,12,12,12,12)
+        assertTrue(GameRelicAlbum.write(prefs.edit(),updated).commit())
+        assertEquals(12,GameRelicAlbum.progress(prefs).bronze)
+        assertEquals(12,GameRelicAlbum.progress(prefs).silver)
+        assertEquals(12,GameRelicAlbum.progress(prefs).gold)
+        assertEquals(0,GameRelics.balance(prefs))
+        assertTrue(GameRelicAlbum.complete(GameRelicAlbum.progress(prefs)))
+    }
+
+    @Test fun versionTwoRelicReceiptStillDecodesWithoutWeeklyFields() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putString("last_settlement_receipt_v2",
+            "2|1|25|1|2|0|0|1|2|0|0|-|3|3").commit()
+        val value = GameSettlement.latestReceipt(prefs)!!
+        assertEquals(3,value.relicsBanked)
+        assertEquals(3,value.relicWallet)
+        assertEquals(0,value.weeklyNotesAward)
+        assertFalse(value.albumUnlocked)
+    }
+
     @Test fun finalSettlementIsAtomicAndIdempotent() {
         val prefs = LocalTestPrefs()
         val receipt = GameSettlement.settle(prefs, "round-a", false,
