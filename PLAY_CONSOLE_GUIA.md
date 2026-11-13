@@ -1,6 +1,6 @@
 # Publicar Boleto Rush! — Guia da Google Play Console (Brasil, novembro/2026)
 
-**Situação em 12/11/2026:** o candidato consolidado atual é **Boleto Rush 2.3.10-QA**, pacote de testes independente `br.com.proximaera.boletorush.qa`, `versionCode=47`, `targetSdk=36`. A compilação Android e **122 testes unitários** passaram (0 falhas), mas **faltam partidas completas no celular físico**, anúncios recompensados/consentimento UMP e capturas reais atualizadas. AdMob ainda contém **IDs de teste** e a **assinatura de upload comercial não está configurada**: o Gradle bloqueia corretamente `bundleRelease` e `assembleRelease` sem passar pela verificação. **Não enviar o APK de QA à Play nem afirmar que o lançamento está homologado.** A documentação consolidada e os bloqueios atuais ficam em `docs/LANCAMENTO_236_CONSOLIDADO.md`. Para executar o APK no Insano, use `TESTAR-BOLETO-RUSH-ANDROID.cmd` com USB/depuração autorizada. A RC1 de 1.5 mencionada abaixo é histórica.
+**Situação em 12/11/2026:** o candidato consolidado atual é **Boleto Rush 2.3.11-QA**, pacote de testes independente `br.com.proximaera.boletorush.qa`, `versionCode=48`, `targetSdk=36`. A compilação Android e **126 testes unitários** passaram (0 falhas), mas **faltam partidas completas no celular físico**, anúncios recompensados/consentimento UMP e capturas reais atualizadas. AdMob ainda contém **IDs de teste** e a **assinatura de upload comercial não está configurada**: o Gradle bloqueia corretamente `bundleRelease` e `assembleRelease` sem passar pela verificação. **Não enviar o APK de QA à Play nem afirmar que o lançamento está homologado.** A documentação consolidada e os bloqueios atuais ficam em `docs/LANCAMENTO_236_CONSOLIDADO.md`. Para executar o APK no Insano, use `TESTAR-BOLETO-RUSH-ANDROID.cmd` com USB/depuração autorizada. A RC1 de 1.5 mencionada abaixo é histórica.
 
 ## 1. Criar aplicativo
 Acesse https://play.google.com/console/ e selecione **Todos os apps > Criar app** (os rótulos podem variar).
@@ -108,7 +108,7 @@ Requisitos de teste: https://support.google.com/googleplay/android-developer/ans
 **Atenção:** validar no Android real todos os recursos citados. O texto antigo da RC1 não descreve a versão 2.3.9.
 
 ## 9. Definição de pronto
-- [ ] Android abre e termina partidas completas de 45s e 90s no **celular físico**, sem crash, perda de controle ou corte de interface na versão **2.3.10-QA**. Testes antigos de RC1 não substituem esta homologação.
+- [ ] Android abre e termina partidas completas de 45s e 90s no **celular físico**, sem crash, perda de controle ou corte de interface na versão **2.3.11-QA**. Testes antigos de RC1 não substituem esta homologação.
 - [ ] Ícone com fundo transparente, menu, Cofre, álbum, relíquias, missão semanal, Fechamento do Mês, proteção inicial e pausa conferidos em Android real.
 - [ ] Capturas reais atualizadas, ícone e feature banner corretos.
 - [ ] Vídeos de **teste** do AdMob e UMP validados em aparelho real; depois, configuração de IDs reais validada com consentimento, sem cliques em anúncios comerciais.
@@ -138,3 +138,7 @@ O Gradle agora possui `:app:verifyPlayIdentity`, também executado pela QA do CI
 ## Atualização 2.3.10 — comprovantes de partida
 
 A QA corrigiu os campos do recibo para mostrar somente o valor realmente depositado quando notas/moedas atingem o limite máximo. Também mantém o selo mensal e a missão semanal registrados mesmo se a recompensa de notas não couber integralmente. A variante comercial agora tem versionName `2.3.10` e a QA `2.3.10-qa.debug`, code 47. Ainda não foi gerado um AAB para a Play. Consulte `docs/QA_2310_RECEIPTS.md`.
+
+## QA 2.3.11 — acompanhamento do Fechamento do Mês
+
+A versão de QA apresenta o progresso dos seis perigos do chefe mensal durante a partida e na tela final, notificações por onda e aviso de contato que inviabiliza o selo mensal. As condições de prêmio não mudaram. Registro: `docs/QA_2311_BOSS_PROGRESS.md`. A versão comercial prevista é `2.3.11`, pacote `br.com.proximaera.boletorush`, e continua bloqueada para upload.

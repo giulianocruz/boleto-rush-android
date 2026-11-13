@@ -1,9 +1,9 @@
 @echo off
 setlocal
 chcp 65001 >nul
-title Boleto Rush - Evidencias pos-partida 2.3.10
+title Boleto Rush - Evidencias pos-partida 2.3.11
 set "ROOT=%~dp0"
-set "APK=%ROOT%BoletoRush-2.3.10-RECIBOS-CORRETOS-QA.apk"
+set "APK=%ROOT%BoletoRush-2.3.11-FECHAMENTO-MENSAL-QA.apk"
 set "SCRIPT=%ROOT%qa_android_windows.ps1"
 if not exist "%SCRIPT%" (
   echo ERRO: roteiro de coleta nao encontrado.
@@ -11,7 +11,7 @@ if not exist "%SCRIPT%" (
   exit /b 2
 )
 if not exist "%APK%" (
-  echo ERRO: APK da versao QA 2.3.10 nao encontrado.
+  echo ERRO: APK da versao QA 2.3.11 nao encontrado.
   pause
   exit /b 2
 )

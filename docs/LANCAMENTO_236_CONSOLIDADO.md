@@ -143,3 +143,11 @@ O candidato atual da PR integrada **#39** é **Boleto Rush 2.3.10-QA**, versionC
 **Validação no Insano:** 122 testes JUnit aprovados, Android Lint 0 erros/34 avisos, build de QA concluída, metadados e assinatura debug conferidos, novo APK e os dois atalhos de QA atualizados. Registro detalhado em [QA 2.3.10 — recibos corretos](QA_2310_RECEIPTS.md).
 
 **Estado de lançamento: NO-GO** — ainda faltam homologação física (nenhum Android autorizado via ADB), anúncios/UMP em aparelho, capturas atuais, declarações da Play e credenciais comerciais de assinatura. Nenhum AAB comercial foi enviado à Google Play e a `main` não foi alterada.
+
+## Atualização posterior — candidato QA 2.3.11 (12/11/2026)
+
+A candidata atual para revisão na PR #39 é **Boleto Rush 2.3.11-QA**, versionCode 48, com feedback das três ondas do desafio Fechamento do Mês, indicador de perigos 0–6 e aviso de selo em risco após contato. Critérios de vitória e economia **não mudaram**.
+
+**Validação no Insano:** 126 testes JUnit, zero falhas; Android Lint 0 erros e 34 avisos; build debug concluída, assinatura e SHA-256 verificados. Novo APK disponível e atalhos de teste Android atualizados, com backups. Documentação em [QA 2.3.11 — desafio mensal](QA_2311_BOSS_PROGRESS.md).
+
+**NO-GO para produção:** nenhum Android físico conectado, UMP/AdMob ainda não homologados em aparelho, capturas atuais pendentes, AAB comercial/assinatura/IDs próprios não configurados. A `main` e a Google Play permanecem inalteradas.

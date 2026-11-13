@@ -7,6 +7,49 @@ import org.junit.Test
 import java.time.LocalDate
 
 class GameMonthChallengeTest {
+    @Test fun bossProgressShowsLiveDangerCountAndSealRisk() {
+        assertEquals("PERIGOS 0/6 • SEM CONTATOS",
+            GameMonthChallenge.progressLabel(0, 0))
+        assertEquals("PERIGOS 3/6 • SEM CONTATOS",
+            GameMonthChallenge.progressLabel(3, 0))
+        assertEquals("PERIGOS 4/6 • SELO EM RISCO",
+            GameMonthChallenge.progressLabel(4, 1))
+        assertEquals("PERIGOS 6/6 • SELO EM RISCO",
+            GameMonthChallenge.progressLabel(8, 3))
+    }
+
+    @Test fun bossWaveCompletionIsBoundToLaunchedWaves() {
+        assertEquals(0, GameMonthChallenge.completedWaves(0, 0))
+        assertEquals(0, GameMonthChallenge.completedWaves(1, 1))
+        assertEquals(1, GameMonthChallenge.completedWaves(2, 1))
+        assertEquals(1, GameMonthChallenge.completedWaves(3, 2))
+        assertEquals(2, GameMonthChallenge.completedWaves(4, 2))
+        assertEquals(3, GameMonthChallenge.completedWaves(6, 3))
+        assertEquals(2, GameMonthChallenge.completedWaves(6, 2))
+    }
+
+    @Test fun bossProgressNeverGoesNegativeOrBeyondSix() {
+        assertEquals("PERIGOS 0/6 • SEM CONTATOS",
+            GameMonthChallenge.progressLabel(-50, 0))
+        assertEquals("PERIGOS 6/6 • SEM CONTATOS",
+            GameMonthChallenge.progressLabel(200, 0))
+        assertEquals(0, GameMonthChallenge.completedWaves(-3, 3))
+        assertEquals(0, GameMonthChallenge.completedWaves(6, -1))
+        assertEquals(3, GameMonthChallenge.completedWaves(100, 30))
+    }
+
+    @Test fun bossWaveFeedbackIsEncouragingWithoutGrantingHiddenRewards() {
+        assertEquals(
+            "ONDA 1/3 SUPERADA! CONTINUE SEM TOCAR NOS PERIGOS",
+            GameMonthChallenge.waveCompletionLabel(1, 0)
+        )
+        assertEquals(
+            "ONDA 3/3 CONCLUÍDA • SELO EXIGE ZERO CONTATOS",
+            GameMonthChallenge.waveCompletionLabel(3, 1)
+        )
+        assertFalse(GameMonthChallenge.waveCompletionLabel(2, 0).contains("R$"))
+    }
+
     @Test fun stampCannotBeEarnedBeforeAllSixHazardsAreResolved() {
         assertFalse(GameMonthChallenge.qualified(true,3,0,0))
         assertFalse(GameMonthChallenge.qualified(true,3,0,5))

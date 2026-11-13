@@ -71,6 +71,24 @@ internal object GameMonthChallenge {
 
     fun waveTitle(index: Int): String = "FECHAMENTO | ONDA ${index + 1}/$WaveCount"
 
+    /** A resolved danger may have been dodged or safely removed by a power. */
+    fun progressLabel(hazardsResolved: Int, contacts: Int): String {
+        val count = hazardsResolved.coerceIn(0, RequiredHazardsResolved)
+        return "PERIGOS $count/$RequiredHazardsResolved • " +
+            if (contacts > 0) "SELO EM RISCO" else "SEM CONTATOS"
+    }
+
+    /** Show each completed wave once, never ahead of waves actually launched. */
+    fun completedWaves(hazardsResolved: Int, wavesLaunched: Int): Int =
+        (hazardsResolved.coerceIn(0, RequiredHazardsResolved) / HazardsPerWave)
+            .coerceAtMost(wavesLaunched.coerceIn(0, WaveCount))
+
+    fun waveCompletionLabel(completed: Int, contacts: Int): String {
+        require(completed in 1..WaveCount)
+        return if (contacts == 0) "ONDA $completed/$WaveCount SUPERADA! CONTINUE SEM TOCAR NOS PERIGOS"
+        else "ONDA $completed/$WaveCount CONCLUÍDA • SELO EXIGE ZERO CONTATOS"
+    }
+
     /** Hazards count once only when they cross the wallet or get cleared before it. */
     fun hazardResolved(previousY: Float, nextY: Float, screenCleared: Boolean): Boolean =
         previousY.isFinite() && nextY.isFinite() &&

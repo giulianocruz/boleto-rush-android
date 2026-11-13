@@ -335,6 +335,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var bossWave by remember { mutableIntStateOf(-1) }
     var bossContacts by remember { mutableIntStateOf(0) }
     var bossResolved by remember { mutableIntStateOf(0) }
+    var bossWavesAcknowledged by remember { mutableIntStateOf(0) }
     var bossNoticeSeconds by remember { mutableFloatStateOf(0f) }
     var monthStampAwarded by remember { mutableStateOf(false) }
     var monthNotesEarned by remember { mutableIntStateOf(0) }
@@ -422,6 +423,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         bossWave = -1
         bossContacts = 0
         bossResolved = 0
+        bossWavesAcknowledged = 0
         bossNoticeSeconds = 0f
         monthStampAwarded = false
         monthNotesEarned = 0
@@ -989,6 +991,17 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             } else {
                 drops = updated
             }
+            val completedBossWaves = GameMonthChallenge.completedWaves(
+                bossResolved, bossWave + 1
+            )
+            if (completedBossWaves > bossWavesAcknowledged) {
+                bossWavesAcknowledged = completedBossWaves
+                feedback = GameMonthChallenge.waveCompletionLabel(
+                    completedBossWaves, bossContacts
+                )
+                feedbackSeconds = 1.8f
+                if (bossContacts == 0) tone(ToneGenerator.TONE_PROP_ACK)
+            }
             if (lives <= 0) {
                 if (!reviveUsed) {
                     reviveError = ""
@@ -1477,6 +1490,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     "🧾 FECHAMENTO EM ${bossCountdown}s • PREPARE A CARTEIRA!",
                     color=Gold,fontSize=12.sp,fontWeight=FontWeight.Black,
                     textAlign=TextAlign.Center)
+                if (bossWave >= 0 && (screen == Screen.PLAY || screen == Screen.PAUSE))
+                    Text(GameMonthChallenge.progressLabel(bossResolved, bossContacts),
+                        color=if (bossContacts > 0) Coral else Teal,
+                        fontSize=10.sp,fontWeight=FontWeight.Bold,
+                        textAlign=TextAlign.Center)
                 if (activePowers.isNotEmpty()) {
                     // Keep simultaneous powers legible on narrow phones.
                     Text(activePowers.chunked(2).joinToString("\n") { it.joinToString("  •  ") },
@@ -1518,6 +1536,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     Text("SIGA A PISTA VERDE • DESVIE DOS BOLETOS",
                         color=Color(0xFFE9FFF1),fontSize=10.sp,
                         fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
+                    Text(GameMonthChallenge.progressLabel(bossResolved, bossContacts),
+                        color=if (bossContacts > 0) Color(0xFFFFCAD2)
+                              else Color(0xFF8EF1C3),
+                        fontSize=10.sp,fontWeight=FontWeight.Black,
+                        textAlign=TextAlign.Center)
                 }
             }
             if(screen==Screen.PLAY && stageAnnouncementSeconds>0f) {
@@ -2027,6 +2050,10 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     "📅 MISSÃO SEMANAL! +R$ $weeklyNotesEarned EM NOTAS",
                     color=Teal,fontSize=14.sp,fontWeight=FontWeight.Black,
                     textAlign=TextAlign.Center)
+                if (bossWave >= 0) Text(
+                    GameMonthChallenge.progressLabel(bossResolved, bossContacts),
+                    color=if (bossContacts > 0) Coral else Teal,
+                    fontSize=12.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
                 if (monthStampAwarded) Text(
                     "🧾 FECHAMENTO VENCIDO! NOVO SELO MENSAL + R$ $monthNotesEarned",
                     color=Gold,fontSize=15.sp,fontWeight=FontWeight.Black,
