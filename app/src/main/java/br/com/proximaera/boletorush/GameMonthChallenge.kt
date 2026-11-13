@@ -37,6 +37,8 @@ internal object GameMonthChallenge {
     const val FinalWindowSeconds = 18f
     const val WarningLeadSeconds = 5f
     const val WaveSpacingSeconds = 6f
+    const val WaveDropStartY = -.065f
+    const val WaveDropSpeed = .32f
     const val NotesAward = 25
     const val MaxStamps = 999
 

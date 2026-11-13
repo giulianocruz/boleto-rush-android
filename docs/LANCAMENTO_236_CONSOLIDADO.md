@@ -159,3 +159,11 @@ A candidata atual da PR integrada #39 é **Boleto Rush 2.3.12-QA**, versionCode 
 **Evidência no Insano:** 130 testes unitários, zero falhas/erros; Android Lint com 0 erros/34 avisos; build debug aprovada, aapt e apksigner conferidos; APK e atalhos atualizados com backups. Detalhes em [QA 2.3.12 — mensagem do selo mensal](QA_2312_MONTH_RESULT.md).
 
 **NO-GO para publicação:** Android físico ausente do ADB, UMP/AdMob e fluxo visual não homologados, capturas Play da versão atual pendentes, chave de upload e AdMob comercial não configurados. `main` e Play Store sem alterações.
+
+## Atualização posterior — candidata QA 2.3.13 (12/11/2026)
+
+A candidata atual da PR #39 é **Boleto Rush 2.3.13-QA**, versionCode 50. A quarta meta do modo Clássico foi corrigida de 4/4 para **2/2 moedas**, uma vez que somente duas moedas podem atravessar o quarto capítulo depois do início do desafio Fechamento do Mês. A Maratona mantém 4/4. O valor do prêmio, as ondas e os anúncios não mudaram.
+
+**Evidências no Insano:** 134 testes JUnit aprovados; Android Lint 0 erros e 34 avisos; APK 2.3.13 validado com aapt e apksigner; kit de QA atualizado com backups e pré-verificação sem Android conectado. Roteiro detalhado em [QA 2.3.13 — meta final alcançável](QA_2313_CLASSIC_FINAL_MISSION.md).
+
+**NO-GO para publicação:** Android físico ainda não foi homologado; UMP/AdMob, capturas reais, AAB comercial assinado e dados da Play pendentes. `main` e Google Play preservadas.

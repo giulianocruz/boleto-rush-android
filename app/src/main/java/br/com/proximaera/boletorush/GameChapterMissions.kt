@@ -20,6 +20,16 @@ internal object GameChapterMissions {
     )
 
     fun goal(chapter: Int): Int = goals[chapter.coerceIn(0, 3)]
+
+    /**
+     * Classic's last chapter starts at 75% (33.75s), after the monthly
+     * boss has replaced ordinary spawns (27s onward). Only the safe
+     * corridor coins from the second and third waves can arrive in time.
+     * Requiring four coins made the fourth Classic mission impossible.
+     * Marathon retains its original goal of four coins.
+     */
+    fun goal(chapter: Int, duration: Float): Int =
+        if (chapter == 3 && duration <= 45f) 2 else goal(chapter)
     fun reward(chapter: Int): Int = rewards[chapter.coerceIn(0, 3)]
     fun title(chapter: Int): String = names[chapter.coerceIn(0, 3)]
     fun title(chapter: Int, theme: GameTheme): String =
@@ -34,13 +44,16 @@ internal object GameChapterMissions {
     fun countCompleted(mask: Int): Int =
         Integer.bitCount(mask and 15)
 
-    fun recordCoin(chapter: Int, currentCoins: Int, claimedMask: Int): Progress {
+    fun recordCoin(
+        chapter: Int, currentCoins: Int, claimedMask: Int, duration: Float = 90f
+    ): Progress {
         if (chapter !in 0..3 || completed(chapter, claimedMask)) {
             return Progress(currentCoins.coerceAtLeast(0), claimedMask, 0)
         }
+        val target = goal(chapter, duration)
         val count = (currentCoins.coerceAtLeast(0) + 1)
-            .coerceAtMost(goal(chapter))
-        val fulfilled = count >= goal(chapter)
+            .coerceAtMost(target)
+        val fulfilled = count >= target
         val nextMask = if (fulfilled) claimedMask or (1 shl chapter) else claimedMask
         return Progress(count, nextMask, if (fulfilled) reward(chapter) else 0)
     }

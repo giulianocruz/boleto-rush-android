@@ -695,11 +695,15 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     bossNoticeSeconds = 5.5f
                     stageAnnouncementSeconds = 0f
                     wave.hazardXs.forEach { lane ->
-                        drops = drops + Drop(nextDropId++,lane,-.065f,.32f,
+                        drops = drops + Drop(nextDropId++,lane,
+                            GameMonthChallenge.WaveDropStartY,
+                            GameMonthChallenge.WaveDropSpeed,
                             wave.hazardKind,boss=true)
                     }
                     // A coin visibly marks the safe corridor on every wave.
-                    drops = drops + Drop(nextDropId++,wave.safeX,-.065f,.32f,
+                    drops = drops + Drop(nextDropId++,wave.safeX,
+                        GameMonthChallenge.WaveDropStartY,
+                        GameMonthChallenge.WaveDropSpeed,
                         Kind.COIN,value=10)
                     tone(ToneGenerator.TONE_PROP_NACK)
                 }
@@ -780,7 +784,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                             val previousLevel = GameRunProgression.level(runXp)
                             runXp += item.value
                             val mission = GameChapterMissions.recordCoin(
-                                lastStage, chapterCoins, chapterMissionMask)
+                                lastStage, chapterCoins, chapterMissionMask, mode.duration)
                             chapterCoins = mission.coins
                             chapterMissionMask = mission.claimedMask
                             if (mission.cosmeticNotes > 0) {
@@ -1463,7 +1467,7 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 val done = GameChapterMissions.completed(chapter, chapterMissionMask)
                 Text(
                     if (done) "META CONCLUÍDA • +R$ ${GameChapterMissions.reward(chapter)}"
-                    else "META: ${GameChapterMissions.title(chapter, theme)}  ${chapterCoins}/${GameChapterMissions.goal(chapter)}  • +R$ ${GameChapterMissions.reward(chapter)}",
+                    else "META: ${GameChapterMissions.title(chapter, theme)}  ${chapterCoins}/${GameChapterMissions.goal(chapter, mode.duration)}  • +R$ ${GameChapterMissions.reward(chapter)}",
                     color=if(done) Teal else Muted,
                     fontSize=10.sp,fontWeight=FontWeight.Bold,
                     textAlign=TextAlign.Center
