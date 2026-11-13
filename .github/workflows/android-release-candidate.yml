@@ -79,7 +79,7 @@ jobs:
       - name: APK for installation (debug signing, QA ONLY)
         uses: actions/upload-artifact@v4
         with:
-          name: BoletoRush-2.3.11-QA-APK-TESTE
+          name: BoletoRush-2.3.12-QA-APK-TESTE
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
           if-no-files-found: error
@@ -103,7 +103,7 @@ jobs:
         if: env.BOLETO_SIGNED == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: BoletoRush-2.3.11-AAB-PLAY-ASSINADO
+          name: BoletoRush-2.3.12-AAB-PLAY-ASSINADO
           path: app/build/outputs/bundle/release/app-release.aab
           retention-days: 14
           if-no-files-found: error
@@ -111,7 +111,7 @@ jobs:
       - name: Store graphics and listing package
         uses: actions/upload-artifact@v4
         with:
-          name: BoletoRush-2.3.11-KIT-LOJA
+          name: BoletoRush-2.3.12-KIT-LOJA
           path: |
             store/play-icon-512.png
             store/feature-graphic-1024x500.jpg

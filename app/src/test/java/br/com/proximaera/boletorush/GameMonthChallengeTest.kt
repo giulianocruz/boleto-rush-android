@@ -7,6 +7,48 @@ import org.junit.Test
 import java.time.LocalDate
 
 class GameMonthChallengeTest {
+    @Test fun monthTurnoverNeverFalselyClaimsStampWasAlreadyEarned() {
+        val message = GameMonthChallenge.noStampExplanation(
+            3, 0, 6, "2026-11", "2026-12", "", 0
+        )
+        assertTrue(message.contains("MÊS VIROU"))
+        assertFalse(message.contains("JÁ CONQUISTADO"))
+    }
+
+    @Test fun monthlyStampAlreadyEarnedIsReportedOnlyWhenStoredForCurrentMonth() {
+        val earned = GameMonthChallenge.noStampExplanation(
+            3, 0, 6, "2026-11", "2026-11", "2026-11", 1
+        )
+        assertTrue(earned.contains("JÁ CONQUISTADO"))
+        val noStamp = GameMonthChallenge.noStampExplanation(
+            3, 0, 6, "2026-11", "2026-11", "", 0
+        )
+        assertFalse(noStamp.contains("JÁ CONQUISTADO"))
+        assertTrue(noStamp.contains("NÃO FOI CREDITADO"))
+    }
+
+    @Test fun monthlyResultExplainsRealGameplayFailuresBeforeCalendarStatus() {
+        val contact = GameMonthChallenge.noStampExplanation(
+            3, 1, 6, "2026-11", "2026-12", "", 0
+        )
+        assertTrue(contact.contains("ZERO CONTATOS"))
+        val incomplete = GameMonthChallenge.noStampExplanation(
+            2, 0, 4, "2026-11", "2026-11", "", 0
+        )
+        assertTrue(incomplete.contains("SEIS PERIGOS"))
+    }
+
+    @Test fun monthlyStampResultDistinguishesClockRollbackAndMaximumCollection() {
+        val rollback = GameMonthChallenge.noStampExplanation(
+            3, 0, 6, "2026-11", "2026-11", "2026-12", 1
+        )
+        assertTrue(rollback.contains("DATA DO APARELHO"))
+        val full = GameMonthChallenge.noStampExplanation(
+            3, 0, 6, "2026-11", "2026-11", "2026-10", GameMonthChallenge.MaxStamps
+        )
+        assertTrue(full.contains("LIMITE DE SELOS"))
+    }
+
     @Test fun bossProgressShowsLiveDangerCountAndSealRisk() {
         assertEquals("PERIGOS 0/6 • SEM CONTATOS",
             GameMonthChallenge.progressLabel(0, 0))

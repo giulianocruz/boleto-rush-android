@@ -151,3 +151,11 @@ A candidata atual para revisão na PR #39 é **Boleto Rush 2.3.11-QA**, versionC
 **Validação no Insano:** 126 testes JUnit, zero falhas; Android Lint 0 erros e 34 avisos; build debug concluída, assinatura e SHA-256 verificados. Novo APK disponível e atalhos de teste Android atualizados, com backups. Documentação em [QA 2.3.11 — desafio mensal](QA_2311_BOSS_PROGRESS.md).
 
 **NO-GO para produção:** nenhum Android físico conectado, UMP/AdMob ainda não homologados em aparelho, capturas atuais pendentes, AAB comercial/assinatura/IDs próprios não configurados. A `main` e a Google Play permanecem inalteradas.
+
+## Atualização posterior — candidata QA 2.3.12 (12/11/2026)
+
+A candidata atual da PR integrada #39 é **Boleto Rush 2.3.12-QA**, versionCode 49. Corrigida a mensagem de resultado do desafio mensal para não afirmar falsamente que o selo já foi conquistado quando a partida atravessou a virada do mês. O jogo também distingue contato, desafio incompleto, relógio retrocedido e limite de selos. **A lógica de premiação, saldo e histórico não foi alterada.**
+
+**Evidência no Insano:** 130 testes unitários, zero falhas/erros; Android Lint com 0 erros/34 avisos; build debug aprovada, aapt e apksigner conferidos; APK e atalhos atualizados com backups. Detalhes em [QA 2.3.12 — mensagem do selo mensal](QA_2312_MONTH_RESULT.md).
+
+**NO-GO para publicação:** Android físico ausente do ADB, UMP/AdMob e fluxo visual não homologados, capturas Play da versão atual pendentes, chave de upload e AdMob comercial não configurados. `main` e Play Store sem alterações.

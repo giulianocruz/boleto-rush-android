@@ -2059,10 +2059,15 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                     color=Gold,fontSize=15.sp,fontWeight=FontWeight.Black,
                     textAlign=TextAlign.Center)
                 else if (won && bossWave >= 2) Text(
-                    if (bossContacts > 0) "FECHAMENTO SUPERADO, MAS O SELO PEDE DESVIOS PERFEITOS."
-                    else if (bossResolved < GameMonthChallenge.RequiredHazardsResolved)
-                        "FECHAMENTO: FALTARAM PERIGOS PARA CONCLUIR O DESAFIO."
-                    else "FECHAMENTO CONCLUÍDO • SELO DO MÊS JÁ CONQUISTADO!",
+                    GameMonthChallenge.noStampExplanation(
+                        wavesLaunched = bossWave + 1,
+                        bossContacts = bossContacts,
+                        hazardsResolved = bossResolved,
+                        challengeMonth = bossMonth,
+                        currentMonth = GameMonthChallenge.monthId(),
+                        lastAwardedMonth = GameMonthChallenge.progress(prefs).lastAwardedMonth,
+                        earnedStamps = monthStamps
+                    ),
                     color=Muted,fontSize=12.sp,textAlign=TextAlign.Center)
                 if (albumNewlyUnlocked) Text(
                     "🏆 ÁLBUM COMPLETO! NOVO VISUAL EXCLUSIVO DISPONÍVEL!",

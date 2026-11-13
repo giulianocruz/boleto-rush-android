@@ -28,8 +28,8 @@ android {
         applicationId = "br.com.proximaera.boletorush"
         minSdk = 26
         targetSdk = 36
-        versionCode = 48
-        versionName = "2.3.11"
+        versionCode = 49
+        versionName = "2.3.12"
         resValue("string", "admob_app_id", admobAppId)
         resValue("string", "admob_rewarded_unit_id", rewardedUnitId)
     }

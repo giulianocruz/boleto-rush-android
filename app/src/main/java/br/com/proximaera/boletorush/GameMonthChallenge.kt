@@ -89,6 +89,37 @@ internal object GameMonthChallenge {
         else "ONDA $completed/$WaveCount CONCLUÍDA • SELO EXIGE ZERO CONTATOS"
     }
 
+    /**
+     * Explain why a completed boss did not grant a new monthly stamp.
+     * Never claim that the stamp is already owned unless it really is.
+     * A run begun before midnight may finish in a different calendar month.
+     */
+    fun noStampExplanation(
+        wavesLaunched: Int,
+        bossContacts: Int,
+        hazardsResolved: Int,
+        challengeMonth: String,
+        currentMonth: String,
+        lastAwardedMonth: String,
+        earnedStamps: Int
+    ): String = when {
+        bossContacts > 0 ->
+            "FECHAMENTO SUPERADO, MAS O SELO PEDE ZERO CONTATOS."
+        wavesLaunched != WaveCount ||
+            hazardsResolved < RequiredHazardsResolved ->
+            "FECHAMENTO: RESOLVA OS SEIS PERIGOS NAS TRÊS ONDAS PARA GANHAR O SELO."
+        challengeMonth != currentMonth ->
+            "O MÊS VIROU DURANTE A PARTIDA. JOGUE OUTRA VEZ PARA DISPUTAR O SELO DO MÊS ATUAL."
+        lastAwardedMonth == currentMonth ->
+            "FECHAMENTO CONCLUÍDO • SELO DO MÊS JÁ CONQUISTADO!"
+        earnedStamps >= MaxStamps ->
+            "LIMITE DE SELOS MENSAIS ATINGIDO."
+        lastAwardedMonth > currentMonth ->
+            "DATA DO APARELHO ANTERIOR AO ÚLTIMO SELO. CONFIRA O CALENDÁRIO."
+        else ->
+            "FECHAMENTO CONCLUÍDO, MAS O SELO NÃO FOI CREDITADO. VERIFIQUE A DATA DO APARELHO."
+    }
+
     /** Hazards count once only when they cross the wallet or get cleared before it. */
     fun hazardResolved(previousY: Float, nextY: Float, screenCleared: Boolean): Boolean =
         previousY.isFinite() && nextY.isFinite() &&
