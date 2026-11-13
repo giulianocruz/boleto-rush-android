@@ -14,4 +14,26 @@ internal object GameChapterBonusOffer {
             adReady &&
             GameChapterMissions.completed(chapter, completedMask) &&
             offeredMask and (1 shl chapter) == 0
+
+    /**
+     * Bind an earned ad to its original round and chapter rather than the
+     * screen that happens to be visible when Google's callback arrives.
+     * A player may leave the bonus panel while a video is closing.
+     */
+    fun mayCreditEarned(
+        chapter: Int,
+        offeredRoundId: String,
+        currentRoundId: String,
+        completedMask: Int,
+        claimedMask: Int,
+        roundSettled: Boolean,
+        activeRun: Boolean
+    ): Boolean =
+        chapter in 0..2 &&
+            offeredRoundId.isNotBlank() &&
+            offeredRoundId == currentRoundId &&
+            !roundSettled &&
+            activeRun &&
+            GameChapterMissions.completed(chapter, completedMask) &&
+            claimedMask and (1 shl chapter) == 0
 }

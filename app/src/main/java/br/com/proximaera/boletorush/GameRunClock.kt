@@ -10,6 +10,10 @@ internal object GameRunClock {
     fun shouldAdvance(foreground: Boolean, playing: Boolean): Boolean =
         foreground && playing
 
+    /** Also pause when a rewarded callback switches back to PLAY in background. */
+    fun shouldAutoPause(foreground: Boolean, playing: Boolean): Boolean =
+        !foreground && playing
+
     fun frameSeconds(previousFrameNanos: Long, nowFrameNanos: Long): Float {
         if (nowFrameNanos <= previousFrameNanos) return 0f
         return ((nowFrameNanos - previousFrameNanos) / 1_000_000_000f)

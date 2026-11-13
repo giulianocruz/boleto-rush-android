@@ -637,8 +637,11 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
             Screen.MENU -> Screen.MENU
         }
     }
-    LaunchedEffect(foreground) {
-        if (!foreground && screen == Screen.PLAY) screen = Screen.PAUSE
+    LaunchedEffect(foreground, screen) {
+        // A video reward callback may restore PLAY after the Activity has
+        // already gone to background. Observe screen as well as lifecycle.
+        if (GameRunClock.shouldAutoPause(foreground, screen == Screen.PLAY))
+            screen = Screen.PAUSE
     }
 
     // Reward callbacks can restore PLAY before a full-screen ad disappears.
@@ -1946,18 +1949,31 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 Spacer(Modifier.height(16.dp))
                 if (ads?.ready == true) {
                     GameButton("ASSISTIR VÍDEO • +R$ " + stageReward) {
-                        val bit = 1 shl chapterBonusChapter
+                        val offeredChapter = chapterBonusChapter
+                        val offeredRoundId = roundId
+                        val bit = 1 shl offeredChapter
                         bonusAdError = ""
                         ads.offerReward(onEarned = {
-                            if (screen == Screen.CHAPTER_BONUS &&
-                                chapterBonusClaimedMask and bit == 0) {
+                            if (GameChapterBonusOffer.mayCreditEarned(
+                                    chapter = offeredChapter,
+                                    offeredRoundId = offeredRoundId,
+                                    currentRoundId = roundId,
+                                    completedMask = chapterMissionMask,
+                                    claimedMask = chapterBonusClaimedMask,
+                                    roundSettled = settledRound == round,
+                                    activeRun = screen == Screen.CHAPTER_BONUS ||
+                                        screen == Screen.PLAY || screen == Screen.PAUSE
+                                )) {
                                 cashCollected += stageReward
                                 chapterMissionNotes += stageReward
                                 chapterBonusClaimedMask = chapterBonusClaimedMask or bit
-                                screen = Screen.PLAY
+                                if (screen == Screen.CHAPTER_BONUS)
+                                    screen = if (foreground) Screen.PLAY else Screen.PAUSE
                             }
                         }, onUnavailable = {
-                            bonusAdError = "Vídeo indisponível. Continue sem perder seu prêmio."
+                            if (offeredRoundId == roundId &&
+                                screen == Screen.CHAPTER_BONUS)
+                                bonusAdError = "Vídeo indisponível. Continue sem perder seu prêmio."
                         })
                     }
                     Spacer(Modifier.height(10.dp))

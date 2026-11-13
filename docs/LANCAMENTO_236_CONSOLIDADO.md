@@ -175,3 +175,11 @@ A candidata da PR integrada #39 passou a ser **Boleto Rush 2.3.14-QA**, versionC
 **Verificação no Insano:** build de QA concluída, **139 testes JUnit sem falhas**, Android Lint **0 erros e 34 avisos**, assinatura e hash do APK conferidos; kit de QA atualizado e pré-verificação aprovada. Documentação em [QA 2.3.14 — conquistas justas](QA_2314_MILESTONE_RECEIPTS.md).
 
 **NO-GO para produção:** nenhum telefone Android conectado no Insano para homologação, AdMob/UMP em dispositivo ainda pendentes, capturas atuais, assinatura comercial e declarações da Play Store. A `main` permanece inalterada e não houve publicação.
+
+## Atualização posterior — candidata QA 2.3.15 (12/11/2026)
+
+A candidata atual da PR integrada #39 é **Boleto Rush 2.3.15-QA**, versionCode 52. Corrigido o callback de vídeo recompensado de etapa: o bônus acompanha a partida e a etapa que iniciaram o anúncio, mesmo quando a navegação muda, sem permitir que o prêmio se repita ou passe para uma rodada diferente. A pausa também reage a mudanças de tela enquanto o aplicativo está fora do primeiro plano.
+
+**Validação no Insano:** 144 testes JUnit aprovados, Lint 0 erros/34 avisos, APK assinado para debug e hash conferidos, atalhos e scripts atualizados. [QA 2.3.15 — anúncios e retorno](QA_2315_REWARDED_CHAPTER.md).
+
+**NO-GO para publicação:** Android físico ainda não conectado pelo ADB; faltam teste UMP/AdMob com IDs demo, capturas da versão atual, declarações e assinatura comercial. `main` e Google Play inalteradas.

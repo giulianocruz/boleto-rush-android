@@ -6,6 +6,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GameRunClockTest {
+    @Test fun backgroundPlayTransitionIsAutomaticallyPausedEvenAfterAdCallback() {
+        assertFalse(GameRunClock.shouldAutoPause(foreground = true, playing = true))
+        assertTrue(GameRunClock.shouldAutoPause(foreground = false, playing = true))
+        assertFalse(GameRunClock.shouldAutoPause(foreground = false, playing = false))
+        assertFalse(GameRunClock.shouldAutoPause(foreground = true, playing = false))
+    }
+
+
     @Test fun clockOnlyRunsDuringVisibleGameplay() {
         assertTrue(GameRunClock.shouldAdvance(foreground = true, playing = true))
         assertFalse(GameRunClock.shouldAdvance(foreground = false, playing = true))
