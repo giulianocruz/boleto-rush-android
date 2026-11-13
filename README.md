@@ -4,15 +4,17 @@
 
 Boleto Rush! é um jogo arcade casual brasileiro: mova a carteira, colete moedas, evite boletos e tente bater seu recorde. Oferece **Clássico (45 segundos)** e **Maratona (90 segundos)**, tutorial interativo, combos, escudo, vidas extras, placar, vibração e som configuráveis.
 
-## Status de distribuição — 29/10/2026
+## Status de distribuição — 12/11/2026
 
 | Plataforma | Versão | Situação |
 | --- | --- | --- |
-| **Windows** | v1.4 portátil | **Disponível** na release pública v1.5.3-qa; não requer emulador nem Android Studio. Ainda sem assinatura digital de editor |
-| **Android** | 1.5.3-QA, versionCode 11 | **Teste interno**: AAB assinado preparado no PC Insano, upload ao Play Console ainda não confirmado |
-| **Google Play — produção** | — | **Não liberado**: faltam teste físico, IDs reais de AdMob, revisão final de consentimento/declarações e aprovação no Console |
+| **Windows** | v1.4 portátil | **Prévia histórica** na release pública v1.5.3-qa; ainda sem assinatura digital de editor |
+| **Android** | **2.3.15-QA**, versionCode **52**, API alvo **36** | **Candidato integrado em revisão**; APK de depuração validado no Insano, **144 testes unitários** aprovados; sem homologação física |
+| **Google Play — produção** | — | **NÃO PUBLICAR**: falta celular físico, IDs reais de AdMob, assinatura de upload, capturas reais atualizadas, revisão das declarações de privacidade e testes da Play |
 
-Os testes automatizados da 1.5.3 passaram no **Android 8 / API 26** e **Android 15 / API 35** em [execução do GitHub Actions](https://github.com/giulianocruz/boleto-rush-android/actions/runs/40918581451). Os testes cobrem tutorial 3/3, alternância de vibração, partida completa e resultado, mas não substituem uma sessão manual em celular físico.
+A versão Android atual reúne colisões, Raspão, relíquias, Cofre, coleção permanente, missão semanal, Fechamento do Mês e anúncios recompensados opcionais com consentimento UMP. Os IDs de anúncios ainda são de **teste**. O teste automatizado local de 111 casos **não substitui** uma sessão completa em Android físico.
+
+**Branch integrada para revisão:** `release/boleto-rush-play-qa-20261112` (proposta direcionada à `main`; não mesclada). [Checklist de lançamento e bloqueios](docs/LANCAMENTO_236_CONSOLIDADO.md). As PRs anteriores foram mantidas como histórico de QA.
 
 ## Desenvolvimento Android
 
@@ -23,11 +25,11 @@ Requisitos: JDK 21, SDK Android 36 e Gradle wrapper do projeto.
 ./gradlew :app:bundleRelease
 ```
 
-No Windows, use `gradlew.bat` no lugar de `./gradlew`. O projeto utiliza `BOLETO_ADMOB_APP_ID` e `BOLETO_REWARDED_UNIT_ID` para publicidade; sem IDs próprios, os builds QA usam identificadores de teste, que não devem ser publicados comercialmente. Para distribuição pela Play, é necessário gerar o **AAB com a chave de upload original**, mantida fora do repositório. Nunca comite chaves, senhas ou segredos.
+No Windows, use `gradlew.bat` no lugar de `./gradlew`. **A variante debug/QA usa sempre os IDs oficiais de demonstração do AdMob**, inclusive quando variáveis de ambiente comerciais estiverem presentes. A variante `release` exige `BOLETO_ADMOB_APP_ID`, `BOLETO_REWARDED_UNIT_ID` e a **chave de upload do titular** configurados fora do repositório. Sem isso, `bundleRelease` é bloqueado intencionalmente. O workflow GitHub Actions compila somente o APK QA caso não existam segredos comerciais completos; não gera AAB não assinado. Nunca comite chaves, senhas ou segredos.
 
 ## Desenvolvimento Windows
 
-O código e os scripts da versão nativa Windows estão em [`windows-port/`](windows-port/). O executável público foi validado com smoke test local, mas ainda é uma versão de testes e pode provocar avisos do SmartScreen por não estar assinado digitalmente.
+O código e os scripts da versão nativa Windows estão em [`windows-port/`](windows-port/). Essa versão é uma prévia histórica: não inclui necessariamente todas as melhorias recentes do Android e pode provocar avisos do SmartScreen por não estar assinada digitalmente.
 
 ## Publicação e suporte
 
@@ -37,4 +39,26 @@ O código e os scripts da versão nativa Windows estão em [`windows-port/`](win
 - [Política de Privacidade](PRIVACIDADE.md)
 - [Versões de teste e código-fonte](https://github.com/giulianocruz/boleto-rush-android/releases)
 
-**Próximo passo do Android:** upload da versão 1.5.3 assinada para Teste interno, instalação pela Play em aparelho físico e revisão da monetização antes da abertura ao público.
+**Próximo passo do Android:** instalar a **2.3.15-QA** em um celular conectado ao Insano, verificar partidas completas de 45/90 segundos e todos os recursos, testar no app o link da política de privacidade já acessível publicamente, configurar os IDs reais do AdMob e a assinatura de upload do titular. Somente depois gerar AAB comercial e começar os testes internos/fechados na Play. [Plano de homologação consolidado](docs/LANCAMENTO_236_CONSOLIDADO.md).
+
+**Auditoria de compatibilidade da QA 2.3.7:** as regras de backup/transferência e o ícone monocromático foram atualizados para versões modernas do Android. Leia [QA Android 2.3.7](docs/QA_237_ANDROID_COMPAT.md). O progresso continua local e não é sincronizado automaticamente entre aparelhos.
+
+**Ajuste da QA 2.3.8:** o bônus opcional por vídeo só aparece com recompensa efetivamente disponível, mostrando exatamente os valores de notas e moedas que cabem na carteira. [Roteiro de validação](docs/QA_238_AD_REWARD_FAIRNESS.md).
+
+**Correção da QA 2.3.9:** o relógio de jogo só avança se a Activity estiver visível e a partida ativa. Isso evita que um vídeo recompensado consuma tempo da rodada enquanto a tela ainda está coberta pelo anúncio. [Testes e limitações](docs/QA_239_CLOCK_FOREGROUND.md).
+
+**Identidade de release validada:** a variante comercial está preparada com `br.com.proximaera.boletorush / 2.3.9`, e a QA preserva `br.com.proximaera.boletorush.qa / 2.3.9-qa.debug`. O Gradle testa automaticamente essa separação por `:app:verifyPlayIdentity`, sem liberar publicação. [Auditoria da ficha e do manifesto](docs/QA_240_PLAY_IDENTITY.md).
+
+**Kit de homologação ampliado:** além do instalador de QA, o Insano dispõe do atalho `COLETAR-EVIDENCIAS-BOLETO-RUSH.cmd`. Ele salva uma captura da tela e logs de processo **após** as partidas, sem reinstalar ou reiniciar o jogo, e só captura se o pacote QA estiver visível. [Como usar](docs/QA_239_POS_PARTIDA_WINDOWS.md).
+
+**QA 2.3.10 — recibo correto:** o fechamento da partida agora informa apenas moedas e notas realmente creditadas, inclusive nas recompensas semanais/mensais, respeitando o limite de carteira. A identidade comercial e a QA continuam separadas. [Testes e limitações](docs/QA_2310_RECEIPTS.md).
+
+**Novo na QA 2.3.11:** o Fechamento do Mês ganhou indicador de progresso dos seis perigos, aviso de selo em risco e confirmação ao concluir cada onda. [Roteiro de testes](docs/QA_2311_BOSS_PROGRESS.md).
+
+**QA 2.3.12 — resultado mensal confiável:** o jogo distingue selo já conquistado, desafio incompleto e partida que atravessou a virada do mês. Essa revisão corrige somente a mensagem de resultado; os critérios de conquista permanecem iguais. [Roteiro técnico](docs/QA_2312_MONTH_RESULT.md).
+
+**Balanceamento 2.3.13-QA:** a última missão do Clássico agora exige duas moedas em vez de quatro, pois somente duas moedas das pistas seguras podem chegar nesse capítulo. Na Maratona a meta continua 4. [Testes da missão final](docs/QA_2313_CLASSIC_FINAL_MISSION.md).
+
+**QA 2.3.14 — conquistas e saldo correto:** o recibo agora discrimina moedas de conquista realmente depositadas e quantas abateram a dívida. Recibos antigos continuam legíveis sem inferir dados inexistentes. [Roteiro técnico](docs/QA_2314_MILESTONE_RECEIPTS.md).
+
+**QA 2.3.15 — vídeo de etapa protegido:** o prêmio de notas cosméticas acompanha a partida/etapa que iniciou o anúncio, mesmo se o painel for fechado, sem conceder a recompensa duas vezes ou transferi-la para outra rodada. Transições para PLAY em segundo plano agora provocam PAUSA. [Roteiro de QA](docs/QA_2315_REWARDED_CHAPTER.md).

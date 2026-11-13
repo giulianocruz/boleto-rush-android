@@ -1,6 +1,6 @@
-# Publicar Boleto Rush! — Guia da Google Play Console (Brasil, outubro/2026)
+# Publicar Boleto Rush! — Guia da Google Play Console (Brasil, novembro/2026)
 
-**Situação em 28/10/2026:** release candidate Android v1.5.0-rc1 (versionCode 8, targetSdk 36, minSdk 26). Há APK de testes e um AAB de QA *sem assinatura de upload* enquanto a chave do titular não for configurada. **Não envie o AAB não assinado à Play**. O produto contém Google Mobile Ads/UMP; sem IDs próprios, a unidade é demonstrativa e não monetiza. Ainda falta QA físico da abertura, partida completa e anúncio opcional.
+**Situação em 12/11/2026:** o candidato consolidado atual é **Boleto Rush 2.3.15-QA**, pacote de testes independente `br.com.proximaera.boletorush.qa`, `versionCode=52`, `targetSdk=36`. A compilação Android e **144 testes unitários** passaram (0 falhas), mas **faltam partidas completas no celular físico**, anúncios recompensados/consentimento UMP e capturas reais atualizadas. AdMob ainda contém **IDs de teste** e a **assinatura de upload comercial não está configurada**: o Gradle bloqueia corretamente `bundleRelease` e `assembleRelease` sem passar pela verificação. **Não enviar o APK de QA à Play nem afirmar que o lançamento está homologado.** A documentação consolidada e os bloqueios atuais ficam em `docs/LANCAMENTO_236_CONSOLIDADO.md`. Para executar o APK no Insano, use `TESTAR-BOLETO-RUSH-ANDROID.cmd` com USB/depuração autorizada. A RC1 de 1.5 mencionada abaixo é histórica.
 
 ## 1. Criar aplicativo
 Acesse https://play.google.com/console/ e selecione **Todos os apps > Criar app** (os rótulos podem variar).
@@ -24,7 +24,7 @@ Acesse https://play.google.com/console/ e selecione **Todos os apps > Criar app*
 ## 2. Conteúdo do app — Política e programas > Conteúdo do app
 Conclua todos os cards apresentados pela conta.
 
-- **Política de privacidade:** `https://github.com/giulianocruz/boleto-rush-android/blob/main/PRIVACIDADE.md`. Também existe botão no menu do jogo. Se o Google exigir página HTML dedicada, hospede o conteúdo no domínio oficial antes de enviar para revisão.
+- **Política de privacidade:** a versão do site indicada no README é `https://giulianocruz.github.io/boleto-rush-android/privacy.html`, e seu acesso externo foi **verificado em 12/11/2026**: HTTP 200, HTML e conteúdo específico do Boleto Rush. É necessário continuar revisando a exatidão das declarações de privacidade e de Segurança dos dados. O arquivo `PRIVACIDADE.md` dentro de um repositório GitHub privado não substitui uma página pública. O jogo possui opção de privacidade no menu; ainda é necessário confirmar a abertura do link dentro do aplicativo no Android real e sua aceitação na Play Console.
 - **Anúncios:** **SIM**. O anúncio recompensado é opcional após perder; não há intersticial obrigatório.
 - **Acesso ao app:** sem login/senha. Instruções de acesso: "O jogo abre diretamente no menu; selecione Clássico ou Maratona e toque em Jogar agora. Para encontrar o anúncio opcional, perca as três vidas; o recurso depende de rede e consentimento."
 - **Classificação de conteúdo (IARC):** responder ao questionário com a experiência real; trata-se de arcade casual com caricaturas de documentos, sem apostas e sem pagamentos. **Não inventar classificação indicativa**.
@@ -47,10 +47,12 @@ No Boleto Rush!, uma carteira corajosa enfrenta uma chuva de boletos em uma cida
 
 - CLÁSSICO: sobreviva por 45 segundos.
 - MARATONA: sobreviva por 90 segundos.
-- Colete moedas, faça combos e supere seus recordes.
+- Colete moedas, faça combos, pratique o Raspão e supere seus recordes.
+- Encontre relíquias de bronze, prata e ouro, troque fragmentos no Cofre e complete o álbum de coleção.
+- Supere missões semanais e o desafio Fechamento do Mês para liberar visuais e recompensas virtuais.
 - Use escudos, conquiste vidas extras e aprenda com o tutorial.
 - Controle rápido com um dedo, pausa e som opcional.
-- Se perder, você pode ESCOLHER assistir a um anúncio recompensado para reviver uma vez. Não há anúncio obrigatório.
+- Anúncios recompensados são opcionais: quando disponíveis, podem oferecer uma segunda chance ou bônus virtuais. Não há anúncios obrigatórios durante as partidas.
 
 Divirta-se com uma corrida casual original, feita no Brasil pela Próxima Era Games.
 
@@ -61,7 +63,7 @@ O jogo funciona offline. As funções de publicidade e consentimento exigem cone
 ## 4. Imagens da loja — arquivos corretos
 - **Ícone:** `store/play-icon-512.png` — o ícone transparente novo, PNG RGBA de 512×512, máximo 1 MB. Não usar a antiga imagem JPG quadrada.
 - **Imagem de destaque:** `store/feature-graphic-1024x500.jpg` — JPG 1024×500, sem transparência.
-- **Capturas:** a RC1 passou no smoke test do emulador e foram geradas **duas capturas reais em 1080×1920**, de menu e gameplay, no artefato `BoletoRush-1.5.0-rc1-SCREENSHOTS-REAIS` do GitHub Actions (run 40698310814). Foram também exportadas como RGB PNG de 24 bits para o kit de publicação. São obrigatórias **no mínimo 2** capturas reais do app para a página. Para boa descoberta de jogos, aconselha-se **3 ou mais em 1080×1920, retrato 9:16**, feitas a partir do APK atual, contendo gameplay, seleção de modo, tutorial/resultado. As capturas antigas do diretório `store/` são de beta 1.2; não usar como imagem da RC sem comparação visual. Mockups gerados por IA não substituem capturas autênticas.
+- **Capturas antigas (somente para referência):** a RC1 passou no smoke test do emulador e foram geradas **duas capturas reais em 1080×1920**, de menu e gameplay, no artefato `BoletoRush-1.5.0-rc1-SCREENSHOTS-REAIS` do GitHub Actions (run 40698310814). Foram também exportadas como RGB PNG de 24 bits para o kit de publicação. São obrigatórias **no mínimo 2** capturas reais do app para a página. Para boa descoberta de jogos, aconselha-se **3 ou mais em 1080×1920, retrato 9:16**, feitas a partir do APK atual, contendo gameplay, seleção de modo, tutorial/resultado. As capturas antigas do diretório `store/` são de beta 1.2; não usar como imagem da RC sem comparação visual. Mockups gerados por IA não substituem capturas autênticas.
 - Sugestão de ordem: (1) gameplay com carteira/moedas/boletos; (2) clássico/maratona e mascote no menu; (3) escudo, vidas e resultado. Não inventar pontuação, botão ou anúncio que não existem.
 
 Requisitos gráficos oficiais: https://support.google.com/googleplay/android-developer/answer/9866151 .
@@ -89,7 +91,7 @@ O pacote para Google Play é um **AAB assinado com a chave de upload do titular*
 - Repositório > Settings > Secrets and variables > Actions > New repository secret.
 - Adicionar `BOLETO_ADMOB_APP_ID` e `BOLETO_REWARDED_UNIT_ID` (valores reais).
 - Adicionar `BOLETO_UPLOAD_KEYSTORE_BASE64` (conteúdo Base64 do arquivo da chave — nunca no código), `BOLETO_UPLOAD_STORE_PASSWORD`, `BOLETO_UPLOAD_KEY_ALIAS` e `BOLETO_UPLOAD_KEY_PASSWORD`.
-- Executar workflow `Boleto Rush — Android RC (APK + AAB)` em Actions. Com tudo configurado, ele valida a configuração e assina o AAB. Sem chave, entrega **AAB não assinado para QA**, que **não pode ser enviado à Play**.
+- Executar o workflow `Boleto Rush — QA APK + Signed Play AAB` somente quando houver cota disponível. **Sem segredos de publicação, ele roda os testes e gera exclusivamente o APK QA com anúncios de demonstração**; com a chave de upload e IDs comerciais válidos, gera também o AAB assinado. Alternativamente, usar Android Studio/Gradle autorizado no Insano. A tentativa de executar `bundleRelease` ou `assembleRelease` sem os pré-requisitos é **bloqueada intencionalmente**. Não depender da cota do GitHub Actions para compilar o APK QA localmente.
 - Não enviar senhas ou arquivo de chave pelo chat público.
 
 ## 7. Testes e publicação na Play
@@ -100,17 +102,59 @@ O pacote para Google Play é um **AAB assinado com a chave de upload do titular*
 
 Requisitos de teste: https://support.google.com/googleplay/android-developer/answer/14151465 .
 
-## 8. Texto da atualização — 1.5.0 RC1
-"Primeira versão de testes para Google Play: corrida de moedas e boletos com os modos Clássico e Maratona, mascote ilustrado, recordes, proteção com escudo, vida extra e opção voluntária de anúncio recompensado para reviver. Melhorias de estabilidade e configuração de privacidade."
+## 8. Texto proposto para o primeiro lançamento (após homologação da 2.3.9)
+"Boleto Rush! chegou: desvie dos boletos, colete moedas e relíquias, enfrente desafios, complete o álbum de colecionáveis e libere visuais em partidas de 45 ou 90 segundos. Os anúncios recompensados são opcionais."
+
+**Atenção:** validar no Android real todos os recursos citados. O texto antigo da RC1 não descreve a versão 2.3.9.
 
 ## 9. Definição de pronto
-- [ ] Android abre e termina partidas no **celular físico**; não há crash de inicialização. A abertura e início da partida já passaram no emulador Android API 35 (ver `TESTES_V15.md`).
-- [ ] Ícone com fundo transparente e menu conferidos no Android.
+- [ ] Android abre e termina partidas completas de 45s e 90s no **celular físico**, sem crash, perda de controle ou corte de interface na versão **2.3.15-QA**. Testes antigos de RC1 não substituem esta homologação.
+- [ ] Ícone com fundo transparente, menu, Cofre, álbum, relíquias, missão semanal, Fechamento do Mês, proteção inicial e pausa conferidos em Android real.
 - [ ] Capturas reais atualizadas, ícone e feature banner corretos.
-- [ ] Configuração AdMob real validada, anúncio opcional respeita consentimento.
+- [ ] Vídeos de **teste** do AdMob e UMP validados em aparelho real; depois, configuração de IDs reais validada com consentimento, sem cliques em anúncios comerciais.
 - [ ] Política e formulário Segurança dos dados condizem com SDK e comportamento.
 - [ ] Chave de upload criada, armazenada com backup e AAB assinado.
-- [ ] Teste interno e, quando necessário, fechado satisfatórios.
+- [ ] Teste interno concluído; para contas pessoais novas sujeitas à regra, **12 testadores inscritos continuamente por 14 dias no teste fechado**, seguidos de solicitação de acesso à produção. Conferir exigências específicas na Play Console.
 - [ ] Google Play Console aprovou a publicação.
 
 **Não lançar as edições 13/22 como variantes idênticas.** São projetos futuros, com nomes, mecânicas e conteúdo diferenciados.
+
+## Atualização da QA 2.3.7 — backup e ícone
+
+A versão 2.3.7 declara regras explícitas para não transferir automaticamente progresso e preferências locais via mecanismos de backup do Android 8+. A ficha/FAQ devem informar claramente que não há sincronização ou restauração de progresso entre aparelhos. O ícone adaptativo recebeu variante monocromática, que ainda precisa de inspeção no celular. Consulte `docs/QA_237_ANDROID_COMPAT.md`.
+
+## Ajuste de anúncios recompensados — 2.3.8-QA
+
+A tela de resultados deixa de oferecer vídeos de duplicação com ambas as carteiras lotadas. Quando só parte dos valores cabe, mostra moedas e notas que realmente serão creditadas e ajusta a legenda do botão. O crédito continua único e atômico. Ver documentação: `docs/QA_238_AD_REWARD_FAIRNESS.md`.
+
+## QA 2.3.9 — relógio e retorno ao app
+
+O loop da partida foi protegido contra avanço quando a Activity está em segundo plano. Testar em Android real o retorno de anúncios recompensados e a troca de aplicativos, confirmando que o relógio não avança com a tela oculta. Ver `docs/QA_239_CLOCK_FOREGROUND.md`.
+
+## Verificação adicional — identidade de Play 2.3.9
+
+O Gradle agora possui `:app:verifyPlayIdentity`, também executado pela QA do CI. O manifesto de release processado em 12/11/2026 confirmou o pacote `br.com.proximaera.boletorush` e `versionName=2.3.9` **sem sufixo QA**; o APK debug segue `br.com.proximaera.boletorush.qa / 2.3.9-qa.debug`. O AAB assinado **ainda não foi gerado**. Confira os tamanhos dos recursos e as capturas antigas em `docs/QA_240_PLAY_IDENTITY.md`.
+
+## Atualização 2.3.10 — comprovantes de partida
+
+A QA corrigiu os campos do recibo para mostrar somente o valor realmente depositado quando notas/moedas atingem o limite máximo. Também mantém o selo mensal e a missão semanal registrados mesmo se a recompensa de notas não couber integralmente. A variante comercial agora tem versionName `2.3.10` e a QA `2.3.10-qa.debug`, code 47. Ainda não foi gerado um AAB para a Play. Consulte `docs/QA_2310_RECEIPTS.md`.
+
+## QA 2.3.11 — acompanhamento do Fechamento do Mês
+
+A versão de QA apresenta o progresso dos seis perigos do chefe mensal durante a partida e na tela final, notificações por onda e aviso de contato que inviabiliza o selo mensal. As condições de prêmio não mudaram. Registro: `docs/QA_2311_BOSS_PROGRESS.md`. A versão comercial prevista é `2.3.11`, pacote `br.com.proximaera.boletorush`, e continua bloqueada para upload.
+
+## QA 2.3.12 — mensagem de resultado mensal
+
+Quando a partida atravessa a virada do mês, a tela não pode afirmar que o selo já foi conquistado sem verificar o histórico. A nova mensagem distingue selo já recebido, mês virado, erro de data do aparelho e desafio não concluído. Sem alteração de premiação. Ver `docs/QA_2312_MONTH_RESULT.md`. A release comercial prevista é `2.3.12` (sem sufixo QA), ainda não assinada.
+
+## Correção 2.3.13 — meta final possível no Clássico
+
+Com o Fechamento do Mês iniciando aos 27s, o quarto capítulo de 45s só tem duas moedas disponíveis após começar. A meta anterior de 4/4 era impossível. Agora o objetivo do Clássico é 2/2, com prêmio virtual R$ 6 mantido. Na Maratona continua 4/4. O HUD e a regra de crédito usam a mesma meta. Ver `docs/QA_2313_CLASSIC_FINAL_MISSION.md`.
+
+## QA 2.3.14 — resultado de conquistas
+
+O formato do recibo evoluiu para versão 5 com discriminação de moedas de conquista efetivamente creditadas e usadas para abater dívida; migração dos recibos v1–v4 mantida. A tela de resultado deixa de apresentar o valor nominal como depositado quando a carteira está cheia. Ver `docs/QA_2314_MILESTONE_RECEIPTS.md`.
+
+## QA 2.3.15 — vídeo de etapa e retorno ao jogo
+
+O callback de anúncio recompensado fica vinculado à partida e à etapa originais, sem perder o crédito quando a navegação muda antes de o vídeo terminar. O modo PLAY em segundo plano volta à pausa, e callbacks obsoletos não contaminam rodadas novas. Ver `docs/QA_2315_REWARDED_CHAPTER.md`. A variante comercial ainda está bloqueada por assinatura e configuração.

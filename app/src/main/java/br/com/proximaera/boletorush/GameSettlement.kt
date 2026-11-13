@@ -1,0 +1,236 @@
+package br.com.proximaera.boletorush
+
+import android.content.SharedPreferences
+
+/** The actual amounts committed to disk in one local game settlement. */
+internal data class GameReceipt(
+    val gamesPlayed: Int,
+    val best: Int,
+    val coinsBanked: Int,
+    val notesBanked: Int,
+    val creditGranted: Int,
+    val debtRepaid: Int,
+    val wallet: Int,
+    val notes: Int,
+    val credit: Int,
+    val debt: Int,
+    val unlocked: List<Milestone>,
+    val relicsBanked: Int = 0,
+    val relicWallet: Int = 0,
+    val weeklyNotesAward: Int = 0,
+    val albumUnlocked: Boolean = false,
+    val monthStampAwarded: Boolean = false,
+    val monthNotesAward: Int = 0,
+    val monthStampCount: Int = 0,
+    val milestoneCoinsCredited: Int = 0,
+    val milestoneDebtRepaid: Int = 0,
+    /** v1–v4 receipts do not contain a milestone-credit breakdown. */
+    val milestoneBreakdownKnown: Boolean = false
+)
+
+/**
+ * One transaction for coins, notes, cards, milestones, debt and record.
+ * A durable receipt permits retrying the most recent round even if its first
+ * commit succeeded but the app was interrupted before displaying the result.
+ * A bounded history also rejects old round IDs (128 recent settlements).
+ */
+internal object GameSettlement {
+    private const val LastIdKey = "last_settlement_id"
+    private const val ReceiptKey = "last_settlement_receipt_v2"
+    private const val HistoryKey = "settled_round_ids_v2"
+    private const val HistoryLimit = 128
+    private const val CoinWalletKey = "wallet_coins"
+    private const val NoteWalletKey = "wallet_cash"
+    private const val CreditKey = "store_credit"
+
+    private fun encode(receipt: GameReceipt): String = listOf(
+        "5", receipt.gamesPlayed, receipt.best, receipt.coinsBanked,
+        receipt.notesBanked, receipt.creditGranted, receipt.debtRepaid,
+        receipt.wallet, receipt.notes, receipt.credit, receipt.debt,
+        receipt.unlocked.joinToString(",") { it.name }.ifEmpty { "-" },
+        receipt.relicsBanked, receipt.relicWallet,
+        receipt.weeklyNotesAward, if (receipt.albumUnlocked) 1 else 0,
+        if (receipt.monthStampAwarded) 1 else 0,
+        receipt.monthNotesAward, receipt.monthStampCount,
+        receipt.milestoneCoinsCredited, receipt.milestoneDebtRepaid
+    ).joinToString("|")
+
+    private fun decode(value: String?): GameReceipt? {
+        if (value == null) return null
+        val parts = value.split('|')
+        val legacy = parts.size == 12 && parts[0] == "1"
+        val modern = parts.size == 14 && parts[0] == "2"
+        val album = parts.size == 16 && parts[0] == "3"
+        val monthBoss = parts.size == 19 && parts[0] == "4"
+        val milestoneBreakdown = parts.size == 21 && parts[0] == "5"
+        if (!legacy && !modern && !album && !monthBoss && !milestoneBreakdown) return null
+        val numbers = parts.subList(1, 11).map { it.toIntOrNull() ?: return null }
+        val names = if (parts[11] == "-") emptyList() else parts[11].split(',')
+        val unlocked = Milestone.entries.filter { it.name in names }
+        if (unlocked.size != names.size) return null
+        val banked = if (modern || album || monthBoss || milestoneBreakdown)
+            parts[12].toIntOrNull() ?: return null else 0
+        val balance = if (modern || album || monthBoss || milestoneBreakdown)
+            parts[13].toIntOrNull() ?: return null else 0
+        val weeklyNotes = if (album || monthBoss || milestoneBreakdown)
+            parts[14].toIntOrNull() ?: return null else 0
+        val unlockFlag = if (album || monthBoss || milestoneBreakdown)
+            parts[15].toIntOrNull() ?: return null else 0
+        val stampFlag = if (monthBoss || milestoneBreakdown)
+            parts[16].toIntOrNull() ?: return null else 0
+        val bossNotes = if (monthBoss || milestoneBreakdown)
+            parts[17].toIntOrNull() ?: return null else 0
+        val stampCount = if (monthBoss || milestoneBreakdown)
+            parts[18].toIntOrNull() ?: return null else 0
+        val creditedMilestones = if (milestoneBreakdown)
+            parts[19].toIntOrNull() ?: return null else 0
+        val paidMilestoneDebt = if (milestoneBreakdown)
+            parts[20].toIntOrNull() ?: return null else 0
+        if (banked !in 0..GameRelics.MaxPerRound || balance !in 0..GameRelics.MaxWallet ||
+            weeklyNotes !in 0..GameRelicAlbum.WeeklyNotesReward || unlockFlag !in 0..1 ||
+            stampFlag !in 0..1 || bossNotes !in 0..GameMonthChallenge.NotesAward ||
+            stampCount !in 0..GameMonthChallenge.MaxStamps ||
+            creditedMilestones !in 0..26 || paidMilestoneDebt !in 0..26 ||
+            creditedMilestones + paidMilestoneDebt > unlocked.sumOf { it.reward }
+        ) return null
+        return GameReceipt(
+            numbers[0], numbers[1], numbers[2], numbers[3], numbers[4],
+            numbers[5], numbers[6], numbers[7], numbers[8], numbers[9],
+            unlocked, banked, balance, weeklyNotes, unlockFlag == 1,
+            stampFlag == 1, bossNotes, stampCount,
+            creditedMilestones, paidMilestoneDebt, milestoneBreakdown
+        )
+    }
+
+    /** Available again after reopening the app; no round needs to be replayed. */
+    fun latestReceipt(prefs: SharedPreferences): GameReceipt? =
+        decode(prefs.getString(ReceiptKey, null))
+
+    @Synchronized
+    fun settle(
+        prefs: SharedPreferences,
+        roundId: String,
+        modeIsMarathon: Boolean,
+        score: Int,
+        coinsCollected: Int,
+        notesCollected: Int,
+        pendingCardCredit: Int,
+        incomeLevel: Int,
+        victory: Boolean,
+        relicsCollected: Int = 0,
+        relicBronze: Int = 0,
+        relicSilver: Int = 0,
+        relicGold: Int = 0,
+        monthlyBossWaves: Int = 0,
+        monthlyBossContacts: Int = 0,
+        monthlyBossResolved: Int = 0,
+        challengeMonth: String = ""
+    ): GameReceipt? {
+        require(roundId.isNotBlank() && '\n' !in roundId && '\r' !in roundId) {
+            "The round must have a valid unique identifier"
+        }
+
+        val lastId = prefs.getString(LastIdKey, null)
+        // A retried save must show the original receipt, not pay twice or falsely fail.
+        if (lastId == roundId) return decode(prefs.getString(ReceiptKey, null))
+
+        val history = prefs.getString(HistoryKey, "")
+            .orEmpty().split('\n').filter { it.isNotBlank() }
+        if (roundId in history) return null // Older settled round: reject any replay.
+
+        // Upgrade path from v1.7.6: preserve its most recent ID in the ledger.
+        val priorIds = (history + listOfNotNull(lastId)).distinct().takeLast(HistoryLimit - 1)
+
+        val earned = GameEconomy.earnings(coinsCollected, incomeLevel)
+        val milestones = Milestone.entries.filter {
+            it.reached(score, coinsCollected, victory) && !GameMilestones.claimed(prefs, it)
+        }
+        val milestoneCoins = milestones.sumOf { it.reward }
+
+        val previousDebt = GameEconomy.debt(prefs)
+        val paidByRun = minOf(earned, previousDebt)
+        val debtAfterRun = previousDebt - paidByRun
+        val paidByMilestones = minOf(milestoneCoins, debtAfterRun)
+        val nextDebt = debtAfterRun - paidByMilestones
+        val runCoinsAfterDebt = earned - paidByRun
+        val milestoneBanked = milestoneCoins - paidByMilestones
+        val oldCoins = GameEconomy.wallet(prefs)
+        val nextCoins = (oldCoins.toLong() +
+            runCoinsAfterDebt + milestoneBanked).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        // A receipt must report what was actually deposited, not coins discarded
+        // by the wallet's Int.MAX_VALUE limit. Preserve run-vs-milestone split.
+        val coinsBanked = minOf(
+            runCoinsAfterDebt.toLong(), nextCoins.toLong() - oldCoins.toLong()
+        ).toInt()
+        // Coin achievements may repay card debt, reach the wallet, or be
+        // clipped at the wallet cap. Persist the exact breakdown in the
+        // receipt so retries and resumed result screens never guess.
+        val milestoneCoinsCredited = minOf(
+            milestoneBanked.toLong(), nextCoins.toLong() - oldCoins.toLong() - coinsBanked
+        ).toInt()
+
+        val requestedNotes = notesCollected.coerceAtLeast(0)
+        // Discovery progress is earned by collecting, even when the fragment
+        // wallet is full. Only the amount deposited is constrained by capacity.
+        val collectedFragments = GameRelics.bankable(relicsCollected)
+        val albumUpdate = GameRelicAlbum.planSettlement(prefs,
+            relicBronze, relicSilver, relicGold, collectedFragments)
+        val monthUpdate = GameMonthChallenge.plan(
+            prefs, victory, monthlyBossWaves, monthlyBossContacts, challengeMonth,
+            hazardsResolved = monthlyBossResolved)
+        // Allocate available note capacity in order: collected notes, weekly
+        // reward, monthly reward. Every amount in the receipt must match the
+        // exact change made to the player's persisted wallet.
+        val oldNotes = GameEconomy.cash(prefs)
+        val noteRoom = Int.MAX_VALUE.toLong() - oldNotes.toLong()
+        val notesBanked = minOf(requestedNotes.toLong(), noteRoom).toInt()
+        val weeklyNotesBanked = minOf(
+            albumUpdate.weeklyNotesAward.toLong(), noteRoom - notesBanked
+        ).toInt()
+        val monthNotesBanked = minOf(
+            monthUpdate.notesAward.toLong(), noteRoom - notesBanked - weeklyNotesBanked
+        ).toInt()
+        val nextNotes = (oldNotes.toLong() + notesBanked +
+            weeklyNotesBanked + monthNotesBanked).toInt()
+
+        val relicBalance = GameRelics.balance(prefs)
+        val relicsBanked = minOf(collectedFragments,
+            GameRelics.MaxWallet - relicBalance)
+        val nextRelicBalance = relicBalance + relicsBanked
+
+        val availableCredit = GameEconomy.credit(prefs)
+        val room = (25L - nextDebt - availableCredit).coerceIn(0L, 25L).toInt()
+        val creditGranted = pendingCardCredit.coerceIn(0, room)
+        val nextCredit = availableCredit + creditGranted
+
+        val nextGames = (prefs.getInt("games", 0).toLong() + 1)
+            .coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+        val bestKey = if (modeIsMarathon) "best_marathon" else "best"
+        val nextBest = maxOf(score.coerceAtLeast(0), prefs.getInt(bestKey, 0))
+
+        val receipt = GameReceipt(nextGames, nextBest, coinsBanked, notesBanked,
+            creditGranted, previousDebt - nextDebt, nextCoins,
+            nextNotes, nextCredit, nextDebt, milestones,
+            relicsBanked, nextRelicBalance,
+            weeklyNotesBanked, albumUpdate.newlyCompletedCollection,
+            monthUpdate.awarded, monthNotesBanked, monthUpdate.stampCount,
+            milestoneCoinsCredited, paidByMilestones, true)
+
+        val editor = prefs.edit()
+            .putString(LastIdKey, roundId)
+            .putString(ReceiptKey, encode(receipt))
+            .putString(HistoryKey, (priorIds + roundId).joinToString("\n"))
+            .putInt(CoinWalletKey, nextCoins)
+            .putInt(NoteWalletKey, nextNotes)
+            .putInt(GameRelics.WalletKey, nextRelicBalance)
+            .putInt(CreditKey, nextCredit)
+            .putInt(GameEconomy.DebtKey, nextDebt)
+            .putInt("games", nextGames)
+            .putInt(bestKey, nextBest)
+        GameRelicAlbum.write(editor, albumUpdate)
+        GameMonthChallenge.write(editor, monthUpdate)
+        milestones.forEach { editor.putBoolean(it.key, true) }
+        if (!editor.commit()) return null
+        return receipt
+    }
+}
