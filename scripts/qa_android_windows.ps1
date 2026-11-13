@@ -7,8 +7,8 @@
   -Install explicitly installs/replaces the QA package without clearing data.
   -Capture saves a local screenshot, logs and metadata; nothing is uploaded.
 .EXAMPLE
-  .\qa_android_windows.ps1 -ApkPath ".\BoletoRush-2.3.13-META-FINAL-JUSTA-QA.apk" -Install -Run -Capture
-  .\qa_android_windows.ps1 -ApkPath ".\BoletoRush-2.3.13-META-FINAL-JUSTA-QA.apk" -CollectOnly
+  .\qa_android_windows.ps1 -ApkPath ".\BoletoRush-2.3.14-CONQUISTAS-REAIS-QA.apk" -Install -Run -Capture
+  .\qa_android_windows.ps1 -ApkPath ".\BoletoRush-2.3.14-CONQUISTAS-REAIS-QA.apk" -CollectOnly
 #>
 [CmdletBinding()]
 param(

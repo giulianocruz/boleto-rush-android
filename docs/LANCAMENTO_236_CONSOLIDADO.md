@@ -167,3 +167,11 @@ A candidata atual da PR #39 é **Boleto Rush 2.3.13-QA**, versionCode 50. A quar
 **Evidências no Insano:** 134 testes JUnit aprovados; Android Lint 0 erros e 34 avisos; APK 2.3.13 validado com aapt e apksigner; kit de QA atualizado com backups e pré-verificação sem Android conectado. Roteiro detalhado em [QA 2.3.13 — meta final alcançável](QA_2313_CLASSIC_FINAL_MISSION.md).
 
 **NO-GO para publicação:** Android físico ainda não foi homologado; UMP/AdMob, capturas reais, AAB comercial assinado e dados da Play pendentes. `main` e Google Play preservadas.
+
+## Atualização posterior — candidata QA 2.3.14 (12/11/2026)
+
+A candidata da PR integrada #39 passou a ser **Boleto Rush 2.3.14-QA**, versionCode 51. O recibo de fechamento agora registra separadamente moedas de conquistas efetivamente depositadas e moedas utilizadas na dívida, além de informar quando o saldo máximo impede o depósito. O formato evoluiu para **recibo v5**, mantendo leitura dos anteriores v1–v4, e a interface não inventa distribuição para recibos antigos.
+
+**Verificação no Insano:** build de QA concluída, **139 testes JUnit sem falhas**, Android Lint **0 erros e 34 avisos**, assinatura e hash do APK conferidos; kit de QA atualizado e pré-verificação aprovada. Documentação em [QA 2.3.14 — conquistas justas](QA_2314_MILESTONE_RECEIPTS.md).
+
+**NO-GO para produção:** nenhum telefone Android conectado no Insano para homologação, AdMob/UMP em dispositivo ainda pendentes, capturas atuais, assinatura comercial e declarações da Play Store. A `main` permanece inalterada e não houve publicação.

@@ -48,6 +48,81 @@ private class LocalTestPrefs : SharedPreferences {
 }
 
 class EconomyTransactionsTest {
+    @Test fun milestoneReceiptTracksNormalDepositsAndSurvivesReload() {
+        val prefs = LocalTestPrefs()
+        val receipt = GameSettlement.settle(
+            prefs, "milestone-normal", false, 400, 15, 0, 0, 0, true
+        )!!
+        assertEquals(3, receipt.coinsBanked)
+        assertEquals(26, receipt.unlocked.sumOf { it.reward })
+        assertEquals(26, receipt.milestoneCoinsCredited)
+        assertEquals(0, receipt.milestoneDebtRepaid)
+        assertTrue(receipt.milestoneBreakdownKnown)
+        assertEquals(29, receipt.wallet)
+        assertEquals(receipt, GameSettlement.latestReceipt(prefs))
+        assertEquals(receipt, GameSettlement.settle(
+            prefs, "milestone-normal", false, 999, 999, 999, 0, 0, true
+        ))
+        assertEquals(29, GameEconomy.wallet(prefs))
+    }
+
+    @Test fun milestoneReceiptDistinguishesDebtRepaymentFromWalletCredit() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt(GameEconomy.DebtKey, 40).commit()
+        val receipt = GameSettlement.settle(
+            prefs, "milestone-debt", false, 400, 15, 0, 0, 0, true
+        )!!
+        assertEquals(0, receipt.coinsBanked)
+        assertEquals(0, receipt.milestoneCoinsCredited)
+        assertEquals(26, receipt.milestoneDebtRepaid)
+        assertEquals(29, receipt.debtRepaid)
+        assertEquals(11, receipt.debt)
+        assertEquals(0, receipt.wallet)
+        assertEquals(receipt, GameSettlement.latestReceipt(prefs))
+    }
+
+    @Test fun milestoneReceiptOnlyClaimsActualCapacityAtWalletLimit() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt("wallet_coins", Int.MAX_VALUE - 2).commit()
+        val receipt = GameSettlement.settle(
+            prefs, "milestone-partial", false, 0, 0, 0, 0, 0, true
+        )!!
+        assertEquals(12, receipt.unlocked.sumOf { it.reward })
+        assertEquals(2, receipt.milestoneCoinsCredited)
+        assertEquals(0, receipt.milestoneDebtRepaid)
+        assertEquals(Int.MAX_VALUE, receipt.wallet)
+        assertEquals(receipt, GameSettlement.latestReceipt(prefs))
+        assertEquals(receipt, GameSettlement.settle(
+            prefs, "milestone-partial", false, 0, 0, 0, 0, 0, true
+        ))
+    }
+
+    @Test fun milestoneReceiptDoesNotClaimMoneyAtCompletelyFullWallet() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putInt("wallet_coins", Int.MAX_VALUE).commit()
+        val receipt = GameSettlement.settle(
+            prefs, "milestone-full", false, 0, 0, 0, 0, 0, true
+        )!!
+        assertTrue(receipt.unlocked.contains(Milestone.SURVIVOR))
+        assertEquals(0, receipt.milestoneCoinsCredited)
+        assertEquals(0, receipt.milestoneDebtRepaid)
+        assertEquals(Int.MAX_VALUE, receipt.wallet)
+        assertEquals(receipt, GameSettlement.latestReceipt(prefs))
+    }
+
+    @Test fun versionFourMonthlyReceiptStillDecodesWithoutMilestoneBreakdown() {
+        val prefs = LocalTestPrefs()
+        prefs.edit().putString("last_settlement_receipt_v2",
+            "4|1|25|1|2|0|0|1|2|0|0|-|3|3|16|1|1|25|1").commit()
+        val receipt = GameSettlement.latestReceipt(prefs)!!
+        assertEquals(1, receipt.monthStampCount)
+        assertEquals(25, receipt.monthNotesAward)
+        assertTrue(receipt.monthStampAwarded)
+        assertEquals(0, receipt.milestoneCoinsCredited)
+        assertEquals(0, receipt.milestoneDebtRepaid)
+        assertFalse(receipt.milestoneBreakdownKnown)
+    }
+
     @Test fun settlementReceiptDoesNotPromiseDepositsWhenBothWalletsAreFull() {
         val prefs = LocalTestPrefs()
         prefs.edit().putInt("wallet_coins", Int.MAX_VALUE)

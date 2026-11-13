@@ -312,6 +312,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
     var incomeLevel by remember { mutableIntStateOf(GameEconomy.level(prefs, Upgrade.COIN_BONUS)) }
     var roundEarnings by remember { mutableIntStateOf(0) }
     var milestoneBonus by remember { mutableIntStateOf(0) }
+    var milestoneCoinsCredited by remember { mutableIntStateOf(0) }
+    var milestoneDebtRepaid by remember { mutableIntStateOf(0) }
+    var milestoneBreakdownKnown by remember { mutableStateOf(false) }
     var newMilestones by remember { mutableStateOf<List<Milestone>>(emptyList()) }
     var settledRound by remember { mutableIntStateOf(-1) }
     var cashedOut by remember { mutableStateOf(false) }
@@ -446,6 +449,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         dodgeMovementAge = 5f
         roundEarnings = 0
         milestoneBonus = 0
+        milestoneCoinsCredited = 0
+        milestoneDebtRepaid = 0
+        milestoneBreakdownKnown = false
         newMilestones = emptyList()
         magnetUses = 0
         cashedOut = false
@@ -556,6 +562,9 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
         roundDebtRepaid = receipt.debtRepaid
         pendingCardCredit = 0
         milestoneBonus = receipt.unlocked.sumOf { it.reward }
+        milestoneCoinsCredited = receipt.milestoneCoinsCredited
+        milestoneDebtRepaid = receipt.milestoneDebtRepaid
+        milestoneBreakdownKnown = receipt.milestoneBreakdownKnown
         newMilestones = receipt.unlocked
         wallet = receipt.wallet
         cashWallet = receipt.notes
@@ -2090,8 +2099,27 @@ private fun BoletoRush(foreground: Boolean, ads: RewardedReviveAds?, recoveryMod
                 )
                 if (newMilestones.isNotEmpty()) {
                     Spacer(Modifier.height(7.dp))
-                    Text("🏆 NOVA CONQUISTA! +$milestoneBonus MOEDAS",
+                    Text("🏆 NOVA CONQUISTA DESBLOQUEADA!",
                         color=Teal,fontSize=14.sp,fontWeight=FontWeight.Black,
+                        textAlign=TextAlign.Center)
+                    if (!milestoneBreakdownKnown) Text(
+                        "RECIBO ANTERIOR: DETALHE DE CRÉDITO NÃO DISPONÍVEL",
+                        color=Muted,fontSize=11.sp,fontWeight=FontWeight.Bold,
+                        textAlign=TextAlign.Center)
+                    if (milestoneBreakdownKnown && milestoneCoinsCredited > 0) Text(
+                        "+$milestoneCoinsCredited MOEDAS DE CONQUISTA NO SALDO",
+                        color=Teal,fontSize=12.sp,fontWeight=FontWeight.Bold,
+                        textAlign=TextAlign.Center)
+                    if (milestoneBreakdownKnown && milestoneDebtRepaid > 0) Text(
+                        "$milestoneDebtRepaid MOEDAS DE CONQUISTA ABATERAM DÍVIDA",
+                        color=Teal,fontSize=12.sp,fontWeight=FontWeight.Bold,
+                        textAlign=TextAlign.Center)
+                    val milestoneNotDeposited =
+                        (milestoneBonus - milestoneCoinsCredited - milestoneDebtRepaid)
+                            .coerceAtLeast(0)
+                    if (milestoneBreakdownKnown && milestoneNotDeposited > 0) Text(
+                        "$milestoneNotDeposited MOEDAS NÃO COUBERAM: CARTEIRA NO LIMITE",
+                        color=Muted,fontSize=11.sp,fontWeight=FontWeight.Bold,
                         textAlign=TextAlign.Center)
                     Text(newMilestones.joinToString(" • ") { it.title },
                         color=Color.White,fontSize=12.sp,textAlign=TextAlign.Center)

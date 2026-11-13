@@ -21,7 +21,11 @@ internal data class GameReceipt(
     val albumUnlocked: Boolean = false,
     val monthStampAwarded: Boolean = false,
     val monthNotesAward: Int = 0,
-    val monthStampCount: Int = 0
+    val monthStampCount: Int = 0,
+    val milestoneCoinsCredited: Int = 0,
+    val milestoneDebtRepaid: Int = 0,
+    /** v1–v4 receipts do not contain a milestone-credit breakdown. */
+    val milestoneBreakdownKnown: Boolean = false
 )
 
 /**
@@ -40,14 +44,15 @@ internal object GameSettlement {
     private const val CreditKey = "store_credit"
 
     private fun encode(receipt: GameReceipt): String = listOf(
-        "4", receipt.gamesPlayed, receipt.best, receipt.coinsBanked,
+        "5", receipt.gamesPlayed, receipt.best, receipt.coinsBanked,
         receipt.notesBanked, receipt.creditGranted, receipt.debtRepaid,
         receipt.wallet, receipt.notes, receipt.credit, receipt.debt,
         receipt.unlocked.joinToString(",") { it.name }.ifEmpty { "-" },
         receipt.relicsBanked, receipt.relicWallet,
         receipt.weeklyNotesAward, if (receipt.albumUnlocked) 1 else 0,
         if (receipt.monthStampAwarded) 1 else 0,
-        receipt.monthNotesAward, receipt.monthStampCount
+        receipt.monthNotesAward, receipt.monthStampCount,
+        receipt.milestoneCoinsCredited, receipt.milestoneDebtRepaid
     ).joinToString("|")
 
     private fun decode(value: String?): GameReceipt? {
@@ -57,27 +62,43 @@ internal object GameSettlement {
         val modern = parts.size == 14 && parts[0] == "2"
         val album = parts.size == 16 && parts[0] == "3"
         val monthBoss = parts.size == 19 && parts[0] == "4"
-        if (!legacy && !modern && !album && !monthBoss) return null
+        val milestoneBreakdown = parts.size == 21 && parts[0] == "5"
+        if (!legacy && !modern && !album && !monthBoss && !milestoneBreakdown) return null
         val numbers = parts.subList(1, 11).map { it.toIntOrNull() ?: return null }
         val names = if (parts[11] == "-") emptyList() else parts[11].split(',')
         val unlocked = Milestone.entries.filter { it.name in names }
         if (unlocked.size != names.size) return null
-        val banked = if (modern || album || monthBoss) parts[12].toIntOrNull() ?: return null else 0
-        val balance = if (modern || album || monthBoss) parts[13].toIntOrNull() ?: return null else 0
-        val weeklyNotes = if (album || monthBoss) parts[14].toIntOrNull() ?: return null else 0
-        val unlockFlag = if (album || monthBoss) parts[15].toIntOrNull() ?: return null else 0
-        val stampFlag = if (monthBoss) parts[16].toIntOrNull() ?: return null else 0
-        val bossNotes = if (monthBoss) parts[17].toIntOrNull() ?: return null else 0
-        val stampCount = if (monthBoss) parts[18].toIntOrNull() ?: return null else 0
+        val banked = if (modern || album || monthBoss || milestoneBreakdown)
+            parts[12].toIntOrNull() ?: return null else 0
+        val balance = if (modern || album || monthBoss || milestoneBreakdown)
+            parts[13].toIntOrNull() ?: return null else 0
+        val weeklyNotes = if (album || monthBoss || milestoneBreakdown)
+            parts[14].toIntOrNull() ?: return null else 0
+        val unlockFlag = if (album || monthBoss || milestoneBreakdown)
+            parts[15].toIntOrNull() ?: return null else 0
+        val stampFlag = if (monthBoss || milestoneBreakdown)
+            parts[16].toIntOrNull() ?: return null else 0
+        val bossNotes = if (monthBoss || milestoneBreakdown)
+            parts[17].toIntOrNull() ?: return null else 0
+        val stampCount = if (monthBoss || milestoneBreakdown)
+            parts[18].toIntOrNull() ?: return null else 0
+        val creditedMilestones = if (milestoneBreakdown)
+            parts[19].toIntOrNull() ?: return null else 0
+        val paidMilestoneDebt = if (milestoneBreakdown)
+            parts[20].toIntOrNull() ?: return null else 0
         if (banked !in 0..GameRelics.MaxPerRound || balance !in 0..GameRelics.MaxWallet ||
             weeklyNotes !in 0..GameRelicAlbum.WeeklyNotesReward || unlockFlag !in 0..1 ||
             stampFlag !in 0..1 || bossNotes !in 0..GameMonthChallenge.NotesAward ||
-            stampCount !in 0..GameMonthChallenge.MaxStamps) return null
+            stampCount !in 0..GameMonthChallenge.MaxStamps ||
+            creditedMilestones !in 0..26 || paidMilestoneDebt !in 0..26 ||
+            creditedMilestones + paidMilestoneDebt > unlocked.sumOf { it.reward }
+        ) return null
         return GameReceipt(
             numbers[0], numbers[1], numbers[2], numbers[3], numbers[4],
             numbers[5], numbers[6], numbers[7], numbers[8], numbers[9],
             unlocked, banked, balance, weeklyNotes, unlockFlag == 1,
-            stampFlag == 1, bossNotes, stampCount
+            stampFlag == 1, bossNotes, stampCount,
+            creditedMilestones, paidMilestoneDebt, milestoneBreakdown
         )
     }
 
@@ -141,6 +162,12 @@ internal object GameSettlement {
         val coinsBanked = minOf(
             runCoinsAfterDebt.toLong(), nextCoins.toLong() - oldCoins.toLong()
         ).toInt()
+        // Coin achievements may repay card debt, reach the wallet, or be
+        // clipped at the wallet cap. Persist the exact breakdown in the
+        // receipt so retries and resumed result screens never guess.
+        val milestoneCoinsCredited = minOf(
+            milestoneBanked.toLong(), nextCoins.toLong() - oldCoins.toLong() - coinsBanked
+        ).toInt()
 
         val requestedNotes = notesCollected.coerceAtLeast(0)
         // Discovery progress is earned by collecting, even when the fragment
@@ -186,7 +213,8 @@ internal object GameSettlement {
             nextNotes, nextCredit, nextDebt, milestones,
             relicsBanked, nextRelicBalance,
             weeklyNotesBanked, albumUpdate.newlyCompletedCollection,
-            monthUpdate.awarded, monthNotesBanked, monthUpdate.stampCount)
+            monthUpdate.awarded, monthNotesBanked, monthUpdate.stampCount,
+            milestoneCoinsCredited, paidByMilestones, true)
 
         val editor = prefs.edit()
             .putString(LastIdKey, roundId)
